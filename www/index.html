@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Logisol</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Écran de connexion -->
+<section id="screen-login" class="screen-login">
+  <div class="login-card">
+    <h1>Logisol</h1>
+    <p class="login-sub">Gestion parcellaire</p>
+    <form id="login-form">
+      <label for="login-email">Email</label>
+      <input type="email" id="login-email" autocomplete="username" required>
+      <label for="login-password">Mot de passe</label>
+      <input type="password" id="login-password" autocomplete="current-password" required>
+      <p id="login-error" class="login-error" hidden></p>
+      <button type="submit" id="btn-login" class="btn btn-primary">Se connecter</button>
+    </form>
+  </div>
+</section>
+
+<!-- Écran principal -->
+<section id="screen-app" class="screen-app" hidden>
+  <header>
+    <h1>Logisol</h1>
+    <span id="user-email" class="user-email"></span>
+    <button id="btn-logout" type="button">Déconnexion</button>
+  </header>
+
+  <div id="map"></div>
+
+  <div class="fab-row">
+    <button id="btn-draw" type="button" class="btn btn-fab">✏️ Dessiner une parcelle</button>
+    <button id="btn-import" type="button" class="btn btn-fab btn-fab-secondary">📂 Importer un contour</button>
+  </div>
+  <input type="file" id="input-geojson" accept=".json,.geojson,application/geo+json,application/json" hidden>
+
+  <!-- Fiche parcelle (panneau) -->
+  <div id="fiche-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="fiche-title">Parcelle</h2>
+      <form id="fiche-form">
+        <label for="fiche-nom">Nom</label>
+        <input type="text" id="fiche-nom" required placeholder="ex: Prairie du bas">
+
+        <label for="fiche-typeUsage">Type d'usage</label>
+        <select id="fiche-typeUsage"></select>
+
+        <div id="fiche-newtype-wrap" class="fiche-newtype" hidden>
+          <label for="fiche-newtype-nom">Nom du nouveau type</label>
+          <input type="text" id="fiche-newtype-nom" placeholder="ex: Bois">
+          <label for="fiche-newtype-couleur">Couleur</label>
+          <input type="color" id="fiche-newtype-couleur" value="#7a7a4e">
+        </div>
+
+        <div class="row">
+          <div style="flex:1">
+            <label for="fiche-surface">Surface (ha)</label>
+            <input type="number" id="fiche-surface" step="0.01" min="0" required>
+          </div>
+          <div style="flex:1">
+            <label for="fiche-couleur">Couleur</label>
+            <input type="color" id="fiche-couleur" value="#3c7a4e">
+          </div>
+        </div>
+
+        <label for="fiche-notes">Notes</label>
+        <textarea id="fiche-notes" rows="3" placeholder="Observations, remarques..."></textarea>
+
+        <div class="fiche-actions">
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="fiche-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="fiche-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script type="module" src="js/firebase-config.js"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

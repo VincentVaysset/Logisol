@@ -1,0 +1,172 @@
+:root {
+  --primary: #3c7a4e;
+  --primary-light: #5a9968;
+  --bg: #fbf8f1;
+  --card: #ffffff;
+  --border: #e6ddc9;
+  --text: #2b2a22;
+  --text-muted: #79765f;
+  --accent: #e3812f;
+  --danger: #d1584f;
+  --success: #4f9c5f;
+  --warning: #e0a326;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: white;
+  margin-bottom: 12px;
+  font-family: inherit;
+  color: var(--text);
+}
+
+label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 6px; }
+
+.btn {
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-secondary { background: white; border: 1px solid var(--border); color: var(--text); }
+.btn-danger { background: var(--danger); color: white; }
+
+.row { display: flex; gap: 10px; }
+
+/* --- Écran de connexion --- */
+.screen-login {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 360px;
+}
+.login-card h1 { margin: 0 0 2px; color: var(--primary); font-size: 26px; }
+.login-sub { margin: 0 0 20px; color: var(--text-muted); font-size: 13px; }
+.login-card .btn { width: 100%; margin-top: 4px; }
+.login-error { color: var(--danger); font-size: 13px; margin: -4px 0 12px; }
+
+/* --- Écran principal --- */
+.screen-app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+header {
+  background: var(--primary);
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 20;
+}
+header h1 { font-size: 18px; margin: 0; font-weight: 600; flex: 1; }
+.user-email { font-size: 12px; opacity: 0.85; }
+header button {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#map {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.map-legend {
+  background: rgba(255,255,255,0.92);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  line-height: 1.7;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend-swatch {
+  width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0;
+}
+
+.fab-row {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  gap: 10px;
+  z-index: 15;
+}
+.btn-fab {
+  flex: 1;
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.btn-fab-secondary {
+  background: white;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* --- Fiche parcelle --- */
+.fiche-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: flex-end;
+  z-index: 30;
+}
+.fiche-panel {
+  background: var(--card);
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+}
+.fiche-panel h2 { margin: 0 0 16px; font-size: 18px; }
+.fiche-newtype {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.fiche-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
