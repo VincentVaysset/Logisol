@@ -39,6 +39,11 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
+        env:
+          # versionCode strictement croissant à chaque build (numéro de run
+          # GitHub Actions) — voir android/app/build.gradle.
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: "1.0.${{ github.run_number }}"
         run: ./gradlew assembleDebug
 
       - name: Upload debug APK

@@ -43,12 +43,24 @@ stable, `typeUsage`) est pensé pour ne pas bloquer cette extension.
 ## Récupérer l'APK
 
 Chaque push déclenche `.github/workflows/build-android.yml`, qui build un
-**APK debug non signé**. Pour le récupérer :
+APK debug. Pour le récupérer :
 
 1. Onglet **Actions** du dépôt GitHub → ouvrir le run correspondant
 2. Télécharger l'artefact `logisol-debug-apk`
-3. Transférer le `.apk` sur le téléphone et l'installer (autoriser
-   "sources inconnues" si demandé)
+3. Transférer le `.apk` sur le téléphone et l'installer — une réinstallation
+   par-dessus une version déjà installée fonctionne normalement, **pas
+   besoin de désinstaller d'abord** (autoriser "sources inconnues" si
+   demandé la première fois)
+
+⚠️ **`android/app/debug.keystore` est committé intentionnellement, ne pas
+le supprimer ni le régénérer.** Sans keystore de debug fixe, chaque run
+GitHub Actions (VM éphémère, sans `~/.android/debug.keystore` persistant)
+signerait l'APK avec une clé différente à chaque build — Android refuse
+alors de mettre à jour l'appli par-dessus l'ancienne (signatures
+différentes) sans désinstallation manuelle au préalable, en silence et
+sans message d'erreur explicite pour l'utilisateur. Le `versionCode` est
+aussi désormais incrémenté automatiquement à chaque build CI (numéro de
+run GitHub Actions), voir `android/app/build.gradle`.
 
 ## Mettre en place les règles Firestore (étape manuelle, à faire une fois)
 

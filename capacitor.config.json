@@ -1,5 +1,8 @@
 {
   "appId": "com.logisol.app",
   "appName": "Logisol",
-  "webDir": "www"
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
 }
