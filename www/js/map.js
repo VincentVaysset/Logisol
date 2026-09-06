@@ -30,6 +30,28 @@ export function initMap(containerId, opts = {}) {
   };
   legendControl.addTo(map);
 
+  // #screen-app vient d'être démasqué (hidden -> false) dans le MÊME appel
+  // synchrone qui mène ici (dispatch de "logisol:auth"), avant que le
+  // navigateur n'ait eu l'occasion de faire un repaint/reflow. Leaflet mesure
+  // la taille du conteneur #map à la création de L.map(...) : si ce dernier
+  // était encore display:none (ou de taille non définitive) à cet instant,
+  // Leaflet garde en cache une taille interne fausse (souvent 0x0), ce qui
+  // décale ensuite tous ses calculs de pixels — panneaux, contrôles (dont la
+  // légende) et tuiles peuvent alors sembler "disparaître" à certains niveaux
+  // de zoom/pan et ne se recaler que lorsqu'un zoom manuel force Leaflet à
+  // recalculer. invalidateSize() force ce recalcul avec la vraie taille, une
+  // fois le rendu réellement stabilisé (frame suivante), puis à chaque
+  // redimensionnement/rotation de l'écran.
+  requestAnimationFrame(() => {
+    if (map) map.invalidateSize();
+  });
+  window.addEventListener('resize', () => {
+    if (map) map.invalidateSize();
+  });
+  window.addEventListener('orientationchange', () => {
+    if (map) setTimeout(() => map.invalidateSize(), 200);
+  });
+
   return map;
 }
 
@@ -50,6 +72,15 @@ export function renderLegend(items) {
 
 export function getMap() {
   return map;
+}
+
+// À appeler chaque fois que #map redevient visible après avoir été caché
+// (bascule vue Carte/Liste) : même raison que le requestAnimationFrame de
+// initMap() ci-dessus, Leaflet ne détecte pas tout seul qu'un conteneur
+// display:none vient de réapparaître.
+export function refreshMapSize() {
+  if (!map) return;
+  requestAnimationFrame(() => map.invalidateSize());
 }
 
 // list : parcelles enrichies par main.js, chaque item porte _couleur et _label.

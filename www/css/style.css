@@ -21,6 +21,16 @@ html, body {
   font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
+  /* Empêche le WebView Android de zoomer/panner NATIVEMENT toute la page
+     (certaines versions/réglages d'accessibilité ignorent le
+     "user-scalable=no" de la balise viewport) : sans ça, un pincer-zoomer
+     sur la carte peut zoomer la page entière au lieu de la carte seule,
+     ce qui décale visuellement l'en-tête/les boutons flottants/la légende
+     hors de l'écran jusqu'à ce qu'un zoom ramène tout à l'échelle 1.
+     #map garde son propre touch-action (posé par Leaflet) pour ses
+     gestes de pincer-zoomer internes. */
+  touch-action: pan-x pan-y;
+  overscroll-behavior: none;
 }
 
 input, select, textarea {

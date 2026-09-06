@@ -1,0 +1,37 @@
+name: Deploy to Firebase Hosting (preview web)
+
+# Déploie www/ tel quel sur Firebase Hosting, indépendamment du build
+# Android (pas de npm ci/cap sync/Gradle nécessaires — juste les fichiers
+# statiques) : quelques secondes, pour tester chaque changement dans un
+# navigateur sans repasser par un APK complet à chaque fois.
+#
+# Nécessite un secret de dépôt FIREBASE_SERVICE_ACCOUNT_OVILOG_15EF6 (compte
+# de service avec le rôle "Firebase Hosting Admin" sur le projet
+# ovilog-15ef6) — voir README pour la mise en place en une fois. Tant que ce
+# secret n'est pas configuré, ce workflow échoue : c'est attendu, pas un bug
+# à corriger côté code.
+
+on:
+  push:
+    branches: [ main, "claude/**" ]
+    paths:
+      - 'www/**'
+      - 'firebase.json'
+      - '.firebaserc'
+      - '.github/workflows/deploy-hosting.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_OVILOG_15EF6 }}'
+          projectId: ovilog-15ef6
+          channelId: live

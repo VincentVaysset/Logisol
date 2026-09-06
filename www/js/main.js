@@ -7,7 +7,7 @@ import { ensureSeeded as ensureCulturesSeeded, watchCultures, onCulturesChange }
 import { getCampagneActuelle, watchAssolements } from './assolements.js';
 import { resolveCouleur, resolveLabel } from './vocation.js';
 import { watchParcelles } from './parcelles.js';
-import { initMap, renderParcelles, renderLegend } from './map.js';
+import { initMap, renderParcelles, renderLegend, refreshMapSize } from './map.js';
 import { initDraw, startDrawing } from './draw.js';
 import { initImport } from './import-geojson.js';
 import { openCreate, openEdit } from './ui.js';
@@ -96,7 +96,14 @@ function setView(view) {
   mapEl.hidden = view !== 'map';
   listViewEl.hidden = view !== 'list';
   btnToggleView.textContent = view === 'map' ? '📋 Liste' : '🗺️ Carte';
-  if (view === 'list') renderListView(Array.from(enrichedById.values()));
+  if (view === 'list') {
+    renderListView(Array.from(enrichedById.values()));
+  } else {
+    // #map vient d'être redémasqué : Leaflet ne redétecte pas tout seul
+    // qu'un conteneur display:none a repris sa taille normale, ce qui peut
+    // décaler tuiles/contrôles jusqu'à ce qu'un zoom force le recalcul.
+    refreshMapSize();
+  }
 }
 
 async function boot() {
