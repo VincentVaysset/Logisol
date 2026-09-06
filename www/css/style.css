@@ -59,6 +59,7 @@ label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom
   justify-content: center;
   padding: 20px;
 }
+.screen-login[hidden] { display: none; }
 .login-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -79,6 +80,7 @@ label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom
   flex-direction: column;
   position: relative;
 }
+.screen-app[hidden] { display: none; }
 header {
   background: var(--primary);
   color: white;
@@ -149,6 +151,7 @@ header button {
   align-items: flex-end;
   z-index: 30;
 }
+.fiche-overlay[hidden] { display: none; }
 .fiche-panel {
   background: var(--card);
   width: 100%;
