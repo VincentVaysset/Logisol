@@ -5,20 +5,16 @@ name: Deploy to Firebase Hosting (preview web)
 # statiques) : quelques secondes, pour tester chaque changement dans un
 # navigateur sans repasser par un APK complet à chaque fois.
 #
-# Nécessite un secret de dépôt FIREBASE_SERVICE_ACCOUNT_OVILOG_15EF6 (compte
-# de service avec le rôle "Firebase Hosting Admin" sur le projet
-# ovilog-15ef6) — voir README pour la mise en place en une fois. Tant que ce
-# secret n'est pas configuré, ce workflow échoue : c'est attendu, pas un bug
-# à corriger côté code.
+# ⚠️ Piste abandonnée pour l'instant (mise en place du compte de service
+# Firebase trop de friction pour le gain actuel) — déclenchement automatique
+# sur push retiré exprès pour ne plus polluer l'onglet Actions d'un échec à
+# chaque commit. Le fichier est conservé tel quel pour reprendre plus tard :
+# il suffira de rajouter le bloc "push:" ci-dessous une fois le secret
+# FIREBASE_SERVICE_ACCOUNT_OVILOG_15EF6 mis en place (voir README).
+# D'ici là, déclenchement manuel uniquement (onglet Actions -> ce workflow
+# -> "Run workflow"), pour tester la piste sans la remettre en automatique.
 
 on:
-  push:
-    branches: [ main, "claude/**" ]
-    paths:
-      - 'www/**'
-      - 'firebase.json'
-      - '.firebaserc'
-      - '.github/workflows/deploy-hosting.yml'
   workflow_dispatch:
 
 jobs:
