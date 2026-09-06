@@ -7,6 +7,9 @@ let onParcelleClick = () => {};
 let legendControl = null;
 
 export function initMap(containerId, opts = {}) {
+  if (window.__logisolDebug) {
+    window.__logisolDebug('initMap : L ' + (typeof L !== 'undefined' ? 'disponible' : 'MANQUANT — Leaflet non chargé'));
+  }
   map = L.map(containerId).setView([46.6, 2.4], 6); // vue par défaut : France
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,

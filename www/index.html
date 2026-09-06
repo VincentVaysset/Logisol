@@ -10,6 +10,36 @@
 </head>
 <body>
 
+<!-- Bandeau de diagnostic — toujours visible dès le chargement de la page,
+     indépendant de css/style.css et de tout le reste (styles en inline, pas
+     de classe, pas d'attribut "hidden") pour rester lisible même si
+     quelque chose plus bas plante. À retirer une fois le diagnostic terminé. -->
+<div id="debug-banner"
+     style="position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#c0392b;color:#ffffff;padding:10px 14px;font:600 13px/1.4 monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.4);">
+  Démarrage de Logisol...
+</div>
+<script>
+(function () {
+  var el = document.getElementById('debug-banner');
+  function stamp() { return new Date().toTimeString().split(' ')[0]; }
+  window.__logisolDebug = function (msg) {
+    var line = '[' + stamp() + '] ' + msg;
+    if (el) el.textContent = line;
+    try { console.log('[LOGISOL DEBUG]', msg); } catch (e) {}
+  };
+  window.addEventListener('error', function (e) {
+    var loc = e.filename ? (' (' + String(e.filename).split('/').pop() + ':' + e.lineno + ')') : '';
+    window.__logisolDebug('Erreur JS : ' + (e.message || e) + loc);
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var reason = e.reason;
+    var msg = (reason && reason.message) ? reason.message : String(reason);
+    window.__logisolDebug('Promesse rejetée non gérée : ' + msg);
+  });
+  window.__logisolDebug('Script chargé');
+})();
+</script>
+
 <!-- Écran de connexion -->
 <section id="screen-login" class="screen-login">
   <div class="login-card">
@@ -89,7 +119,24 @@
 </section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // Vérification explicite juste après le chargement du script Leaflet,
+  // AVANT tout appel à L.map(...) (qui n'a lieu que plus tard, dans
+  // map.js, une fois l'utilisateur authentifié).
+  window.__logisolDebug(
+    (typeof window.L !== 'undefined')
+      ? 'Leaflet chargé (v' + (window.L.version || '?') + ')'
+      : 'Leaflet INDISPONIBLE — script non chargé (réseau ? CDN bloqué ?)'
+  );
+</script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+  window.__logisolDebug(
+    (typeof window.L !== 'undefined' && window.L.Draw)
+      ? 'Leaflet.draw chargé'
+      : 'Leaflet.draw INDISPONIBLE'
+  );
+</script>
 <script type="module" src="js/firebase-config.js"></script>
 <script type="module" src="js/auth.js"></script>
 <script type="module" src="js/main.js"></script>
