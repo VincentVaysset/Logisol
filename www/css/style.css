@@ -158,6 +158,30 @@ header button {
   padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
 }
 .fiche-panel h2 { margin: 0 0 16px; font-size: 18px; }
+.fiche-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--danger);
+  color: white;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.fiche-error-banner[hidden] { display: none; }
+.fiche-error-banner span { flex: 1; word-break: break-word; white-space: pre-wrap; }
+.fiche-error-banner button {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
 .fiche-newtype {
   border: 1px dashed var(--border);
   border-radius: var(--radius);

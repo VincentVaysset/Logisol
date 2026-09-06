@@ -46,6 +46,10 @@
   <div id="fiche-panel" class="fiche-overlay" hidden>
     <div class="fiche-panel">
       <h2 id="fiche-title">Parcelle</h2>
+      <div id="fiche-error-banner" class="fiche-error-banner" hidden>
+        <span id="fiche-error-text"></span>
+        <button type="button" id="fiche-error-close" aria-label="Fermer">✕</button>
+      </div>
       <form id="fiche-form">
         <label for="fiche-nom">Nom</label>
         <input type="text" id="fiche-nom" required placeholder="ex: Prairie du bas">
@@ -75,7 +79,7 @@
         <textarea id="fiche-notes" rows="3" placeholder="Observations, remarques..."></textarea>
 
         <div class="fiche-actions">
-          <button type="submit" class="btn btn-primary">Enregistrer</button>
+          <button type="submit" id="f-save" class="btn btn-primary">Enregistrer</button>
           <button type="button" id="fiche-cancel" class="btn btn-secondary">Annuler</button>
           <button type="button" id="fiche-delete" class="btn btn-danger" hidden>Supprimer</button>
         </div>

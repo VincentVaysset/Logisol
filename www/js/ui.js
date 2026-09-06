@@ -17,10 +17,38 @@ const inputCouleur = document.getElementById('fiche-couleur');
 const inputNotes = document.getElementById('fiche-notes');
 const btnDelete = document.getElementById('fiche-delete');
 const btnCancel = document.getElementById('fiche-cancel');
+const btnSave = document.getElementById('f-save');
+const errorBanner = document.getElementById('fiche-error-banner');
+const errorBannerText = document.getElementById('fiche-error-text');
+const errorBannerClose = document.getElementById('fiche-error-close');
+
+function showFicheError(message) {
+  errorBannerText.textContent = message;
+  errorBanner.hidden = false;
+}
+function hideFicheError() {
+  errorBanner.hidden = true;
+  errorBannerText.textContent = '';
+}
+errorBannerClose.addEventListener('click', hideFicheError);
 
 let mode = null; // 'create' | 'edit'
 let editingId = null;
 let pendingGeometry = null;
+
+// Jeton de session d'enregistrement : incrémenté à chaque nouvelle ouverture
+// de fiche et à chaque nouvelle soumission. Une sauvegarde restée bloquée
+// (cf. timeout 8s) qui finit par répondre bien après coup ne doit jamais
+// agir sur une fiche différente ouverte entre-temps (fermer sa saisie en
+// cours, réafficher une erreur qui ne la concerne pas...) — chaque résultat
+// asynchrone vérifie donc qu'il correspond toujours au jeton courant avant
+// de toucher à l'UI.
+let saveToken = 0;
+
+function resetSaveButton() {
+  btnSave.disabled = false;
+  btnSave.textContent = 'Enregistrer';
+}
 
 onTypesChange(populateTypeSelect);
 
@@ -43,6 +71,9 @@ export function openCreate({ geometry, surfaceHa }) {
   mode = 'create';
   editingId = null;
   pendingGeometry = geometry;
+  saveToken++;
+  hideFicheError();
+  resetSaveButton();
   titleEl.textContent = 'Nouvelle parcelle';
   btnDelete.hidden = true;
   inputNom.value = '';
@@ -61,6 +92,9 @@ export function openEdit(parcelle) {
   mode = 'edit';
   editingId = parcelle.id;
   pendingGeometry = parcelle.coordonnees;
+  saveToken++;
+  hideFicheError();
+  resetSaveButton();
   titleEl.textContent = parcelle.nom || 'Parcelle';
   btnDelete.hidden = false;
   inputNom.value = parcelle.nom || '';
@@ -86,17 +120,34 @@ btnCancel.addEventListener('click', () => {
   closePanel();
 });
 
+const SAVE_TIMEOUT_MS = 8000;
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const submitBtn = form.querySelector('button[type="submit"]');
-  submitBtn.disabled = true;
+  const myToken = ++saveToken; // invalide toute sauvegarde précédente encore en vol
+  hideFicheError();
+  btnSave.disabled = true;
+  btnSave.textContent = 'Enregistrement...';
+
+  // Le timeout n'annule pas l'opération en cours (Firestore n'offre pas
+  // d'annulation propre côté client) : il se contente d'informer que ça
+  // traîne. Si l'opération finit par aboutir (succès ou échec) après les
+  // 8s, le bloc try/catch/finally ci-dessous reprend la main normalement
+  // (réactive le bouton, ferme la fiche ou affiche l'erreur réelle) — sauf
+  // si entre-temps une autre fiche a été ouverte (myToken périmé).
+  let settled = false;
+  const timeoutId = setTimeout(() => {
+    if (!settled && myToken === saveToken) {
+      showFicheError('Aucune réponse du serveur après 8s - vérifie ta connexion ou les règles Firestore');
+    }
+  }, SAVE_TIMEOUT_MS);
+
   try {
     let typeUsage = selectType.value;
     if (typeUsage === '__new__') {
       const nom = inputNewTypeNom.value.trim();
       if (!nom) {
-        alert('Le nom du nouveau type est requis.');
-        return;
+        throw new Error('Le nom du nouveau type est requis.');
       }
       const couleur = inputNewTypeColor.value || '#888888';
       await addOrUpdateType(nom, couleur);
@@ -117,11 +168,25 @@ form.addEventListener('submit', async (e) => {
     } else if (mode === 'edit' && editingId) {
       await updateParcelle(editingId, data);
     }
-    closePanel();
+    settled = true;
+    clearTimeout(timeoutId);
+    if (myToken === saveToken) {
+      hideFicheError();
+      closePanel();
+    }
   } catch (err) {
-    alert("Erreur d'enregistrement : " + err.message);
+    settled = true;
+    clearTimeout(timeoutId);
+    if (myToken === saveToken) {
+      const code = err && err.code ? `${err.code} — ` : '';
+      const message = (err && err.message) || String(err);
+      showFicheError(`Erreur d'enregistrement : ${code}${message}`);
+    }
   } finally {
-    submitBtn.disabled = false;
+    settled = true;
+    if (myToken === saveToken) {
+      resetSaveButton();
+    }
   }
 });
 
