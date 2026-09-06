@@ -1,16 +1,22 @@
-// Fiche parcelle (création / édition), gestion des types d'usage à la volée,
-// suppression avec confirmation obligatoire.
-import { getTypes, onTypesChange, addOrUpdateType, colorForType } from './types-usage.js';
+// Fiche parcelle (création / édition) : nom, vocation (fixe), culture de la
+// campagne en cours (si vocation culture/prairie, via assolements), surface,
+// couleur, notes. Suppression avec confirmation obligatoire.
+import { VOCATIONS, estVocationCulture } from './vocation.js';
+import { getCultures, onCulturesChange, addCulture } from './cultures-config.js';
+import { getCampagneActuelle, setAssolement, deleteAssolement } from './assolements.js';
 import { createParcelle, updateParcelle, deleteParcelle } from './parcelles.js';
 import { discardDrawnLayer, cancelDrawing } from './draw.js';
 
 const panel = document.getElementById('fiche-panel');
 const form = document.getElementById('fiche-form');
 const titleEl = document.getElementById('fiche-title');
-const selectType = document.getElementById('fiche-typeUsage');
-const newTypeWrap = document.getElementById('fiche-newtype-wrap');
-const inputNewTypeNom = document.getElementById('fiche-newtype-nom');
-const inputNewTypeColor = document.getElementById('fiche-newtype-couleur');
+const selectVocation = document.getElementById('fiche-vocation');
+const cultureWrap = document.getElementById('fiche-culture-wrap');
+const selectCulture = document.getElementById('fiche-culture');
+const newCultureWrap = document.getElementById('fiche-newculture-wrap');
+const inputNewCultureNom = document.getElementById('fiche-newculture-nom');
+const inputNewCultureCouleur = document.getElementById('fiche-newculture-couleur');
+const inputNewCultureFamille = document.getElementById('fiche-newculture-famille');
 const inputNom = document.getElementById('fiche-nom');
 const inputSurface = document.getElementById('fiche-surface');
 const inputCouleur = document.getElementById('fiche-couleur');
@@ -50,21 +56,29 @@ function resetSaveButton() {
   btnSave.textContent = 'Enregistrer';
 }
 
-onTypesChange(populateTypeSelect);
+// --- Vocation (liste fixe, jamais configurable) ---
+selectVocation.innerHTML = VOCATIONS
+  .map((v) => `<option value="${v.value}">${escapeHtml(v.label)}</option>`)
+  .join('');
 
-function populateTypeSelect(types) {
-  const current = selectType.value;
-  selectType.innerHTML = types
-    .map((t) => `<option value="${escapeAttr(t.nom)}">${escapeHtml(t.nom)}</option>`)
-    .join('') + '<option value="__new__">+ Ajouter un type…</option>';
-  if (types.some((t) => t.nom === current)) selectType.value = current;
+selectVocation.addEventListener('change', () => {
+  cultureWrap.hidden = !estVocationCulture(selectVocation.value);
+});
+
+// --- Culture (liste modulable, via cultures_config) ---
+onCulturesChange(populateCultureSelect);
+
+function populateCultureSelect(cultures, keepValue) {
+  const current = keepValue !== undefined ? keepValue : selectCulture.value;
+  selectCulture.innerHTML =
+    '<option value="">— Choisir une culture —</option>' +
+    cultures.map((c) => `<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('') +
+    '<option value="__new__">+ Culture</option>';
+  if (current && cultures.some((c) => c.id === current)) selectCulture.value = current;
 }
 
-selectType.addEventListener('change', () => {
-  newTypeWrap.hidden = selectType.value !== '__new__';
-  if (selectType.value !== '__new__') {
-    inputCouleur.value = colorForType(selectType.value) || inputCouleur.value;
-  }
+selectCulture.addEventListener('change', () => {
+  newCultureWrap.hidden = selectCulture.value !== '__new__';
 });
 
 export function openCreate({ geometry, surfaceHa }) {
@@ -78,17 +92,19 @@ export function openCreate({ geometry, surfaceHa }) {
   btnDelete.hidden = true;
   inputNom.value = '';
   inputSurface.value = surfaceHa;
+  inputCouleur.value = '#3c7a4e';
   inputNotes.value = '';
-  newTypeWrap.hidden = true;
-  populateTypeSelect(getTypes());
-  const firstType = getTypes()[0];
-  selectType.value = firstType ? firstType.nom : '__new__';
-  inputCouleur.value = firstType ? firstType.couleur : '#3c7a4e';
+  selectVocation.value = 'culture';
+  cultureWrap.hidden = false;
+  newCultureWrap.hidden = true;
+  populateCultureSelect(getCultures(), ''); // pas de culture présélectionnée -> "à renseigner"
   panel.hidden = false;
   inputNom.focus();
 }
 
-export function openEdit(parcelle) {
+// currentCultureId : id de la culture assolée cette campagne pour cette
+// parcelle, ou null si aucune (calculé par main.js depuis assolements.js).
+export function openEdit(parcelle, currentCultureId) {
   mode = 'edit';
   editingId = parcelle.id;
   pendingGeometry = parcelle.coordonnees;
@@ -99,11 +115,13 @@ export function openEdit(parcelle) {
   btnDelete.hidden = false;
   inputNom.value = parcelle.nom || '';
   inputSurface.value = parcelle.surfaceHa != null ? parcelle.surfaceHa : '';
+  inputCouleur.value = parcelle.couleur || '#3c7a4e';
   inputNotes.value = parcelle.notes || '';
-  newTypeWrap.hidden = true;
-  populateTypeSelect(getTypes());
-  selectType.value = parcelle.typeUsage || '';
-  inputCouleur.value = parcelle.couleur || colorForType(parcelle.typeUsage) || '#3c7a4e';
+  const vocation = parcelle.vocation || 'autre'; // vieux docs de test non migrés
+  selectVocation.value = vocation;
+  cultureWrap.hidden = !estVocationCulture(vocation);
+  newCultureWrap.hidden = true;
+  populateCultureSelect(getCultures(), currentCultureId || '');
   panel.hidden = false;
 }
 
@@ -143,31 +161,51 @@ form.addEventListener('submit', async (e) => {
   }, SAVE_TIMEOUT_MS);
 
   try {
-    let typeUsage = selectType.value;
-    if (typeUsage === '__new__') {
-      const nom = inputNewTypeNom.value.trim();
-      if (!nom) {
-        throw new Error('Le nom du nouveau type est requis.');
+    const vocation = selectVocation.value;
+    let cultureId = null;
+
+    if (estVocationCulture(vocation)) {
+      if (selectCulture.value === '__new__') {
+        const nom = inputNewCultureNom.value.trim();
+        if (!nom) {
+          throw new Error('Le nom de la nouvelle culture est requis.');
+        }
+        const couleur = inputNewCultureCouleur.value || '#9a988f';
+        const famille = inputNewCultureFamille.value || 'autre';
+        cultureId = await addCulture(nom, couleur, famille);
+      } else if (selectCulture.value) {
+        cultureId = selectCulture.value;
       }
-      const couleur = inputNewTypeColor.value || '#888888';
-      await addOrUpdateType(nom, couleur);
-      typeUsage = nom;
+      // sinon : placeholder "— Choisir une culture —" -> cultureId reste null
+      // (la parcelle apparaîtra en gris "à renseigner" sur la carte).
     }
 
     const data = {
       nom: inputNom.value.trim() || 'Parcelle sans nom',
-      typeUsage,
+      vocation,
       surfaceHa: parseFloat(inputSurface.value) || 0,
       couleur: inputCouleur.value,
       notes: inputNotes.value,
       coordonnees: pendingGeometry
     };
 
+    let parcelleId = editingId;
     if (mode === 'create') {
-      await createParcelle(data);
+      const ref = await createParcelle(data);
+      parcelleId = ref.id;
     } else if (mode === 'edit' && editingId) {
       await updateParcelle(editingId, data);
     }
+
+    const campagneId = getCampagneActuelle();
+    if (estVocationCulture(vocation) && cultureId) {
+      await setAssolement(parcelleId, campagneId, cultureId);
+    } else {
+      // vocation non-culture, ou culture non renseignée -> pas d'assolement
+      // cette campagne (et on retire celui qui existait déjà, le cas échéant).
+      await deleteAssolement(parcelleId, campagneId);
+    }
+
     settled = true;
     clearTimeout(timeoutId);
     if (myToken === saveToken) {
@@ -199,6 +237,7 @@ btnDelete.addEventListener('click', async () => {
   btnDelete.disabled = true;
   try {
     await deleteParcelle(editingId);
+    await deleteAssolement(editingId, getCampagneActuelle());
     closePanel();
   } catch (err) {
     alert('Erreur de suppression : ' + err.message);
@@ -209,7 +248,4 @@ btnDelete.addEventListener('click', async () => {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-function escapeAttr(s) {
-  return escapeHtml(s);
 }

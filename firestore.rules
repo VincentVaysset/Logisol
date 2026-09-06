@@ -23,6 +23,12 @@
 //     match /parcelles_config/{docId} {
 //       allow read, write: if request.auth != null;
 //     }
+//     match /cultures_config/{docId} {
+//       allow read, write: if request.auth != null;
+//     }
+//     match /assolements/{docId} {
+//       allow read, write: if request.auth != null;
+//     }
 //   }
 // }
 
@@ -32,7 +38,16 @@ service cloud.firestore {
     match /parcelles/{parcelleId} {
       allow read, write: if request.auth != null;
     }
+    // parcelles_config (ancien typeUsage) : obsolète depuis le passage aux
+    // assolements/cultures ci-dessous, mais laissé en place — inoffensif si
+    // déjà collé, et évite d'imposer une manipulation supplémentaire.
     match /parcelles_config/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /cultures_config/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    match /assolements/{docId} {
       allow read, write: if request.auth != null;
     }
   }

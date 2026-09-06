@@ -13,13 +13,23 @@ const btnLogin = document.getElementById('btn-login');
 const btnLogout = document.getElementById('btn-logout');
 const userEmailLabel = document.getElementById('user-email');
 
+// window.__logisolAuthUser sert de "rattrapage" pour main.js : ce module
+// importe beaucoup de fichiers (carte, cultures, assolements...) et peut
+// mettre plus de temps à s'enregistrer sur l'événement "logisol:auth" que
+// Firebase Auth à répondre. Un événement dispatché avant qu'un écouteur ne
+// soit posé est perdu silencieusement (aucune erreur) — main.js vérifie donc
+// aussi ce drapeau au chargement, en plus d'écouter l'événement.
+window.__logisolAuthUser = null;
+
 onAuthStateChanged(auth, (user) => {
   if (user) {
     screenLogin.hidden = true;
     screenApp.hidden = false;
     userEmailLabel.textContent = user.email || '';
+    window.__logisolAuthUser = user;
     document.dispatchEvent(new CustomEvent('logisol:auth', { detail: { user } }));
   } else {
+    window.__logisolAuthUser = null;
     screenLogin.hidden = false;
     screenApp.hidden = true;
   }

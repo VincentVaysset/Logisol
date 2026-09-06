@@ -1,19 +1,23 @@
-// Initialisation Leaflet, rendu des parcelles (polygones colorés) et légende.
-import { getTypes, onTypesChange, colorForType } from './types-usage.js';
-
+// Initialisation Leaflet, rendu des parcelles (polygones colorés par
+// vocation/culture) et légende. Ne connaît rien de Firestore/cultures : reçoit
+// des parcelles déjà enrichies (_couleur, _label) calculées par main.js.
 let map = null;
 const layers = new Map(); // id parcelle -> L.Polygon
 let onParcelleClick = () => {};
 let legendControl = null;
+let lastLegendItems = [];
 
 export function initMap(containerId, opts = {}) {
   if (window.__logisolDebug) {
     window.__logisolDebug('initMap : L ' + (typeof L !== 'undefined' ? 'disponible' : 'MANQUANT — Leaflet non chargé'));
   }
   map = L.map(containerId).setView([46.6, 2.4], 6); // vue par défaut : France
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  // Fond de carte satellite IGN Ortho (Géoplateforme, gratuit, sans clé API).
+  // TILEMATRIXSET=PM (Pseudo-Mercator / EPSG:3857) correspond exactement au
+  // découpage XYZ standard de Leaflet {z}/{x}/{y}, aucune conversion requise.
+  L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg', {
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    attribution: 'IGN-F/Géoportail'
   }).addTo(map);
 
   onParcelleClick = opts.onParcelleClick || (() => {});
@@ -21,39 +25,41 @@ export function initMap(containerId, opts = {}) {
   legendControl = L.control({ position: 'bottomleft' });
   legendControl.onAdd = () => {
     const div = L.DomUtil.create('div', 'map-legend');
-    renderLegend(div);
+    renderLegendInto(div, lastLegendItems);
     return div;
   };
   legendControl.addTo(map);
 
-  onTypesChange(() => {
-    const container = legendControl.getContainer();
-    if (container) renderLegend(container);
-  });
-
   return map;
 }
 
-function renderLegend(container) {
-  const types = getTypes();
-  container.innerHTML = types.length
-    ? types.map((t) =>
-        `<div class="legend-item"><span class="legend-swatch" style="background:${escapeAttr(t.couleur)}"></span>${escapeHtml(t.nom)}</div>`
+function renderLegendInto(container, items) {
+  container.innerHTML = items.length
+    ? items.map((it) =>
+        `<div class="legend-item"><span class="legend-swatch" style="background:${escapeAttr(it.couleur)}"></span>${escapeHtml(it.label)}</div>`
       ).join('')
-    : '<div class="legend-item">Aucun type défini</div>';
+    : '<div class="legend-item">Aucune parcelle</div>';
+}
+
+// items : [{label, couleur}] déjà dédupliqués — voir vocation.js pour le calcul.
+export function renderLegend(items) {
+  lastLegendItems = items;
+  const container = legendControl && legendControl.getContainer();
+  if (container) renderLegendInto(container, items);
 }
 
 export function getMap() {
   return map;
 }
 
+// list : parcelles enrichies par main.js, chaque item porte _couleur et _label.
 export function renderParcelles(list) {
   const seen = new Set();
   list.forEach((p) => {
     const latlngs = geoJsonPolygonToLatLngs(p.coordonnees);
     if (!latlngs) return;
     seen.add(p.id);
-    const color = p.couleur || colorForType(p.typeUsage);
+    const color = p._couleur || '#888888';
 
     let layer = layers.get(p.id);
     if (layer) {
@@ -65,7 +71,8 @@ export function renderParcelles(list) {
       layer.addTo(map);
       layers.set(p.id, layer);
     }
-    layer.bindTooltip(p.nom || 'Sans nom', { sticky: true });
+    const label = p._label ? ` — ${p._label}` : '';
+    layer.bindTooltip((p.nom || 'Sans nom') + label, { sticky: true });
   });
 
   // Retirer de la carte les parcelles qui ont disparu (supprimées ailleurs)

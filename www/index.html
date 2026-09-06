@@ -15,7 +15,7 @@
      de classe, pas d'attribut "hidden") pour rester lisible même si
      quelque chose plus bas plante. À retirer une fois le diagnostic terminé. -->
 <div id="debug-banner"
-     style="position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#c0392b;color:#ffffff;padding:10px 14px;font:600 13px/1.4 monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.4);">
+     style="position:fixed;top:0;left:0;right:0;bottom:auto;max-height:28vh;overflow-y:auto;pointer-events:none;z-index:2147483647;background:#c0392b;color:#ffffff;padding:10px 14px;font:600 13px/1.4 monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.4);">
   Démarrage de Logisol...
 </div>
 <script>
@@ -61,10 +61,12 @@
   <header>
     <h1>Logisol</h1>
     <span id="user-email" class="user-email"></span>
+    <button id="btn-toggle-view" type="button">📋 Liste</button>
     <button id="btn-logout" type="button">Déconnexion</button>
   </header>
 
   <div id="map"></div>
+  <div id="list-view" class="list-view" hidden></div>
 
   <div class="fab-row">
     <button id="btn-draw" type="button" class="btn btn-fab">✏️ Dessiner une parcelle</button>
@@ -84,14 +86,27 @@
         <label for="fiche-nom">Nom</label>
         <input type="text" id="fiche-nom" required placeholder="ex: Prairie du bas">
 
-        <label for="fiche-typeUsage">Type d'usage</label>
-        <select id="fiche-typeUsage"></select>
+        <label for="fiche-vocation">Vocation</label>
+        <select id="fiche-vocation"></select>
 
-        <div id="fiche-newtype-wrap" class="fiche-newtype" hidden>
-          <label for="fiche-newtype-nom">Nom du nouveau type</label>
-          <input type="text" id="fiche-newtype-nom" placeholder="ex: Bois">
-          <label for="fiche-newtype-couleur">Couleur</label>
-          <input type="color" id="fiche-newtype-couleur" value="#7a7a4e">
+        <div id="fiche-culture-wrap" hidden>
+          <label for="fiche-culture">Culture (campagne en cours)</label>
+          <select id="fiche-culture"></select>
+
+          <div id="fiche-newculture-wrap" class="fiche-newtype" hidden>
+            <label for="fiche-newculture-nom">Nom de la nouvelle culture</label>
+            <input type="text" id="fiche-newculture-nom" placeholder="ex: Tournesol">
+            <label for="fiche-newculture-couleur">Couleur</label>
+            <input type="color" id="fiche-newculture-couleur" value="#9a988f">
+            <label for="fiche-newculture-famille">Famille</label>
+            <select id="fiche-newculture-famille">
+              <option value="cereale">Céréale</option>
+              <option value="oleagineux">Oléagineux</option>
+              <option value="legumineuse">Légumineuse</option>
+              <option value="prairie">Prairie</option>
+              <option value="autre" selected>Autre</option>
+            </select>
+          </div>
         </div>
 
         <div class="row">

@@ -38,7 +38,10 @@ export function initImport(opts = {}) {
         const surfaceHa = computeAreaHa(geometry);
         await createParcelle({
           nom: (props && (props.nom || props.NOM || props.name)) || `Parcelle importée ${count}`,
-          typeUsage: '',
+          // vocation par défaut "culture" (cas le plus courant à l'import) ;
+          // aucun assolement créé, la parcelle apparaît en gris "à renseigner"
+          // jusqu'à ce que l'éleveur choisisse la culture depuis sa fiche.
+          vocation: 'culture',
           surfaceHa,
           couleur: '',
           coordonnees: geometry,
