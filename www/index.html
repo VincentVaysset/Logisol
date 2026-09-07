@@ -133,7 +133,7 @@
   </div>
 </section>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
 <script>
   // Vérification explicite juste après le chargement du script Leaflet,
   // AVANT tout appel à L.map(...) (qui n'a lieu que plus tard, dans
@@ -144,7 +144,7 @@
       : 'Leaflet INDISPONIBLE — script non chargé (réseau ? CDN bloqué ?)'
   );
 </script>
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin="anonymous"></script>
 <script>
   window.__logisolDebug(
     (typeof window.L !== 'undefined' && window.L.Draw)
