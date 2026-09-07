@@ -33,6 +33,16 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* body en colonne flex : le bandeau de diagnostic (premier enfant, en flux
+   normal) prend sa hauteur en haut, l'écran actif occupe tout le reste. Le
+   bandeau POUSSE donc le contenu vers le bas au lieu de flotter par-dessus —
+   il ne peut structurellement plus intercepter le clic d'un bouton. */
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 input, select, textarea {
   width: 100%;
   padding: 12px;
@@ -63,7 +73,10 @@ label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom
 
 /* --- Écran de connexion --- */
 .screen-login {
-  height: 100%;
+  /* flex:1 (et non height:100%) pour occuper l'espace RESTANT sous le
+     bandeau de diagnostic, sans déborder du viewport. */
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -85,7 +98,9 @@ label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom
 
 /* --- Écran principal --- */
 .screen-app {
-  height: 100%;
+  /* idem : occupe l'espace restant sous le bandeau de diagnostic. */
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;

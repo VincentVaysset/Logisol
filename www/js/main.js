@@ -113,20 +113,17 @@ async function boot() {
   try {
     log('Auth OK — démarrage du bootstrap');
 
-    await ensureCulturesSeeded();
-    log('Cultures initialisées');
-    onCulturesChange((cultures) => {
-      latestCultures = cultures;
-      recomputeAndRender();
-    });
-    watchCultures(); // démarre l'écoute Firestore réelle (onCulturesChange reçoit aussi le snapshot initial)
-
-    watchAssolements(campagneId, (assolements) => {
-      latestAssolements = assolements;
-      recomputeAndRender();
-    });
-    log('Assolements (campagne ' + campagneId + ') initialisés');
-
+    // --- 1) Interface d'abord, SANS aucune dépendance réseau ---
+    // Auparavant, "await ensureCulturesSeeded()" (un aller-retour Firestore,
+    // plus jusqu'à 6 écritures au tout premier lancement) était exécuté AVANT
+    // initMap/initDraw/initImport et avant l'attachement des écouteurs de
+    // clic. Résultat : pendant plusieurs secondes sur un réseau mobile lent,
+    // les boutons "Dessiner"/"Importer"/bascule étaient affichés mais
+    // totalement morts, sans le moindre retour visuel. Comme l'écouteur de la
+    // bascule était attaché en dernier, "ça ne marche qu'après avoir cliqué
+    // sur Carte/Liste" signifiait en réalité "ça ne marche qu'une fois le
+    // bootstrap réseau terminé" — la bascule n'y était pour rien.
+    // Rien ici ne dépend de Firestore : tout est câblé immédiatement.
     initMap('map', {
       onParcelleClick: (id) => {
         const p = enrichedById.get(id);
@@ -138,7 +135,6 @@ async function boot() {
     initDraw({
       onPolygonReady: ({ geometry, surfaceHa }) => openCreate({ geometry, surfaceHa })
     });
-    log('Dessin initialisé');
 
     initImport({
       onImported: (count) => {
@@ -146,13 +142,6 @@ async function boot() {
       },
       onError: (err) => alert('Import impossible : ' + err.message)
     });
-    log('Import initialisé');
-
-    watchParcelles((list) => {
-      latestParcelles = list;
-      recomputeAndRender();
-    });
-    log('Écoute Firestore active');
 
     document.getElementById('btn-draw').addEventListener('click', () => {
       setView('map'); // dessiner nécessite la carte, même si on était en vue liste
@@ -160,8 +149,27 @@ async function boot() {
     });
 
     btnToggleView.addEventListener('click', () => setView(currentView === 'map' ? 'list' : 'map'));
+    log('Interface prête (boutons actifs)');
 
-    log('Prêt.');
+    // --- 2) Puis les données (réseau) : plus rien d'interactif n'attend ---
+    await ensureCulturesSeeded();
+    onCulturesChange((cultures) => {
+      latestCultures = cultures;
+      recomputeAndRender();
+    });
+    watchCultures(); // démarre l'écoute Firestore réelle (onCulturesChange reçoit aussi le snapshot initial)
+
+    watchAssolements(campagneId, (assolements) => {
+      latestAssolements = assolements;
+      recomputeAndRender();
+    });
+
+    watchParcelles((list) => {
+      latestParcelles = list;
+      recomputeAndRender();
+    });
+
+    log('Prêt (campagne ' + campagneId + ').');
   } catch (err) {
     booted = false; // permet une nouvelle tentative si l'auth se redéclenche
     log('ERREUR bootstrap : ' + (err && err.message ? err.message : String(err)));

@@ -45,6 +45,12 @@ export function initMap(containerId, opts = {}) {
   requestAnimationFrame(() => {
     if (map) map.invalidateSize();
   });
+  // Second passage différé : sur WebView Android, la hauteur définitive du
+  // conteneur peut n'être stabilisée qu'après quelques frames (barre d'état,
+  // clavier, bandeau de diagnostic qui vient d'être inséré au-dessus...).
+  setTimeout(() => {
+    if (map) map.invalidateSize();
+  }, 400);
   window.addEventListener('resize', () => {
     if (map) map.invalidateSize();
   });

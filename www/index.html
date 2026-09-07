@@ -13,9 +13,17 @@
 <!-- Bandeau de diagnostic — toujours visible dès le chargement de la page,
      indépendant de css/style.css et de tout le reste (styles en inline, pas
      de classe, pas d'attribut "hidden") pour rester lisible même si
-     quelque chose plus bas plante. À retirer une fois le diagnostic terminé. -->
+     quelque chose plus bas plante. À retirer une fois le diagnostic terminé.
+
+     ARCHITECTURE : élément de FLUX NORMAL, premier enfant de <body> (qui est
+     un conteneur flex vertical, cf. css/style.css). Il n'est donc NI fixed NI
+     absolute : il POUSSE l'en-tête et la carte vers le bas au lieu de les
+     recouvrir, et réduit d'autant la hauteur disponible pour le reste.
+     Conséquence : quelle que soit la longueur du message, il lui est
+     structurellement impossible d'intercepter le clic d'un bouton — ce que
+     ni max-height ni pointer-events:none ne garantissaient de façon fiable. -->
 <div id="debug-banner"
-     style="position:fixed;top:0;left:0;right:0;bottom:auto;max-height:28vh;overflow-y:auto;pointer-events:none;z-index:2147483647;background:#c0392b;color:#ffffff;padding:10px 14px;font:600 13px/1.4 monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.4);">
+     style="flex:0 0 auto;max-height:20vh;overflow-y:auto;background:#c0392b;color:#ffffff;padding:10px 14px;font:600 13px/1.4 monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.4);">
   Démarrage de Logisol...
 </div>
 <script>
