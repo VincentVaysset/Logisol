@@ -45,12 +45,36 @@ export function initMap(containerId, opts = {}) {
   requestAnimationFrame(() => {
     if (map) map.invalidateSize();
   });
-  // Second passage différé : sur WebView Android, la hauteur définitive du
-  // conteneur peut n'être stabilisée qu'après quelques frames (barre d'état,
-  // clavier, bandeau de diagnostic qui vient d'être inséré au-dessus...).
-  setTimeout(() => {
-    if (map) map.invalidateSize();
-  }, 400);
+
+  // ResizeObserver : correctif STRUCTUREL, à la place des rAF/timeout devinés.
+  // Quelle que soit la raison pour laquelle #map prend sa taille définitive
+  // tardivement (WebView Android, barre d'état, bandeau de diagnostic inséré
+  // au-dessus, retour de la vue Liste, rotation...), on rappelle
+  // invalidateSize() dès que la taille CHANGE réellement. La taille observée
+  // est journalisée : sur l'appareil, cela dit noir sur blanc si la carte a
+  // démarré en 0x0 (théorie à confirmer) et à quel moment elle a été corrigée.
+  const container = document.getElementById(containerId);
+  if (container && typeof ResizeObserver !== 'undefined') {
+    let lastW = -1;
+    let lastH = -1;
+    const ro = new ResizeObserver(() => {
+      const r = container.getBoundingClientRect();
+      const w = Math.round(r.width);
+      const h = Math.round(r.height);
+      if (w === lastW && h === lastH) return;
+      lastW = w;
+      lastH = h;
+      if (window.__logisolDebug) window.__logisolDebug('taille carte ' + w + 'x' + h + ' -> invalidateSize');
+      // invalidateSize() modifie la mise en page : l'appeler DANS le callback
+      // relance l'observateur dans la même boucle et le navigateur émet
+      // "ResizeObserver loop completed with undelivered notifications", qui
+      // polluerait le bandeau de diagnostic. On le reporte à la frame suivante.
+      requestAnimationFrame(() => {
+        if (map) map.invalidateSize();
+      });
+    });
+    ro.observe(container);
+  }
   window.addEventListener('resize', () => {
     if (map) map.invalidateSize();
   });

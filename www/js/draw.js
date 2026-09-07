@@ -5,6 +5,8 @@ import { getMap, latLngsToGeoJsonPolygon } from './map.js';
 let drawnLayer = null;
 let polygonDrawer = null;
 let onPolygonReady = () => {};
+let dernierSommetAjouteA = 0;
+const DELAI_ANNULATION_SOMMET_MS = 400;
 
 function logDebug(msg) {
   if (window.__logisolDebug) window.__logisolDebug(msg);
@@ -67,16 +69,82 @@ function patchLeafletDrawGuide() {
   logDebug('Patch Leaflet.draw _updateGuide appliqué');
 }
 
+// Patch du bug "un pincement à deux doigts ajoute des sommets au polygone".
+//
+// Source réelle (leaflet.draw-src.js 1.0.4, ligne 802) :
+//   _onTouch: function (e) {
+//     var originalEvent = e.originalEvent;
+//     if (originalEvent.touches && originalEvent.touches[0] && ...) {
+//       clientX = originalEvent.touches[0].clientX;   <-- prend le 1er doigt
+//       ...  this._startPoint(...); this._endPoint(...);   <-- pose un sommet
+//
+// _onTouch est branché sur les événements 'touchstart' ET 'click' de la carte
+// (lignes 595-596). Il ne teste QUE l'existence de touches[0], JAMAIS
+// touches.length : le second doigt d'un pincement déclenche donc un nouveau
+// _onTouch et pose un sommet parasite. Le garde ci-dessous ignore tout
+// événement multi-touch, qui ne peut être qu'un geste de zoom, jamais une
+// intention de poser un point.
+function patchLeafletDrawTouch() {
+  if (!window.L || !L.Draw || !L.Draw.Polyline || !L.Draw.Polyline.prototype._onTouch) {
+    logDebug('Patch Leaflet.draw non appliqué (_onTouch introuvable)');
+    return;
+  }
+  if (L.Draw.Polyline.prototype.__logisolTouchPatched) return;
+
+  const original = L.Draw.Polyline.prototype._onTouch;
+  L.Draw.Polyline.prototype._onTouch = function (e) {
+    const oe = e && e.originalEvent;
+    if (oe && oe.touches && oe.touches.length > 1) {
+      logDebug('pincement détecté (' + oe.touches.length + ' doigts) : sommet ignoré');
+      return;
+    }
+    return original.call(this, e);
+  };
+  L.Draw.Polyline.prototype.__logisolTouchPatched = true;
+  logDebug('Patch Leaflet.draw _onTouch appliqué');
+}
+
 export function initDraw(opts = {}) {
   const map = getMap();
   onPolygonReady = opts.onPolygonReady || (() => {});
 
   patchLeafletDrawGuide();
+  patchLeafletDrawTouch();
 
   polygonDrawer = new L.Draw.Polygon(map, {
     shapeOptions: { color: '#3c7a4e', weight: 3 },
     showArea: false,
     allowIntersection: false
+  });
+
+  // Le garde multi-touch ci-dessus n'attrape que le SECOND doigt : le premier
+  // doigt d'un pincement arrive seul (touches.length === 1) et a donc déjà
+  // posé un sommet avant que le geste ne soit reconnaissable comme un zoom.
+  // On retire donc ce sommet a posteriori si un zoom démarre juste après
+  // (fenêtre de 400 ms), en utilisant l'API deleteLastVertex() de la
+  // librairie (ligne 637 de la source).
+  map.on('zoomstart', () => {
+    // enabled() : accesseur public de L.Handler (leaflet-src.js l.5931).
+    if (!polygonDrawer || typeof polygonDrawer.enabled !== 'function' || !polygonDrawer.enabled()) return;
+    const depuisDernierSommet = Date.now() - dernierSommetAjouteA;
+    if (!dernierSommetAjouteA || depuisDernierSommet > DELAI_ANNULATION_SOMMET_MS) return;
+    try {
+      if (polygonDrawer._markers && polygonDrawer._markers.length > 0) {
+        polygonDrawer.deleteLastVertex();
+        // deleteLastVertex() repasse par _vertexChanged, qui refire DRAWVERTEX
+        // (source l.748) : sans cette remise à zéro, un second zoomstart dans
+        // la foulée supprimerait un sommet légitime.
+        dernierSommetAjouteA = 0;
+        logDebug('zoom démarré ' + depuisDernierSommet + 'ms après un sommet : sommet annulé');
+      }
+    } catch (err) {
+      logError('annulation sommet au zoom', err);
+    }
+  });
+
+  // Suit la pose de chaque sommet (événement officiel de la librairie).
+  map.on(L.Draw.Event.DRAWVERTEX, () => {
+    dernierSommetAjouteA = Date.now();
   });
 
   map.on(L.Draw.Event.CREATED, (e) => {
@@ -87,6 +155,7 @@ export function initDraw(opts = {}) {
       const rings = drawnLayer.getLatLngs();
       const geometry = latLngsToGeoJsonPolygon(rings);
       const surfaceHa = computeAreaHa(rings[0]);
+      reactiverDoubleClickZoom(); // le dessin est terminé
       onPolygonReady({ geometry, surfaceHa });
     } catch (err) {
       logError('draw:created', err);
@@ -97,15 +166,32 @@ export function initDraw(opts = {}) {
 export function startDrawing() {
   try {
     discardDrawnLayer();
+    dernierSommetAjouteA = 0;
+    // Leaflet.draw ne désactive JAMAIS doubleClickZoom (vérifié : 0 occurrence
+    // dans toute sa source). Pendant le tracé, un double-tap zoomerait donc la
+    // carte en plus de poser des sommets. On le coupe le temps du dessin ; le
+    // pincement à deux doigts reste, lui, pleinement fonctionnel pour zoomer.
+    const map = getMap();
+    if (map && map.doubleClickZoom) map.doubleClickZoom.disable();
     polygonDrawer.enable();
   } catch (err) {
     logError('startDrawing', err);
   }
 }
 
+function reactiverDoubleClickZoom() {
+  try {
+    const map = getMap();
+    if (map && map.doubleClickZoom) map.doubleClickZoom.enable();
+  } catch (err) {
+    logError('reactiverDoubleClickZoom', err);
+  }
+}
+
 export function cancelDrawing() {
   try {
     polygonDrawer.disable();
+    reactiverDoubleClickZoom();
   } catch (err) {
     logError('cancelDrawing', err);
   }
