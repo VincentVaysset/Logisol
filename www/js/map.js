@@ -87,11 +87,24 @@ export function initMap(containerId, opts = {}) {
   // image PNG TRANSPARENTE ne contenant QUE les étiquettes (noms de communes,
   // lieux-dits, numéros de routes) : posée par-dessus le satellite, elle rend
   // la photo lisible sans la masquer. Activée par défaut.
-  const reperes = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+  // Variante "dark_only_labels" : texte CLAIR à halo sombre, conçu pour être
+  // posé sur un fond foncé — donc lisible sur une photo aérienne de champs
+  // (vert/brun), là où la variante à texte noir se confondrait avec le sol.
+  const reperes = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_only_labels/{z}/{x}/{y}{r}.png', {
     subdomains: 'abcd',
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap, &copy; CARTO'
   }).addTo(map);
+
+  // Parcellaire cadastral IGN : limites officielles des parcelles, en
+  // surcouche transparente. Sert de calque de référence pour caler un tracé
+  // sur le vrai bord de champ. Désactivé par défaut (il charge des tuiles en
+  // plus), activable depuis le bouton calques. Même serveur que l'ortho, déjà
+  // joignable depuis la tablette.
+  const cadastre = coucheIgn('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'image/png', {
+    opacity: 0.8,
+    attribution: 'IGN-F/Géoportail — Parcellaire Express'
+  });
 
   // Si le CDN des repères est injoignable depuis la tablette, on le dit dans
   // le bandeau au lieu de laisser un satellite muet sans explication.
@@ -104,7 +117,7 @@ export function initMap(containerId, opts = {}) {
 
   L.control.layers(
     { 'Satellite IGN': ortho, 'Plan IGN': planIgn, 'OpenStreetMap': osm },
-    { 'Noms de lieux et routes': reperes },
+    { 'Noms de lieux et routes': reperes, 'Limites cadastrales': cadastre },
     { position: 'topright', collapsed: true }
   ).addTo(map);
 
