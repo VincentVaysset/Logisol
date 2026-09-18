@@ -7,8 +7,14 @@ import { ensureSeeded as ensureCulturesSeeded, watchCultures, onCulturesChange }
 import { getCampagneActuelle, watchAssolements } from './assolements.js';
 import { resolveCouleur, resolveLabel } from './vocation.js';
 import { watchParcelles } from './parcelles.js';
-import { initMap, renderParcelles, renderLegend, refreshMapSize } from './map.js';
-import { initDraw, startDrawing } from './draw.js';
+import {
+  initMap, renderParcelles, renderLegend, refreshMapSize,
+  fitToParcelles, centrerSurMaPosition, vueARestaurer
+} from './map.js';
+import {
+  initDraw, startDrawing, cancelDrawing, undoLastPoint, finishDrawing,
+  raisonDeRefus, isDrawing
+} from './draw.js';
 import { initImport } from './import-geojson.js';
 import { openCreate, openEdit } from './ui.js';
 
@@ -25,9 +31,17 @@ let enrichedById = new Map();
 let assolementsByParcelle = new Map();
 
 let currentView = 'map'; // 'map' | 'list'
+let centrageInitialFait = false;
 const mapEl = document.getElementById('map');
 const listViewEl = document.getElementById('list-view');
 const btnToggleView = document.getElementById('btn-toggle-view');
+const fabRow = document.querySelector('.fab-row');
+const drawToolbar = document.getElementById('draw-toolbar');
+const drawCount = document.getElementById('draw-count');
+const drawHint = document.getElementById('draw-hint');
+const btnDrawUndo = document.getElementById('btn-draw-undo');
+const btnDrawFinish = document.getElementById('btn-draw-finish');
+const btnDrawCancel = document.getElementById('btn-draw-cancel');
 
 function log(msg) {
   if (window.__logisolDebug) window.__logisolDebug(msg);
@@ -47,6 +61,70 @@ function recomputeAndRender() {
   renderParcelles(enriched);
   renderLegend(computeLegendItems(enriched));
   if (currentView === 'list') renderListView(enriched);
+  centrerAuPremierChargement(enriched);
+}
+
+// Centrage automatique à l'ouverture, une seule fois par lancement.
+// Priorité : 1) la vue enregistrée au dernier usage (gérée dans map.js, donc
+// rien à faire ici), 2) le cadrage sur les parcelles existantes, 3) le GPS de
+// l'appareil au tout premier lancement. Objectif : ne JAMAIS laisser l'appli
+// ouverte sur la France entière, où un tap vaut plusieurs kilomètres.
+function centrerAuPremierChargement(enriched) {
+  if (centrageInitialFait) return;
+  if (vueARestaurer()) {
+    centrageInitialFait = true; // on rouvre là où il s'était arrêté
+    return;
+  }
+  if (enriched.length) {
+    if (fitToParcelles(enriched)) {
+      centrageInitialFait = true;
+      return;
+    }
+  }
+  // Aucune parcelle enregistrée et aucune vue connue : on tente le GPS.
+  centrageInitialFait = true;
+  log('Aucune parcelle ni vue connue — tentative de centrage GPS');
+  centrerSurMaPosition({
+    onError: () => afficherIndice("Position GPS indisponible : zoome à la main sur la ferme, la vue sera mémorisée pour les prochaines fois.")
+  });
+}
+
+// --- Messages contextuels au-dessus de la carte --------------------------
+let indiceTimer = null;
+function afficherIndice(texte, dureeMs) {
+  if (!drawHint) return;
+  clearTimeout(indiceTimer);
+  drawHint.textContent = texte;
+  drawHint.hidden = false;
+  if (dureeMs !== 0) {
+    indiceTimer = setTimeout(() => { drawHint.hidden = true; }, dureeMs || 7000);
+  }
+}
+function masquerIndice() {
+  if (!drawHint) return;
+  clearTimeout(indiceTimer);
+  drawHint.hidden = true;
+}
+
+// Reflète l'état du dessin dans l'interface. Appelé par draw.js à chaque
+// changement (sommet posé, annulé, tracé fermé ou abandonné).
+function majEtatDessin({ actif, sommets }) {
+  drawToolbar.hidden = !actif;
+  fabRow.hidden = actif;          // les boutons flottants gêneraient le tracé
+  btnToggleView.disabled = actif;
+  drawCount.textContent = sommets + (sommets > 1 ? ' points' : ' point');
+  btnDrawUndo.disabled = sommets < 2;
+  btnDrawFinish.disabled = sommets < 3;
+  if (actif) {
+    afficherIndice(
+      sommets < 3
+        ? 'Touche la carte pour poser les coins de la parcelle (3 minimum), puis ✅ Terminer.'
+        : 'Continue à poser des coins, puis ✅ Terminer pour fermer la parcelle.',
+      0
+    );
+  } else {
+    masquerIndice();
+  }
 }
 
 function computeLegendItems(enriched) {
@@ -92,9 +170,13 @@ function formatSurface(v) {
 }
 
 function setView(view) {
+  // Passer en vue liste pendant un tracé laisserait un dessin orphelin actif
+  // sur une carte invisible : on le termine proprement d'abord.
+  if (view === 'list' && isDrawing()) cancelDrawing();
   currentView = view;
   mapEl.hidden = view !== 'map';
   listViewEl.hidden = view !== 'list';
+  fabRow.hidden = view !== 'map';
   btnToggleView.textContent = view === 'map' ? '📋 Liste' : '🗺️ Carte';
   if (view === 'list') {
     renderListView(Array.from(enrichedById.values()));
@@ -133,7 +215,8 @@ async function boot() {
     log('Carte initialisée');
 
     initDraw({
-      onPolygonReady: ({ geometry, surfaceHa }) => openCreate({ geometry, surfaceHa })
+      onPolygonReady: ({ geometry, surfaceHa, croise }) => openCreate({ geometry, surfaceHa, croise }),
+      onStateChange: majEtatDessin
     });
 
     initImport({
@@ -145,10 +228,46 @@ async function boot() {
 
     document.getElementById('btn-draw').addEventListener('click', () => {
       setView('map'); // dessiner nécessite la carte, même si on était en vue liste
+      // Garde anti-"parcelle grande comme la France" : à faible zoom, l'écart
+      // de quelques pixels d'un doigt vaut des kilomètres sur le terrain.
+      const refus = raisonDeRefus();
+      if (refus) {
+        afficherIndice(refus, 9000);
+        log('dessin refusé : ' + refus);
+        return;
+      }
       startDrawing();
     });
 
+    btnDrawUndo.addEventListener('click', () => {
+      if (!undoLastPoint()) afficherIndice('Plus rien à annuler — utilise ✖ Annuler pour tout reprendre.', 5000);
+    });
+    btnDrawFinish.addEventListener('click', () => {
+      if (!finishDrawing()) afficherIndice('Il faut au moins 3 points pour fermer une parcelle.', 5000);
+    });
+    btnDrawCancel.addEventListener('click', () => {
+      cancelDrawing();
+      afficherIndice('Dessin annulé.', 3000);
+    });
+
+    document.getElementById('btn-locate').addEventListener('click', () => {
+      setView('map');
+      afficherIndice('Recherche de ta position...', 0);
+      centrerSurMaPosition({
+        onSuccess: () => afficherIndice('Centré sur ta position.', 3000),
+        onError: (m) => afficherIndice('Position indisponible : ' + m, 7000)
+      });
+    });
+
+    document.getElementById('btn-fit').addEventListener('click', () => {
+      setView('map');
+      if (!fitToParcelles(Array.from(enrichedById.values()))) {
+        afficherIndice("Aucune parcelle enregistrée pour l'instant.", 5000);
+      }
+    });
+
     btnToggleView.addEventListener('click', () => setView(currentView === 'map' ? 'list' : 'map'));
+    majEtatDessin({ actif: false, sommets: 0 });
     log('Interface prête (boutons actifs)');
 
     // --- 2) Puis les données (réseau) : plus rien d'interactif n'attend ---

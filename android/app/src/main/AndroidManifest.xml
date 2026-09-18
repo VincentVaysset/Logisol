@@ -38,4 +38,14 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Géolocalisation : utilisée par le bouton 📍 et par le centrage
+         automatique au tout premier lancement (aucune parcelle enregistrée),
+         via navigator.geolocation dans la WebView. Capacitor
+         (BridgeWebChromeClient.onGeolocationPermissionsShowPrompt) demande
+         l'autorisation à l'exécution, mais uniquement si elle est déclarée
+         ici. Sans ces deux lignes, la demande échoue immédiatement et la
+         carte reste sur la France. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 </manifest>

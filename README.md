@@ -13,8 +13,14 @@ pour faire fonctionner Logisol.
 
 - HTML/CSS/JS pur (pas de framework, pas de bundler), empaqueté en appli
   Android via [Capacitor](https://capacitorjs.com/)
-- [Leaflet.js](https://leafletjs.com/) + tuiles OpenStreetMap (gratuit,
-  sans clé API) + [Leaflet.draw](https://github.com/Leaflet/Leaflet.draw)
+- [Leaflet.js](https://leafletjs.com/) + [Leaflet.draw](https://github.com/Leaflet/Leaflet.draw)
+- Fonds de carte (tous gratuits, sans clé API), commutables via le bouton
+  « calques » en haut à droite :
+  - **Satellite IGN** (Géoplateforme, `ORTHOIMAGERY.ORTHOPHOTOS`) — par défaut
+  - **Plan IGN** (`GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2`)
+  - **OpenStreetMap**
+  - surcouche **« Noms de lieux et routes »** (étiquettes transparentes CARTO),
+    activée par défaut : sans elle, l'ortho seule ne permet pas de se situer.
   pour le dessin de polygones
 - [Firebase](https://firebase.google.com/) (Auth email/mot de passe +
   Firestore) — projet partagé `ovilog-15ef6`, collections dédiées à Logisol

@@ -28,6 +28,10 @@ const errorBanner = document.getElementById('fiche-error-banner');
 const errorBannerText = document.getElementById('fiche-error-text');
 const errorBannerClose = document.getElementById('fiche-error-close');
 
+function log(msg) {
+  if (window.__logisolDebug) window.__logisolDebug(msg);
+}
+
 function showFicheError(message) {
   errorBannerText.textContent = message;
   errorBanner.hidden = false;
@@ -81,25 +85,48 @@ selectCulture.addEventListener('change', () => {
   newCultureWrap.hidden = selectCulture.value !== '__new__';
 });
 
-export function openCreate({ geometry, surfaceHa }) {
+export function openCreate({ geometry, surfaceHa, croise }) {
+  // LA FICHE EST AFFICHÉE EN PREMIER, avant tout remplissage.
+  // Auparavant, panel.hidden = false était la DERNIÈRE instruction : la
+  // moindre erreur en amont (liste de cultures non chargée, champ absent...)
+  // laissait le tracé fermé à l'écran sans qu'aucune fenêtre ne s'ouvre —
+  // exactement le cul-de-sac constaté sur la tablette. Désormais la fenêtre
+  // s'ouvre quoi qu'il arrive, et si le remplissage échoue le motif s'affiche
+  // dedans, dans son bandeau rouge, au lieu de disparaître dans le vide.
   mode = 'create';
   editingId = null;
   pendingGeometry = geometry;
   saveToken++;
+  panel.hidden = false;
   hideFicheError();
   resetSaveButton();
-  titleEl.textContent = 'Nouvelle parcelle';
-  btnDelete.hidden = true;
-  inputNom.value = '';
-  inputSurface.value = surfaceHa;
-  inputCouleur.value = '#3c7a4e';
-  inputNotes.value = '';
-  selectVocation.value = 'culture';
-  cultureWrap.hidden = false;
-  newCultureWrap.hidden = true;
-  populateCultureSelect(getCultures(), ''); // pas de culture présélectionnée -> "à renseigner"
-  panel.hidden = false;
-  inputNom.focus();
+  log('fiche "Nouvelle parcelle" affichée');
+
+  try {
+    titleEl.textContent = 'Nouvelle parcelle';
+    btnDelete.hidden = true;
+    inputNom.value = '';
+    inputSurface.value = (typeof surfaceHa === 'number' && isFinite(surfaceHa)) ? surfaceHa : '';
+    inputCouleur.value = '#3c7a4e';
+    inputNotes.value = '';
+    selectVocation.value = 'culture';
+    cultureWrap.hidden = false;
+    newCultureWrap.hidden = true;
+    populateCultureSelect(getCultures(), ''); // pas de culture présélectionnée -> "à renseigner"
+    if (!geometry) {
+      showFicheError("Le contour n'a pas pu être lu : annule et retrace la parcelle.");
+    } else if (croise || !surfaceHa) {
+      showFicheError(
+        'Attention : le contour se croise, la surface calculée (' + (surfaceHa || 0) +
+        ' ha) est probablement fausse. Corrige-la à la main, ou annule et retrace la parcelle.'
+      );
+    }
+    inputNom.focus();
+  } catch (err) {
+    const message = (err && err.message) || String(err);
+    showFicheError('Impossible de préparer le formulaire : ' + message);
+    log('Erreur openCreate : ' + message);
+  }
 }
 
 // currentCultureId : id de la culture assolée cette campagne pour cette
@@ -209,6 +236,9 @@ form.addEventListener('submit', async (e) => {
     settled = true;
     clearTimeout(timeoutId);
     if (myToken === saveToken) {
+      log(mode === 'create'
+        ? 'parcelle créée — tu peux en dessiner une autre'
+        : 'parcelle enregistrée');
       hideFicheError();
       closePanel();
     }

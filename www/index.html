@@ -28,9 +28,15 @@
      Conséquence : quelle que soit la longueur du message, il lui est
      structurellement impossible d'intercepter le clic d'un bouton — ce que
      ni max-height ni pointer-events:none ne garantissaient de façon fiable. -->
-<div id="debug-banner"
-     style="flex:0 0 auto;height:18vh;overflow-y:auto;background:#c0392b;color:#ffffff;padding:10px 14px;font:600 13px/1.4 monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.4);">
-  Démarrage de Logisol...
+<div id="debug-wrap" style="flex:0 0 auto;display:flex;flex-direction:column;">
+  <button id="debug-toggle" type="button"
+          style="flex:0 0 auto;border:none;width:100%;text-align:left;background:#8e2b20;color:#fff;padding:4px 14px;font:600 11px/1.3 monospace;cursor:pointer;">
+    ▼ Diagnostic (toucher pour replier)
+  </button>
+  <div id="debug-banner"
+       style="flex:0 0 auto;height:12vh;overflow-y:auto;background:#c0392b;color:#ffffff;padding:8px 14px;font:600 12px/1.35 monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.4);">
+    Démarrage de Logisol...
+  </div>
 </div>
 <script>
 (function () {
@@ -93,6 +99,20 @@
     }, true);
   });
 
+  // Repli du journal : sur une tablette, 12vh de logs en permanence, c'est
+  // autant de carte en moins. Replié, le bandeau ne garde qu'une barre de
+  // titre — et continue d'enregistrer, donc rien n'est perdu.
+  var toggle = document.getElementById('debug-toggle');
+  if (toggle && el) {
+    toggle.addEventListener('click', function () {
+      var replie = el.style.display === 'none';
+      el.style.display = replie ? 'block' : 'none';
+      toggle.textContent = replie
+        ? '▼ Diagnostic (toucher pour replier)'
+        : '▶ Diagnostic replié (toucher pour afficher)';
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () { window.__logisolDebug('DOM prêt'); });
   window.addEventListener('load', function () { window.__logisolDebug('page chargée (load)'); });
 
@@ -125,12 +145,28 @@
     <button id="btn-logout" type="button">Déconnexion</button>
   </header>
 
+  <!-- Barre d'outils du mode dessin.
+       Elle est en FLUX NORMAL, juste sous l'en-tête et AU-DESSUS de #map (donc
+       hors de la carte, hors de tout .leaflet-pane) : ni Leaflet, ni
+       Leaflet.draw, ni un tracé en cours ne peuvent la recouvrir. Elle répond
+       à deux besoins signalés sur le terrain : pouvoir annuler le dernier
+       point, et pouvoir SORTIR du mode dessin sans deviner le geste. -->
+  <div id="draw-toolbar" class="draw-toolbar" hidden>
+    <span id="draw-count" class="draw-count">0 point</span>
+    <button id="btn-draw-undo" type="button" class="draw-btn">↩ Annuler le point</button>
+    <button id="btn-draw-finish" type="button" class="draw-btn draw-btn-primary">✅ Terminer</button>
+    <button id="btn-draw-cancel" type="button" class="draw-btn draw-btn-cancel">✖ Annuler</button>
+  </div>
+  <p id="draw-hint" class="draw-hint" hidden></p>
+
   <div id="map"></div>
   <div id="list-view" class="list-view" hidden></div>
 
   <div class="fab-row">
-    <button id="btn-draw" type="button" class="btn btn-fab">✏️ Dessiner une parcelle</button>
-    <button id="btn-import" type="button" class="btn btn-fab btn-fab-secondary">📂 Importer un contour</button>
+    <button id="btn-locate" type="button" class="btn btn-fab btn-fab-icon" title="Centrer sur ma position">📍</button>
+    <button id="btn-fit" type="button" class="btn btn-fab btn-fab-icon" title="Voir toutes mes parcelles">🎯</button>
+    <button id="btn-draw" type="button" class="btn btn-fab">✏️ Dessiner</button>
+    <button id="btn-import" type="button" class="btn btn-fab btn-fab-secondary">📂 Importer</button>
   </div>
   <input type="file" id="input-geojson" accept=".json,.geojson,application/geo+json,application/json" hidden>
 

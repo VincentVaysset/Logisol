@@ -15,6 +15,34 @@
 
 * { box-sizing: border-box; }
 
+/* ------------------------------------------------------------------------
+   ÉCHELLE D'EMPILEMENT (z-index) — à respecter pour tout nouvel élément.
+
+   Leaflet pose ses propres couches DANS #map avec des z-index élevés et
+   NON MODIFIABLES sans casser la carte :
+     tuiles 200 · tracés 400 · ombres 500 · marqueurs 600 · infobulles 650
+     popups 700 · contrôles (.leaflet-control) 800 · coins 1000
+
+   Or #map n'a pas de z-index propre : ses couches ne sont donc PAS
+   enfermées dans un contexte d'empilement, elles rivalisent directement
+   avec les éléments frères de .screen-app. Tout ce qui doit rester
+   VISIBLE PAR-DESSUS LA CARTE doit donc passer au-dessus de 1000.
+
+   C'est exactement ce qui manquait : la fiche parcelle était à z-index 30.
+   Sur la tablette, avec une ortho satellite opaque, elle s'ouvrait
+   INVISIBLE, entièrement recouverte par les tuiles (reproduit en test,
+   capture à l'appui) — tout en continuant à intercepter chaque appui,
+   puisque les tuiles, elles, sont pointer-events:none. D'où les trois
+   symptômes constatés : « aucune fenêtre ne s'ouvre après le tracé »,
+   « plus moyen de cliquer sur Déconnexion », et « impossible de dessiner
+   une deuxième parcelle ».
+
+   Barème retenu :
+     1100  en-tête, barre d'outils de dessin, bandeau d'aide
+     1200  boutons flottants (Dessiner / Importer / 📍 / 🎯)
+     2000  fiche parcelle (doit couvrir absolument tout)
+   ------------------------------------------------------------------------ */
+
 html, body {
   margin: 0;
   height: 100%;
@@ -113,7 +141,7 @@ header {
   display: flex;
   align-items: center;
   gap: 10px;
-  z-index: 20;
+  z-index: 1100;
 }
 header h1 { font-size: 18px; margin: 0; font-weight: 600; flex: 1; }
 .user-email { font-size: 12px; opacity: 0.85; }
@@ -140,6 +168,18 @@ header button {
   font-size: 12px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
   line-height: 1.7;
+  /* La légende occupe le coin bas-gauche, exactement là où se trouvent les
+     boutons 📍 et 🎯 : sans ces deux règles elle les recouvre et INTERCEPTE
+     leurs appuis (reproduit en test : le clic sur 🎯 n'arrivait jamais).
+     On la remonte au-dessus de la rangée de boutons, et comme elle est
+     purement informative on la rend définitivement traversante. */
+  margin-bottom: 80px !important;
+  pointer-events: none;
+}
+/* Idem pour l'attribution (coin bas-droit), qui longeait le bouton Importer. */
+.leaflet-control-attribution {
+  margin-bottom: 80px !important;
+  font-size: 10px;
 }
 .legend-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .legend-swatch {
@@ -179,19 +219,111 @@ header button {
   left: 16px;
   right: 16px;
   display: flex;
-  gap: 10px;
-  z-index: 15;
+  gap: 8px;
+  z-index: 1200;
 }
+.fab-row[hidden] { display: none; }
 .btn-fab {
   flex: 1;
   background: var(--primary);
   color: white;
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  padding: 14px 8px;
+  font-size: 14px;
+  white-space: nowrap;
 }
 .btn-fab-secondary {
   background: white;
   color: var(--text);
   border: 1px solid var(--border);
+}
+/* Boutons carrés 📍 / 🎯 : ils ne doivent pas manger la largeur des deux
+   boutons d'action principaux. */
+.btn-fab-icon {
+  flex: 0 0 52px;
+  background: white;
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 20px;
+  padding: 12px 0;
+}
+
+/* --- Barre d'outils du mode dessin ---
+   En flux normal entre l'en-tête et la carte : elle POUSSE la carte vers le
+   bas au lieu de flotter dessus. Conséquence recherchée : impossible qu'un
+   tracé en cours, un pane Leaflet ou la bulle de Leaflet.draw la recouvre, et
+   impossible qu'elle recouvre l'en-tête (Déconnexion reste cliquable). */
+.draw-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #2b2a22;
+  color: white;
+  z-index: 1100;
+  overflow-x: auto;
+}
+.draw-toolbar[hidden] { display: none; }
+.draw-count {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.draw-btn {
+  flex: 1 1 auto;
+  min-height: 44px;              /* cible tactile confortable avec des gants */
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: rgba(255,255,255,0.16);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.draw-btn:disabled { opacity: 0.4; }
+.draw-btn-primary { background: var(--success); }
+.draw-btn-cancel { background: var(--danger); }
+
+.draw-hint {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 1100;
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--warning);
+  color: #2b2a22;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.draw-hint[hidden] { display: none; }
+
+/* --- Étiquette permanente du nom de parcelle sur la carte --- */
+.parcelle-label {
+  background: rgba(0,0,0,0.55);
+  border: none;
+  box-shadow: none;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 6px;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.parcelle-label::before { display: none; }   /* pas de flèche de bulle */
+.parcelle-label-nom { display: block; }
+.parcelle-label-sub {
+  display: block;
+  font-weight: 500;
+  font-size: 10px;
+  opacity: 0.85;
 }
 
 /* --- Fiche parcelle --- */
@@ -201,7 +333,7 @@ header button {
   background: rgba(0,0,0,0.4);
   display: flex;
   align-items: flex-end;
-  z-index: 30;
+  z-index: 2000;
 }
 .fiche-overlay[hidden] { display: none; }
 .fiche-panel {
