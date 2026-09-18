@@ -148,3 +148,26 @@ npx cap open android   # ouvre le projet dans Android Studio (émulateur ou tél
 
 Le code source de l'appli est dans `www/` (`index.html`, `css/`, `js/`) —
 c'est le `webDir` Capacitor, aucune étape de build n'est nécessaire côté web.
+
+
+## Stockage de la géométrie des parcelles
+
+Firestore **interdit les tableaux imbriqués** : un tableau ne peut pas contenir
+directement un autre tableau. Une géométrie GeoJSON `Polygon` est pourtant
+exactement cela (anneaux → sommets → `[lon, lat]`), donc elle ne peut pas être
+enregistrée telle quelle.
+
+Les documents de `parcelles` stockent donc le contour sous forme d'objets,
+dans le champ `contour` :
+
+```
+contour: {
+  type: "Polygon",
+  anneaux: [ { sommets: [ { lon: 3.87, lat: 43.62 }, ... ] } ]
+}
+```
+
+La conversion dans les deux sens est faite par `www/js/geometrie.js`, appelée
+uniquement depuis `www/js/parcelles.js` (le seul module qui parle à Firestore).
+Tout le reste de l'appli — carte, dessin, import GeoJSON, fiche — continue de
+manipuler du GeoJSON standard via le champ `coordonnees`.
