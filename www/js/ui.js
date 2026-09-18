@@ -1,9 +1,13 @@
-// Fiche parcelle (création / édition) : nom, vocation (fixe), culture de la
-// campagne en cours (si vocation culture/prairie, via assolements), surface,
-// couleur, notes. Suppression avec confirmation obligatoire.
+// Fiche parcelle (création / édition) : nom, vocation (fixe), culture en place
+// avec sa DATE DE SEMIS (si vocation culture/prairie — voir implantations.js,
+// une culture est une période, pas une année civile), surface, couleur, notes.
+// Suppression avec confirmation obligatoire.
 import { VOCATIONS, estVocationCulture } from './vocation.js';
 import { getCultures, onCulturesChange, addCulture } from './cultures-config.js';
-import { getCampagneActuelle, setAssolement, deleteAssolement } from './assolements.js';
+import {
+  setImplantation, cloturerImplantation, deleteImplantation, historiqueParcelle,
+  aujourdhui, dureeLisible
+} from './implantations.js';
 import { createParcelle, updateParcelle, deleteParcelle } from './parcelles.js';
 import { discardDrawnLayer, cancelDrawing } from './draw.js';
 
@@ -17,6 +21,8 @@ const newCultureWrap = document.getElementById('fiche-newculture-wrap');
 const inputNewCultureNom = document.getElementById('fiche-newculture-nom');
 const inputNewCultureCouleur = document.getElementById('fiche-newculture-couleur');
 const inputNewCultureFamille = document.getElementById('fiche-newculture-famille');
+const inputDateSemis = document.getElementById('fiche-datesemis');
+const dureeInfo = document.getElementById('fiche-duree-info');
 const inputNom = document.getElementById('fiche-nom');
 const inputSurface = document.getElementById('fiche-surface');
 const inputCouleur = document.getElementById('fiche-couleur');
@@ -45,6 +51,10 @@ errorBannerClose.addEventListener('click', hideFicheError);
 let mode = null; // 'create' | 'edit'
 let editingId = null;
 let pendingGeometry = null;
+// Implantation actuellement en place sur la parcelle éditée (ou null). Sert à
+// savoir s'il faut créer une nouvelle implantation (culture changée, ou semis
+// à une autre date) ou simplement corriger celle qui existe.
+let implantationCourante = null;
 
 // Jeton de session d'enregistrement : incrémenté à chaque nouvelle ouverture
 // de fiche et à chaque nouvelle soumission. Une sauvegarde restée bloquée
@@ -112,6 +122,9 @@ export function openCreate({ geometry, surfaceHa, croise }) {
     selectVocation.value = 'culture';
     cultureWrap.hidden = false;
     newCultureWrap.hidden = true;
+    implantationCourante = null;
+    inputDateSemis.value = aujourdhui();
+    dureeInfo.hidden = true;
     populateCultureSelect(getCultures(), ''); // pas de culture présélectionnée -> "à renseigner"
     if (!geometry) {
       showFicheError("Le contour n'a pas pu être lu : annule et retrace la parcelle.");
@@ -129,9 +142,9 @@ export function openCreate({ geometry, surfaceHa, croise }) {
   }
 }
 
-// currentCultureId : id de la culture assolée cette campagne pour cette
-// parcelle, ou null si aucune (calculé par main.js depuis assolements.js).
-export function openEdit(parcelle, currentCultureId) {
+// implantation : implantation en cours sur cette parcelle ({cultureId,
+// dateSemis, ...}) ou null, calculée par main.js depuis implantations.js.
+export function openEdit(parcelle, implantation) {
   mode = 'edit';
   editingId = parcelle.id;
   pendingGeometry = parcelle.coordonnees;
@@ -148,9 +161,25 @@ export function openEdit(parcelle, currentCultureId) {
   selectVocation.value = vocation;
   cultureWrap.hidden = !estVocationCulture(vocation);
   newCultureWrap.hidden = true;
-  populateCultureSelect(getCultures(), currentCultureId || '');
+  implantationCourante = implantation || null;
+  inputDateSemis.value = implantation && implantation.dateSemis ? implantation.dateSemis : '';
+  majDureeInfo();
+  populateCultureSelect(getCultures(), (implantation && implantation.cultureId) || '');
   panel.hidden = false;
 }
+
+// Rappel visuel de la durée d'implantation : c'est l'information que Vincent
+// regarde en premier sur une luzerne (« ça fait combien d'années ? »).
+function majDureeInfo() {
+  if (!inputDateSemis.value) {
+    dureeInfo.hidden = true;
+    return;
+  }
+  const texte = dureeLisible({ dateSemis: inputDateSemis.value, dateFin: null });
+  dureeInfo.textContent = texte ? 'En place depuis ' + texte + '.' : '';
+  dureeInfo.hidden = !texte;
+}
+inputDateSemis.addEventListener('change', majDureeInfo);
 
 function closePanel() {
   panel.hidden = true;
@@ -158,6 +187,7 @@ function closePanel() {
   mode = null;
   editingId = null;
   pendingGeometry = null;
+  implantationCourante = null;
 }
 
 btnCancel.addEventListener('click', () => {
@@ -224,13 +254,28 @@ form.addEventListener('submit', async (e) => {
       await updateParcelle(editingId, data);
     }
 
-    const campagneId = getCampagneActuelle();
+    // --- Implantation ---
+    // Trois cas, volontairement distincts :
+    //   * culture renseignée, et rien en place OU semis/culture différents
+    //     -> nouvelle implantation, l'ancienne étant clôturée la veille (la
+    //        rotation est un fait daté, pas un remplacement de valeur) ;
+    //   * culture renseignée identique à ce qui est en place -> simple mise à
+    //     jour, sans créer de doublon ;
+    //   * vocation non-culture ou culture vidée -> on CLÔTURE ce qui est en
+    //     place au lieu de le supprimer : l'historique de la parcelle doit
+    //     rester intact.
     if (estVocationCulture(vocation) && cultureId) {
-      await setAssolement(parcelleId, campagneId, cultureId);
-    } else {
-      // vocation non-culture, ou culture non renseignée -> pas d'assolement
-      // cette campagne (et on retire celui qui existait déjà, le cas échéant).
-      await deleteAssolement(parcelleId, campagneId);
+      const dateSemis = inputDateSemis.value || aujourdhui();
+      const inchangee =
+        implantationCourante &&
+        implantationCourante.cultureId === cultureId &&
+        implantationCourante.dateSemis === dateSemis;
+      await setImplantation(
+        { parcelleId, cultureId, dateSemis, dateFin: null },
+        { cloturerPrecedente: !inchangee }
+      );
+    } else if (implantationCourante && !implantationCourante.dateFin) {
+      await cloturerImplantation(implantationCourante.id, aujourdhui());
     }
 
     settled = true;
@@ -266,8 +311,13 @@ btnDelete.addEventListener('click', async () => {
   }
   btnDelete.disabled = true;
   try {
+    // Les implantations de la parcelle partent avec elle : sans ça, elles
+    // resteraient en base à référencer une parcelle inexistante.
+    const aSupprimer = historiqueParcelle(editingId);
     await deleteParcelle(editingId);
-    await deleteAssolement(editingId, getCampagneActuelle());
+    for (const impl of aSupprimer) {
+      await deleteImplantation(impl.id);
+    }
     closePanel();
   } catch (err) {
     alert('Erreur de suppression : ' + err.message);

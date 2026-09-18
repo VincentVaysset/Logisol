@@ -381,3 +381,217 @@ header button {
   gap: 10px;
   margin-top: 8px;
 }
+
+/* ========================================================================
+   Onglets de navigation (Ferme / Carte / Parcelles)
+   En flux normal sous l'en-tête, au-dessus de la carte : ils ne peuvent ni
+   recouvrir ni être recouverts par Leaflet (cf. échelle d'empilement).
+   ======================================================================== */
+.tabs {
+  flex: 0 0 auto;
+  display: flex;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 1100;
+}
+.tab {
+  flex: 1;
+  min-height: 48px;           /* cible tactile confortable, y compris avec des gants */
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 4px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+.tab.is-active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+/* Pendant un tracé, changer d'onglet annulerait le dessin en cours : on le
+   signale visuellement plutôt que de désactiver les boutons, pour que sortir
+   reste possible (l'annulation est explicite dans setView). */
+.tabs-bloques .tab { opacity: 0.55; }
+
+/* Vue Ferme : la carte occupe le haut, le fil d'activités le reste. */
+#map.map-reduite {
+  flex: 0 0 42%;
+  min-height: 180px;
+}
+
+/* ========================================================================
+   Fil des dernières activités
+   ======================================================================== */
+.feed {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--bg);
+  padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.feed[hidden] { display: none; }
+.feed-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.feed-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.btn-feed-add { padding: 10px 14px; font-size: 14px; }
+
+.feed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.feed-icon {
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+}
+.feed-body { flex: 1; min-width: 0; }
+.feed-line1 { display: flex; align-items: baseline; gap: 8px; }
+.feed-type { font-weight: 700; font-size: 15px; flex: 1; }
+.feed-date { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.feed-parcelles { font-size: 13px; color: var(--primary); margin-top: 2px; }
+.feed-details { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.feed-notes {
+  font-size: 12px;
+  color: var(--text);
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.feed-photo {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* ========================================================================
+   Aperçu d'une parcelle
+   ======================================================================== */
+.apercu-infos { margin: 0 0 16px; }
+.apercu-infos > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.apercu-infos dt { margin: 0; font-size: 13px; color: var(--text-muted); }
+.apercu-infos dd { margin: 0; font-size: 15px; font-weight: 600; text-align: right; }
+.apercu-sous-titre { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); font-weight: 600; }
+.apercu-activites { margin-bottom: 16px; }
+.apercu-activite {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.apercu-activite-nom { flex: 1; font-size: 14px; font-weight: 600; }
+.apercu-activite-date { font-size: 12px; color: var(--text-muted); }
+
+/* ========================================================================
+   Formulaire d'intervention
+   ======================================================================== */
+.champ-aide { margin: -6px 0 12px; font-size: 12px; color: var(--primary); font-weight: 600; }
+.champ-aide[hidden] { display: none; }
+
+#itv-champ-produit[hidden],
+#itv-champ-materiel[hidden],
+#itv-champ-duree[hidden],
+#itv-champ-meteo[hidden] { display: none; }
+
+.btn-mini { padding: 9px 12px; font-size: 13px; }
+
+.parcelles-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.pick-count { font-size: 13px; color: var(--text-muted); font-weight: 600; margin-left: auto; }
+.parcelles-list {
+  max-height: 210px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px;
+  margin-bottom: 12px;
+}
+.parcelle-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  margin-bottom: 2px;
+  cursor: pointer;
+}
+.parcelle-pick.is-picked { background: rgba(60,122,78,0.12); }
+/* La case native est minuscule au doigt : on l'agrandit nettement. */
+.parcelle-pick input[type=checkbox] {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex: 0 0 22px;
+  accent-color: var(--primary);
+}
+.parcelle-pick-swatch { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 12px; }
+.parcelle-pick-nom { flex: 1; font-size: 14px; font-weight: 600; }
+.parcelle-pick-surface { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+.meteo-box, .photo-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+#itv-meteo-text { flex: 1; font-size: 14px; min-width: 120px; }
+.photo-info { font-size: 12px; color: var(--text-muted); }
+.photo-preview {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  background: #000;
+}
+.photo-preview[hidden] { display: none; }
+
+/* La marge de 80 px qui écarte légende et attribution des boutons flottants
+   n'a de sens que dans la vue Carte : c'est la seule où ces boutons existent.
+   Dans la vue Ferme, elle laisserait un vide au bas d'une carte déjà réduite. */
+#map.map-reduite .map-legend,
+#map.map-reduite .leaflet-control-attribution { margin-bottom: 10px !important; }

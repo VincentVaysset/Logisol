@@ -141,9 +141,19 @@
   <header>
     <h1>Logisol</h1>
     <span id="user-email" class="user-email"></span>
-    <button id="btn-toggle-view" type="button">📋 Liste</button>
     <button id="btn-logout" type="button">Déconnexion</button>
   </header>
+
+  <!-- Onglets de navigation. En flux normal sous l'en-tête, hors de la carte :
+       toujours atteignables, quoi qu'affiche Leaflet. Les trois vues PARTAGENT
+       LA MÊME carte Leaflet (#map), qui change simplement de hauteur : deux
+       instances Leaflet coûteraient le double en mémoire et en tuiles, et
+       chaque correctif de carte serait à faire deux fois. -->
+  <nav class="tabs" id="tabs">
+    <button type="button" class="tab" data-vue="ferme">🏠 Ferme</button>
+    <button type="button" class="tab" data-vue="carte">🗺️ Carte</button>
+    <button type="button" class="tab" data-vue="liste">📋 Parcelles</button>
+  </nav>
 
   <!-- Barre d'outils du mode dessin.
        Elle est en FLUX NORMAL, juste sous l'en-tête et AU-DESSUS de #map (donc
@@ -160,15 +170,152 @@
   <p id="draw-hint" class="draw-hint" hidden></p>
 
   <div id="map"></div>
+
+  <!-- Fil des dernières activités (vue Ferme) : toutes parcelles mélangées,
+       les plus récentes en premier. -->
+  <div id="feed" class="feed" hidden>
+    <div class="feed-head">
+      <h2>Dernières activités</h2>
+      <button type="button" id="btn-new-intervention" class="btn btn-primary btn-feed-add">➕ Intervention</button>
+    </div>
+    <div id="feed-list"></div>
+  </div>
+
   <div id="list-view" class="list-view" hidden></div>
 
-  <div class="fab-row">
+  <div class="fab-row" id="fab-carte">
     <button id="btn-locate" type="button" class="btn btn-fab btn-fab-icon" title="Centrer sur ma position">📍</button>
     <button id="btn-fit" type="button" class="btn btn-fab btn-fab-icon" title="Voir toutes mes parcelles">🎯</button>
     <button id="btn-draw" type="button" class="btn btn-fab">✏️ Dessiner</button>
     <button id="btn-import" type="button" class="btn btn-fab btn-fab-secondary">📂 Importer</button>
   </div>
   <input type="file" id="input-geojson" accept=".json,.geojson,application/geo+json,application/json" hidden>
+
+  <!-- Aperçu d'une parcelle, ouvert en tapant son polygone sur la carte.
+       Volontairement distinct de la fiche d'édition : au champ, on veut
+       d'abord SAVOIR (quelle culture, depuis quand) et AGIR (noter, saisir
+       une intervention) ; modifier le contour ou le nom est plus rare et
+       reste à un bouton. -->
+  <div id="apercu-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="apercu-nom">Parcelle</h2>
+      <dl class="apercu-infos">
+        <div><dt>Surface</dt><dd id="apercu-surface">—</dd></div>
+        <div><dt>Culture en cours</dt><dd id="apercu-culture">—</dd></div>
+        <div><dt>Implantée depuis</dt><dd id="apercu-duree">—</dd></div>
+        <div><dt>Semée le</dt><dd id="apercu-semis">—</dd></div>
+      </dl>
+      <h3 class="apercu-sous-titre">Dernières activités sur cette parcelle</h3>
+      <div id="apercu-activites" class="apercu-activites"></div>
+      <div class="fiche-actions">
+        <button type="button" id="apercu-note" class="btn btn-primary">📝 Ajouter une note</button>
+        <button type="button" id="apercu-activite" class="btn btn-primary">➕ Nouvelle activité</button>
+        <button type="button" id="apercu-modifier" class="btn btn-secondary">✏️ Modifier la parcelle</button>
+        <button type="button" id="apercu-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulaire d'intervention (création et modification) -->
+  <div id="intervention-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="itv-title">Nouvelle intervention</h2>
+      <div id="itv-error-banner" class="fiche-error-banner" hidden>
+        <span id="itv-error-text"></span>
+        <button type="button" id="itv-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="itv-form">
+        <label for="itv-date">Date</label>
+        <input type="date" id="itv-date" required>
+
+        <label for="itv-type">Type d'intervention</label>
+        <select id="itv-type"></select>
+
+        <div id="itv-newtype-wrap" class="fiche-newtype" hidden>
+          <label for="itv-newtype-nom">Nom du nouveau type</label>
+          <input type="text" id="itv-newtype-nom" placeholder="ex: Hersage">
+          <div class="row">
+            <div style="flex:1">
+              <label for="itv-newtype-icone">Icône</label>
+              <input type="text" id="itv-newtype-icone" value="🔧" maxlength="4">
+            </div>
+            <div style="flex:1">
+              <label for="itv-newtype-couleur">Couleur</label>
+              <input type="color" id="itv-newtype-couleur" value="#9a988f">
+            </div>
+          </div>
+        </div>
+
+        <label>Parcelles concernées</label>
+        <div class="parcelles-pick">
+          <button type="button" id="itv-pick-all" class="btn btn-secondary btn-mini">Tout sélectionner</button>
+          <button type="button" id="itv-pick-none" class="btn btn-secondary btn-mini">Tout décocher</button>
+          <span id="itv-pick-count" class="pick-count">0 parcelle</span>
+        </div>
+        <div id="itv-parcelles" class="parcelles-list"></div>
+
+        <div id="itv-champ-produit">
+          <label for="itv-produit">Produit</label>
+          <input type="text" id="itv-produit" placeholder="ex: Fumier, Ammonitrate 33.5">
+          <div class="row">
+            <div style="flex:2">
+              <label for="itv-quantite">Quantité</label>
+              <input type="number" id="itv-quantite" step="0.01" min="0" inputmode="decimal">
+            </div>
+            <div style="flex:1">
+              <label for="itv-unite">Unité</label>
+              <select id="itv-unite">
+                <option value="">—</option>
+                <option value="t">t</option>
+                <option value="kg">kg</option>
+                <option value="L">L</option>
+                <option value="t/ha">t/ha</option>
+                <option value="kg/ha">kg/ha</option>
+                <option value="L/ha">L/ha</option>
+                <option value="u">unités</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="itv-champ-materiel">
+          <label for="itv-materiel">Matériel utilisé</label>
+          <input type="text" id="itv-materiel" placeholder="ex: Épandeur 12 t, tracteur 120 ch">
+        </div>
+
+        <div id="itv-champ-duree">
+          <label for="itv-duree">Temps passé (heures)</label>
+          <input type="number" id="itv-duree" step="0.25" min="0" inputmode="decimal" placeholder="ex: 2.5">
+        </div>
+
+        <div id="itv-champ-meteo">
+          <label>Météo (relevée automatiquement)</label>
+          <div class="meteo-box">
+            <span id="itv-meteo-text">—</span>
+            <button type="button" id="itv-meteo-refresh" class="btn btn-secondary btn-mini">🔄 Relever</button>
+          </div>
+        </div>
+
+        <label>Photo</label>
+        <div class="photo-box">
+          <button type="button" id="itv-photo-btn" class="btn btn-secondary btn-mini">📷 Prendre / choisir</button>
+          <button type="button" id="itv-photo-clear" class="btn btn-secondary btn-mini" hidden>🗑 Retirer</button>
+          <span id="itv-photo-info" class="photo-info"></span>
+        </div>
+        <img id="itv-photo-preview" class="photo-preview" alt="" hidden>
+        <input type="file" id="itv-photo-input" accept="image/*" capture="environment" hidden>
+
+        <label for="itv-notes">Notes</label>
+        <textarea id="itv-notes" rows="3" placeholder="Observations, remarques..."></textarea>
+
+        <div class="fiche-actions">
+          <button type="submit" id="itv-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="itv-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="itv-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Fiche parcelle (panneau) -->
   <div id="fiche-panel" class="fiche-overlay" hidden>
@@ -186,8 +333,16 @@
         <select id="fiche-vocation"></select>
 
         <div id="fiche-culture-wrap" hidden>
-          <label for="fiche-culture">Culture (campagne en cours)</label>
+          <label for="fiche-culture">Culture en place</label>
           <select id="fiche-culture"></select>
+
+          <!-- La date de semis fait la différence entre « luzerne 2026 » et
+               « luzerne implantée depuis avril 2023 » : c'est elle qui permet
+               d'afficher la durée d'implantation et de suivre une culture qui
+               chevauche deux années civiles. -->
+          <label for="fiche-datesemis">Date de semis / implantation</label>
+          <input type="date" id="fiche-datesemis">
+          <p id="fiche-duree-info" class="champ-aide" hidden></p>
 
           <div id="fiche-newculture-wrap" class="fiche-newtype" hidden>
             <label for="fiche-newculture-nom">Nom de la nouvelle culture</label>

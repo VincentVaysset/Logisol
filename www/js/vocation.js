@@ -1,7 +1,8 @@
 // Vocations fixes des parcelles (non configurables, contrairement aux
-// cultures) + résolution couleur/label combinant vocation + assolement de la
-// campagne en cours + cultures_config. Logique partagée entre la carte, la
-// légende et la vue liste pour ne pas la dupliquer.
+// cultures) + résolution couleur/label combinant vocation + IMPLANTATION EN
+// COURS (cf. implantations.js) + cultures_config. Logique partagée entre la
+// carte, la légende, la vue liste et l'écran d'accueil pour ne pas la
+// dupliquer.
 export const VOCATIONS = [
   { value: 'culture', label: 'Culture' },
   { value: 'prairie', label: 'Prairie' },
@@ -30,24 +31,24 @@ export function vocationLabel(vocation) {
 
 /**
  * @param {object} parcelle
- * @param {Map<string, object>} assolementsByParcelle  parcelleId -> assolement de la campagne en cours
- * @param {Map<string, object>} culturesById            cultureId -> {nom, couleur}
+ * @param {Map<string, object>} implantationsByParcelle parcelleId -> implantation en cours ({cultureId, dateSemis})
+ * @param {Map<string, object>} culturesById             cultureId -> {nom, couleur}
  */
-export function resolveCouleur(parcelle, assolementsByParcelle, culturesById) {
+export function resolveCouleur(parcelle, implantationsByParcelle, culturesById) {
   const vocation = parcelle.vocation || 'autre';
   if (estVocationCulture(vocation)) {
-    const assol = assolementsByParcelle.get(parcelle.id);
-    const culture = assol ? culturesById.get(assol.cultureId) : null;
+    const impl = implantationsByParcelle.get(parcelle.id);
+    const culture = impl ? culturesById.get(impl.cultureId) : null;
     return culture ? culture.couleur : COULEUR_A_RENSEIGNER;
   }
   return VOCATION_FIXED_COLOR[vocation] || VOCATION_FIXED_COLOR.autre;
 }
 
-export function resolveLabel(parcelle, assolementsByParcelle, culturesById) {
+export function resolveLabel(parcelle, implantationsByParcelle, culturesById) {
   const vocation = parcelle.vocation || 'autre';
   if (estVocationCulture(vocation)) {
-    const assol = assolementsByParcelle.get(parcelle.id);
-    const culture = assol ? culturesById.get(assol.cultureId) : null;
+    const impl = implantationsByParcelle.get(parcelle.id);
+    const culture = impl ? culturesById.get(impl.cultureId) : null;
     return culture ? culture.nom : 'À renseigner';
   }
   return vocationLabel(vocation);

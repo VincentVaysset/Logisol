@@ -29,6 +29,15 @@
 //     match /assolements/{docId} {
 //       allow read, write: if request.auth != null;
 //     }
+//     match /implantations/{docId} {
+//       allow read, write: if request.auth != null;
+//     }
+//     match /interventions/{docId} {
+//       allow read, write: if request.auth != null;
+//     }
+//     match /interventions_types/{docId} {
+//       allow read, write: if request.auth != null;
+//     }
 //   }
 // }
 
@@ -47,7 +56,25 @@ service cloud.firestore {
     match /cultures_config/{docId} {
       allow read, write: if request.auth != null;
     }
+    // assolements : ancien modèle (une culture par année civile), remplacé
+    // par "implantations". Conservé le temps de la reprise automatique, qui
+    // marque chaque document repris.
     match /assolements/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // --- Ajouts du lot « journal d'interventions » ---
+    // Une culture est une PÉRIODE (semis -> fin), pas une année civile.
+    match /implantations/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    // Journal des interventions : une intervention peut porter sur plusieurs
+    // parcelles à la fois.
+    match /interventions/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    // Types d'intervention : liste prédéfinie + types personnalisés.
+    match /interventions_types/{docId} {
       allow read, write: if request.auth != null;
     }
   }

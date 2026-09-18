@@ -171,3 +171,63 @@ La conversion dans les deux sens est faite par `www/js/geometrie.js`, appelée
 uniquement depuis `www/js/parcelles.js` (le seul module qui parle à Firestore).
 Tout le reste de l'appli — carte, dessin, import GeoJSON, fiche — continue de
 manipuler du GeoJSON standard via le champ `coordonnees`.
+
+## Modules
+
+### Vue Ferme (écran d'accueil)
+Carte en haut avec toutes les parcelles nommées et colorées par culture en
+cours, fil des dernières activités en dessous (toutes parcelles mélangées, les
+plus récentes en premier). Taper une activité l'ouvre en modification ; taper
+une parcelle ouvre son aperçu (nom, surface, culture en cours, durée
+d'implantation) avec accès direct à « Ajouter une note » et « Nouvelle
+activité ».
+
+### Implantations (collection `implantations`)
+Une culture est une **période**, pas une année civile :
+
+```
+{ parcelleId, cultureId, dateSemis: "2025-10-12", dateFin: null }
+```
+
+`dateFin: null` signifie « toujours en place ». Ce modèle couvre les cas du
+terrain qu'un cycle calendaire ne sait pas représenter : ray-grass et céréales
+semés à l'automne et récoltés l'année suivante, luzerne en place 4 à 5 ans,
+inter-culture de quelques mois intercalée entre deux. La culture en cours, la
+durée d'implantation et l'assolement d'une année donnée s'en déduisent — rien
+n'est stocké en double, et **seul le réel est enregistré** (pas de prévisionnel).
+
+Les anciens documents `assolements` (une culture par année civile) sont repris
+automatiquement au démarrage, une seule fois, et marqués comme tels.
+
+### Journal d'interventions (collections `interventions`, `interventions_types`)
+Une intervention porte sur **une ou plusieurs parcelles** (`parcelleIds` est
+toujours un tableau) : un épandage couvre souvent tout un secteur. Champs :
+date, type, produit + quantité + unité, matériel, temps passé, météo, photo,
+notes.
+
+- **Types** : liste prédéfinie (Note, Semis, Épandage, Fauche, Pressage,
+  Épierrage…) complétable depuis l'appli. Chaque type déclare les champs qu'il
+  affiche : une note n'a ni produit, ni matériel, ni durée.
+- **Météo** : relevée automatiquement par géolocalisation via
+  [Open-Meteo](https://open-meteo.com/) (gratuit, sans clé). Aucune saisie
+  manuelle. Le relevé du jour utilise la météo de l'instant, une date passée le
+  relevé quotidien. **Jamais bloquant** : sans position ni réseau,
+  l'intervention s'enregistre quand même.
+- **Photo** : redimensionnée à 1200 px et ré-encodée en JPEG avant d'être
+  stockée dans le document (un document Firestore est plafonné à 1 Mio, une
+  photo de tablette pèse plusieurs Mo). Une photo par intervention.
+
+## ⚠️ Règles Firestore à ajouter
+
+Trois collections s'ajoutent avec ce lot. Sans elles, rien ne s'enregistre :
+
+```
+match /implantations/{docId}       { allow read, write: if request.auth != null; }
+match /interventions/{docId}       { allow read, write: if request.auth != null; }
+match /interventions_types/{docId} { allow read, write: if request.auth != null; }
+```
+
+À **ajouter** aux règles existantes dans la console Firebase du projet
+`ovilog-15ef6`, sans toucher à celles d'Ovilog. Le fichier `firestore.rules`
+de ce dépôt contient l'ensemble à jour (il n'est jamais déployé
+automatiquement, volontairement).
