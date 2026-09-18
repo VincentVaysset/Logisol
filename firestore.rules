@@ -38,6 +38,10 @@
 //     match /interventions_types/{docId} {
 //       allow read, write: if request.auth != null;
 //     }
+//     match /stocks/{docId}        { allow read, write: if request.auth != null; }
+//     match /stades_config/{docId} { allow read, write: if request.auth != null; }
+//     match /lots_animaux/{docId}  { allow read, write: if request.auth != null; }
+//     match /prelevements/{docId}  { allow read, write: if request.auth != null; }
 //   }
 // }
 
@@ -75,6 +79,23 @@ service cloud.firestore {
     }
     // Types d'intervention : liste prédéfinie + types personnalisés.
     match /interventions_types/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    // --- Ajouts du lot « stocks + alimentation » ---
+    // Récoltes saisies parcelle par parcelle.
+    match /stocks/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    // Stades physiologiques et leur ration journalière par brebis.
+    match /stades_config/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    // Lots d'animaux (groupe de brebis au même stade, nourries ensemble).
+    match /lots_animaux/{docId} {
+      allow read, write: if request.auth != null;
+    }
+    // Périodes de prélèvement d'un lot sur une catégorie de stock.
+    match /prelevements/{docId} {
       allow read, write: if request.auth != null;
     }
   }

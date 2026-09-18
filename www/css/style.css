@@ -595,3 +595,182 @@ header button {
    Dans la vue Ferme, elle laisserait un vide au bas d'une carte déjà réduite. */
 #map.map-reduite .map-legend,
 #map.map-reduite .leaflet-control-attribution { margin-bottom: 10px !important; }
+
+/* ========================================================================
+   Vues défilantes (Stocks, Troupeau)
+   ======================================================================== */
+.scroll-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+}
+.scroll-view[hidden] { display: none; }
+
+.vue-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.vue-head h2 { flex: 1; margin: 0; font-size: 19px; }
+
+.section-titre {
+  margin: 22px 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lien-section {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; color: var(--primary); text-transform: none; letter-spacing: 0;
+}
+
+.alerte {
+  background: var(--warning);
+  color: #2b2a22;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+.alerte[hidden] { display: none; }
+
+/* --- Tuiles de synthèse --- */
+.tuiles { display: flex; gap: 8px; flex-wrap: wrap; }
+.tuile {
+  flex: 1 1 100px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 10px;
+  text-align: center;
+}
+.tuile-val { font-size: 22px; font-weight: 700; color: var(--primary); line-height: 1.1; }
+.tuile-val small { font-size: 13px; font-weight: 600; opacity: 0.7; }
+.tuile-nom { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+.tuile-cereale .tuile-val { color: var(--accent); }
+.tuile-paille .tuile-val { color: var(--warning); }
+.tuile-consomme .tuile-val { color: var(--text-muted); }
+.tuile-besoin .tuile-val { color: var(--accent); }
+
+/* --- Tableaux ---
+   Un tableau large ne doit JAMAIS élargir la page : il défile dans son propre
+   conteneur, sinon toute l'interface part de travers sur une tablette. */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tableau {
+  border-collapse: collapse;
+  width: 100%;
+  background: var(--card);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 13px;
+}
+.tableau th, .tableau td {
+  padding: 9px 10px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tableau thead th { background: rgba(60,122,78,0.08); font-size: 12px; color: var(--text-muted); vertical-align: bottom; }
+.tableau tbody th, .tableau tfoot th { text-align: left; font-weight: 600; }
+.tableau td.vide { color: var(--border); }
+.tableau .total { font-weight: 700; background: rgba(60,122,78,0.06); }
+.tableau tfoot td, .tableau tfoot th { background: rgba(60,122,78,0.06); font-weight: 700; }
+.tableau .urgent { color: var(--danger); font-weight: 700; }
+
+/* Tableau croisé stades × stocks */
+.tableau-croise { min-width: 560px; }
+.tableau-croise .coin { text-align: left; min-width: 150px; }
+.tableau-croise thead th { text-align: center; min-width: 120px; }
+.col-nom { font-weight: 700; color: var(--text); white-space: normal; font-size: 12px; line-height: 1.25; }
+.col-reste { font-size: 12px; color: var(--primary); font-weight: 700; margin-top: 3px; }
+.col-reste.col-vide { color: var(--danger); }
+.col-auto { font-size: 11px; color: var(--text-muted); }
+.tableau-croise tbody th { white-space: normal; }
+.stade-nom { display: block; font-size: 13px; }
+.stade-sub { display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; }
+.cell-active { background: rgba(60,122,78,0.14); font-weight: 700; text-align: center; }
+.cell-active small { font-weight: 500; font-size: 10px; opacity: 0.75; }
+.ligne-inactive { opacity: 0.5; }
+.pastille { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; flex: 0 0 10px; }
+
+/* --- Cartes de catégorie et lignes de récolte --- */
+.cat-card, .stock-ligne, .lot-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  margin-bottom: 7px;
+}
+.stock-ligne, .lot-card { cursor: pointer; }
+.cat-card-nom { flex: 1; font-size: 14px; font-weight: 600; }
+.cat-card-detail { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.cat-card-tonnes { font-size: 15px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+.stock-ligne-body { flex: 1; min-width: 0; }
+.stock-ligne-nom { font-size: 14px; font-weight: 600; }
+.stock-ligne-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.stock-ligne-tonnes { font-size: 15px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+
+.lot-card-body { flex: 1; min-width: 0; }
+.lot-card-nom { font-size: 15px; font-weight: 700; }
+.lot-card-nb { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.lot-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.lot-card-stock { font-size: 12px; color: var(--primary); font-weight: 600; margin-top: 3px; }
+.sans-stock { color: var(--danger); }
+
+/* --- Rations éditables --- */
+.ration-ligne {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin-bottom: 6px;
+}
+.ration-nom { flex: 1; font-size: 13px; font-weight: 600; }
+.ration-precision { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); }
+.ration-input { width: 78px; margin: 0; padding: 8px; text-align: right; }
+.ration-unite { font-size: 12px; color: var(--text-muted); }
+
+/* --- Résultats calculés dans les formulaires --- */
+.tonnage-calcule, .besoin-calcule {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(60,122,78,0.10);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+.tonnage-calcule strong, .besoin-calcule strong { font-size: 20px; color: var(--primary); }
+
+#stock-champ-foin[hidden], #stock-champ-cereale[hidden],
+#stock-champ-botte[hidden], #stock-champ-grange[hidden] { display: none; }
+
+/* Cinq onglets : le libellé doit rester lisible sans déborder. */
+.tab { font-size: 13px; padding: 12px 2px; }
+@media (max-width: 420px) { .tab { font-size: 11px; } }
+.tuile-tire .tuile-val { color: var(--primary-light); }
+
+/* Colonne des stades figée : dans un croisement, on défile horizontalement
+   pour atteindre les stocks de droite, et sans cela on perd de vue à QUELLE
+   ligne on se trouve — le tableau devient illisible dès 4 ou 5 catégories. */
+.tableau-croise tbody th,
+.tableau-croise tfoot th,
+.tableau-croise thead th.coin {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--card);
+  box-shadow: 1px 0 0 var(--border);
+}
+.tableau-croise thead th.coin { background: #eef3ef; }
+.tableau-croise tfoot th { background: #eef3ef; }
+.tableau-croise .ligne-inactive th { background: var(--card); }

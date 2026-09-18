@@ -231,3 +231,71 @@ match /interventions_types/{docId} { allow read, write: if request.auth != null;
 `ovilog-15ef6`, sans toucher à celles d'Ovilog. Le fichier `firestore.rules`
 de ce dépôt contient l'ensemble à jour (il n'est jamais déployé
 automatiquement, volontairement).
+
+### Stocks (collection `stocks`)
+Un document = **une récolte sur une parcelle**, saisie en une fois en fin de
+récolte. Le tonnage n'est jamais saisi à la main pour les bottes et la grange :
+il se déduit de ce qui est compté au champ.
+
+| Type | Saisie | Tonnage |
+|---|---|---|
+| Foin en botte | nombre de bottes × poids d'une botte (kg) | déduit |
+| Foin séché en grange | nombre de remorques × matière sèche par remorque (kg) | déduit |
+| Paille | comme le foin en botte | déduit |
+| Céréales | surface (ha) + tonnage | saisi |
+
+Le poids par botte est **ressaisi à chaque récolte, sans valeur par défaut** :
+il varie d'une coupe à l'autre. Pour la grange, la dernière estimation de
+matière sèche est simplement rappelée sous le champ, sans pré-remplissage.
+
+Le foin conserve le croisement **coupe (1ʳᵉ / 2ᵉ / 3ᵉ) × type de fourrage**
+(ray-grass, luzerne, prairie naturelle, ou tout autre nommé à la volée). La
+synthèse d'exploitation est l'agrégation de ces récoltes par **catégorie de
+stock** — c'est la clé qui relie un stock à ce que le troupeau y prélève :
+
+```
+foin|grange|c1|luzerne   →  « Foin Luzerne — 1ʳᵉ coupe — séché en grange »
+```
+
+Deux modes de conservation d'un même fourrage et d'une même coupe restent donc
+deux catégories distinctes, parce qu'ils ne se consomment pas pareil.
+
+### Alimentation du troupeau (collections `stades_config`, `lots_animaux`, `prelevements`)
+Huit stades physiologiques dans l'ordre de l'année (début/milieu/fin gestation,
+début/fin allaitement, début traite, pâture, fin de traite). Chacun porte sa
+**ration journalière par brebis**, ajustable depuis l'appli.
+
+Un **lot** est un groupe de brebis au même stade, nourries ensemble. Son besoin
+journalier vaut `ration du stade × effectif`, et il est prélevé sur **une
+catégorie de stock précise, choisie manuellement** — rien n'est affecté
+automatiquement.
+
+Chaque affectation est une **période** (`prelevements`), pas un champ
+écrasable : `{ lotId, categorieCle, debut, fin }`, `fin` exclue. Basculer d'un
+stock à l'autre clôture la période en cours à la date de bascule et en ouvre
+une nouvelle — le jour de bascule compte pour le nouveau stock, jamais pour les
+deux. Sans cet historique, tout ce qu'un lot a consommé sur son stock précédent
+disparaîtrait du calcul le jour où l'on change.
+
+Chaque période **fige la ration et l'effectif du moment** : corriger une ration
+ou un effectif ne réécrit pas ce qui a déjà été mangé, mais ouvre une nouvelle
+période à partir d'aujourd'hui au nouveau rythme.
+
+La consommation se déduit donc de ces périodes, **sans aucune saisie
+quotidienne** : `ration × effectif × jours`. Le tableau croisé stades × stocks
+en donne la lecture directe — ce que chaque stade tire sur quel stock, ce qu'il
+reste par catégorie, l'autonomie en jours et la date d'épuisement estimée.
+
+Deux chiffres à ne pas confondre dans les tuiles : **besoin / jour** est ce dont
+le troupeau a besoin (lots sans stock affecté compris), **tiré des stocks** est
+ce qui en sort réellement. Un lot sans stock affecté est signalé en tête de
+vue — sa consommation n'est comptée nulle part.
+
+## ⚠️ Règles Firestore — quatre collections de plus
+
+```
+match /stocks/{docId}        { allow read, write: if request.auth != null; }
+match /stades_config/{docId} { allow read, write: if request.auth != null; }
+match /lots_animaux/{docId}  { allow read, write: if request.auth != null; }
+match /prelevements/{docId}  { allow read, write: if request.auth != null; }
+```

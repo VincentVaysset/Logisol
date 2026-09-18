@@ -153,6 +153,8 @@
     <button type="button" class="tab" data-vue="ferme">🏠 Ferme</button>
     <button type="button" class="tab" data-vue="carte">🗺️ Carte</button>
     <button type="button" class="tab" data-vue="liste">📋 Parcelles</button>
+    <button type="button" class="tab" data-vue="stocks">🌾 Stocks</button>
+    <button type="button" class="tab" data-vue="troupeau">🐑 Troupeau</button>
   </nav>
 
   <!-- Barre d'outils du mode dessin.
@@ -183,6 +185,43 @@
 
   <div id="list-view" class="list-view" hidden></div>
 
+  <!-- Vue Stocks : synthèse d'exploitation construite à partir des récoltes
+       saisies parcelle par parcelle. -->
+  <div id="stocks-view" class="scroll-view" hidden>
+    <div class="vue-head">
+      <h2>Stocks</h2>
+      <button type="button" id="btn-new-stock" class="btn btn-primary btn-mini">➕ Récolte</button>
+    </div>
+    <div id="stocks-totaux" class="tuiles"></div>
+    <h3 class="section-titre">Foin — coupe × type de fourrage</h3>
+    <div id="stocks-croise" class="table-scroll"></div>
+    <h3 class="section-titre">Par catégorie</h3>
+    <div id="stocks-categories"></div>
+    <h3 class="section-titre">Récoltes saisies</h3>
+    <div id="stocks-lignes"></div>
+  </div>
+
+  <!-- Vue Troupeau : croisement stades physiologiques × stocks. -->
+  <div id="troupeau-view" class="scroll-view" hidden>
+    <div class="vue-head">
+      <h2>Alimentation du troupeau</h2>
+      <button type="button" id="btn-new-lot" class="btn btn-primary btn-mini">➕ Lot</button>
+    </div>
+    <div id="troupeau-alerte" class="alerte" hidden></div>
+    <div id="troupeau-totaux" class="tuiles"></div>
+
+    <h3 class="section-titre">Stades × stocks</h3>
+    <div id="troupeau-tableau" class="table-scroll"></div>
+
+    <h3 class="section-titre">Lots</h3>
+    <div id="troupeau-lots"></div>
+
+    <h3 class="section-titre">
+      <button type="button" id="btn-rations-toggle" class="lien-section">Rations par stade ▾</button>
+    </h3>
+    <div id="troupeau-rations" hidden></div>
+  </div>
+
   <div class="fab-row" id="fab-carte">
     <button id="btn-locate" type="button" class="btn btn-fab btn-fab-icon" title="Centrer sur ma position">📍</button>
     <button id="btn-fit" type="button" class="btn btn-fab btn-fab-icon" title="Voir toutes mes parcelles">🎯</button>
@@ -190,6 +229,142 @@
     <button id="btn-import" type="button" class="btn btn-fab btn-fab-secondary">📂 Importer</button>
   </div>
   <input type="file" id="input-geojson" accept=".json,.geojson,application/geo+json,application/json" hidden>
+
+  <!-- Saisie d'une récolte -->
+  <div id="stock-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="stock-title">Nouvelle récolte</h2>
+      <div id="stock-error-banner" class="fiche-error-banner" hidden>
+        <span id="stock-error-text"></span>
+        <button type="button" id="stock-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="stock-form">
+        <label for="stock-date">Date de récolte</label>
+        <input type="date" id="stock-date" required>
+
+        <label for="stock-parcelle">Parcelle</label>
+        <select id="stock-parcelle"></select>
+
+        <label for="stock-categorie">Catégorie</label>
+        <select id="stock-categorie"></select>
+
+        <div id="stock-champ-foin">
+          <label for="stock-conservation">Mode de conservation</label>
+          <select id="stock-conservation"></select>
+
+          <label for="stock-coupe">Coupe</label>
+          <select id="stock-coupe"></select>
+
+          <label for="stock-fourrage">Type de fourrage</label>
+          <select id="stock-fourrage"></select>
+          <input type="text" id="stock-fourrage-autre" placeholder="Nom du fourrage" hidden>
+        </div>
+
+        <div id="stock-champ-cereale">
+          <label for="stock-espece">Espèce</label>
+          <input type="text" id="stock-espece" placeholder="ex: Orge, Blé tendre">
+          <div class="row">
+            <div style="flex:1">
+              <label for="stock-surface">Surface récoltée (ha)</label>
+              <input type="number" id="stock-surface" step="0.01" min="0" inputmode="decimal">
+            </div>
+            <div style="flex:1">
+              <label for="stock-tonnes">Tonnage (t)</label>
+              <input type="number" id="stock-tonnes" step="0.01" min="0" inputmode="decimal">
+            </div>
+          </div>
+        </div>
+
+        <div id="stock-champ-botte">
+          <div class="row">
+            <div style="flex:1">
+              <label for="stock-nbbottes">Nombre de bottes</label>
+              <input type="number" id="stock-nbbottes" step="1" min="0" inputmode="numeric">
+            </div>
+            <div style="flex:1">
+              <label for="stock-poidsbotte">Poids d'une botte (kg)</label>
+              <input type="number" id="stock-poidsbotte" step="1" min="0" inputmode="decimal">
+            </div>
+          </div>
+          <p class="champ-aide" id="stock-aide-botte">Le poids d'une botte change à chaque récolte : il est à ressaisir, sans valeur par défaut.</p>
+        </div>
+
+        <div id="stock-champ-grange">
+          <div class="row">
+            <div style="flex:1">
+              <label for="stock-nbremorques">Nombre de remorques</label>
+              <input type="number" id="stock-nbremorques" step="1" min="0" inputmode="numeric">
+            </div>
+            <div style="flex:1">
+              <label for="stock-kgremorque">Matière sèche par remorque (kg)</label>
+              <input type="number" id="stock-kgremorque" step="1" min="0" inputmode="decimal">
+            </div>
+          </div>
+          <p class="champ-aide" id="stock-aide-grange" hidden></p>
+        </div>
+
+        <div class="tonnage-calcule">
+          <span>Tonnage</span>
+          <strong id="stock-tonnage-calc">0 t</strong>
+        </div>
+
+        <label for="stock-notes">Notes</label>
+        <textarea id="stock-notes" rows="2" placeholder="Observations..."></textarea>
+
+        <div class="fiche-actions">
+          <button type="submit" id="stock-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="stock-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="stock-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lot d'animaux -->
+  <div id="lot-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="lot-title">Nouveau lot</h2>
+      <div id="lot-error-banner" class="fiche-error-banner" hidden>
+        <span id="lot-error-text"></span>
+        <button type="button" id="lot-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="lot-form">
+        <label for="lot-nom">Nom du lot</label>
+        <input type="text" id="lot-nom" required placeholder="ex: Lot agnelage précoce">
+
+        <label for="lot-nb">Nombre de brebis</label>
+        <input type="number" id="lot-nb" step="1" min="1" inputmode="numeric" required>
+
+        <label for="lot-stade">Stade physiologique</label>
+        <select id="lot-stade"></select>
+        <p id="lot-ration-info" class="champ-aide"></p>
+
+        <label for="lot-stock">Stock puisé</label>
+        <select id="lot-stock"></select>
+        <p class="champ-aide">Le choix reste manuel : rien n'est affecté automatiquement.</p>
+
+        <label for="lot-debut">Prélèvement sur ce stock depuis le</label>
+        <input type="date" id="lot-debut">
+
+        <div class="besoin-calcule">
+          <span>Besoin journalier du lot</span>
+          <strong id="lot-besoin-calc">0 kg/j</strong>
+        </div>
+
+        <label for="lot-notes">Notes</label>
+        <textarea id="lot-notes" rows="2" placeholder="Observations..."></textarea>
+
+        <h3 class="apercu-sous-titre">Historique des prélèvements</h3>
+        <div id="lot-historique" class="apercu-activites"></div>
+
+        <div class="fiche-actions">
+          <button type="submit" id="lot-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="lot-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="lot-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Aperçu d'une parcelle, ouvert en tapant son polygone sur la carte.
        Volontairement distinct de la fiche d'édition : au champ, on veut

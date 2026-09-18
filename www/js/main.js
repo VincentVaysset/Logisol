@@ -26,6 +26,16 @@ import { initImport } from './import-geojson.js';
 import { openCreate, openEdit } from './ui.js';
 import { setParcellesDisponibles } from './ui-intervention.js';
 import { initAccueil, majEtat, renderFeed, ouvrirApercu, fermerApercu } from './accueil.js';
+import { watchStocks, onStocksChange, agregerParCategorie } from './stocks.js';
+import { ensureSeeded as ensureStadesSeeded, watchStades, onStadesChange } from './stades.js';
+import { watchLots, watchPrelevements, onLotsChange, onPrelevementsChange } from './lots.js';
+import {
+  initStocks, setParcelles as setParcellesStocks, setStocks,
+  renderVue as renderStocks
+} from './ui-stocks.js';
+import {
+  initAlimentation, setCategories, renderVue as renderTroupeau
+} from './ui-alimentation.js';
 
 let booted = false;
 let centrageInitialFait = false;
@@ -37,15 +47,18 @@ let latestCultures = [];
 let latestImplantations = [];
 let latestInterventions = [];
 let latestTypes = [];
+let latestStocks = [];
 let enrichedById = new Map();
 let implantationsByParcelle = new Map();
 
-const VUES = ['ferme', 'carte', 'liste'];
+const VUES = ['ferme', 'carte', 'liste', 'stocks', 'troupeau'];
 let currentView = 'ferme';
 
 const mapEl = document.getElementById('map');
 const feedEl = document.getElementById('feed');
 const listViewEl = document.getElementById('list-view');
+const stocksViewEl = document.getElementById('stocks-view');
+const troupeauViewEl = document.getElementById('troupeau-view');
 const tabsEl = document.getElementById('tabs');
 const fabCarte = document.getElementById('fab-carte');
 const drawToolbar = document.getElementById('draw-toolbar');
@@ -81,6 +94,7 @@ function recomputeAndRender() {
   renderParcelles(enriched);
   renderLegend(computeLegendItems(enriched));
   setParcellesDisponibles(enriched);
+  setParcellesStocks(enriched);
 
   majEtat({
     parcelles: enriched,
@@ -93,6 +107,15 @@ function recomputeAndRender() {
   if (currentView === 'liste') renderListView(enriched);
 
   centrerAuPremierChargement(enriched);
+}
+
+// Stocks et troupeau partagent la même agrégation par catégorie : c'est elle
+// qui relie une récolte (« 2ᵉ coupe de luzerne en botte ») au stock sur lequel
+// un lot d'animaux prélève. La calculer une fois évite qu'elles divergent.
+function recomputeStocksEtTroupeau() {
+  setCategories(agregerParCategorie(latestStocks));
+  if (currentView === 'stocks') renderStocks();
+  if (currentView === 'troupeau') renderTroupeau();
 }
 
 function computeLegendItems(enriched) {
@@ -207,10 +230,14 @@ function setView(vue) {
   if (vue !== 'carte' && isDrawing()) cancelDrawing();
 
   currentView = vue;
-  mapEl.hidden = vue === 'liste';
+  // La carte n'existe que dans les vues qui l'utilisent : la laisser affichée
+  // sous une vue Stocks ou Troupeau chargerait des tuiles pour rien.
+  mapEl.hidden = vue !== 'ferme' && vue !== 'carte';
   mapEl.classList.toggle('map-reduite', vue === 'ferme');
   feedEl.hidden = vue !== 'ferme';
   listViewEl.hidden = vue !== 'liste';
+  stocksViewEl.hidden = vue !== 'stocks';
+  troupeauViewEl.hidden = vue !== 'troupeau';
   fabCarte.hidden = vue !== 'carte';
 
   tabsEl.querySelectorAll('.tab').forEach((b) => {
@@ -219,7 +246,9 @@ function setView(vue) {
 
   if (vue === 'ferme') renderFeed();
   if (vue === 'liste') renderListView(Array.from(enrichedById.values()));
-  if (vue !== 'liste') {
+  if (vue === 'stocks') renderStocks();
+  if (vue === 'troupeau') renderTroupeau();
+  if (vue === 'ferme' || vue === 'carte') {
     // #map vient de changer de taille (ou de redevenir visible) : Leaflet ne
     // le détecte pas seul, ce qui décalerait tuiles, contrôles et surtout la
     // conversion tap -> coordonnées.
@@ -259,6 +288,8 @@ async function boot() {
     });
 
     initAccueil({ onModifierParcelle: openEditParcelle });
+    initStocks({ onChange: recomputeStocksEtTroupeau });
+    initAlimentation();
 
     tabsEl.querySelectorAll('.tab').forEach((b) => {
       b.addEventListener('click', () => setView(b.dataset.vue));
@@ -324,8 +355,19 @@ async function boot() {
     watchInterventions((list) => { latestInterventions = list; recomputeAndRender(); });
     watchParcelles((list) => { latestParcelles = list; recomputeAndRender(); });
 
+    onStocksChange((list) => { latestStocks = list; setStocks(list); recomputeStocksEtTroupeau(); });
+    watchStocks();
+
+    onStadesChange(() => recomputeStocksEtTroupeau());
+    watchStades();
+    onLotsChange(() => recomputeStocksEtTroupeau());
+    watchLots();
+    onPrelevementsChange(() => recomputeStocksEtTroupeau());
+    watchPrelevements();
+
     await ensureCulturesSeeded();
     await ensureTypesSeeded();
+    await ensureStadesSeeded();
 
     const reprises = await migrerAnciensAssolements();
     if (reprises) log(reprises + ' ancien(s) assolement(s) repris en implantations');
