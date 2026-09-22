@@ -24,8 +24,15 @@ import { releverMeteo, resumeMeteo } from './meteo.js';
 import { compresserPhoto, tailleLisible } from './photo.js';
 import { aujourdhui } from './implantations.js';
 import {
-  TYPES_GRAIN, getBatiments, getBatimentById, accepteLots, labelGrain, labelFourrage
+  TYPES_GRAIN, getBatiments, getBatimentById, accepteLots, accepteCellules,
+  accepteFourrage, labelGrain, labelFourrage
 } from './batiments.js';
+
+// Formulaires de création des contenants, branchés depuis main.js. Un import
+// direct de ui-batiments.js créerait un cycle (il importe accueil.js, qui
+// importe ce module) : même branchement que pour le placement sur la carte.
+let createurs = { batiment: null, cellule: null, emplacement: null };
+export function setCreateursDeContenant(c) { createurs = { ...createurs, ...c }; }
 import { getCellules, getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getLots } from './lots.js';
@@ -55,7 +62,9 @@ const el = {};
   'flux-intro','flux-calcul','flux-source','flux-source-id','flux-dest',
   'flux-dest-id','flux-champ-quantite','flux-quantite','flux-quantite-label',
   'flux-champ-poids','flux-poids','flux-champ-grain','flux-grain','flux-grain-label',
-  'flux-aide','next','save','cancel','delete','error-banner','error-text','error-close'
+  'flux-aide','flux-creer-toggle','flux-creer-wrap','flux-creer-titre','flux-creer-aide',
+  'flux-creer-bat-wrap','flux-creer-bat','flux-creer',
+  'next','save','cancel','delete','error-banner','error-text','error-close'
 ].forEach((k) => { el[k] = document.getElementById('itv-' + k); });
 
 // Bloc de saisie propre à chaque groupe d'activité. La clé est la valeur du
@@ -655,21 +664,14 @@ function preparerFlux(prefill = {}) {
     el['flux-dest'].hidden = false;
     const options = contenantsPour(formulaireDe(t));
     remplirSelect(el['flux-dest-id'], options, prefill.dest);
-    if (!options.length) {
-      // Sans contenant du bon type, l'entrée obligatoire est impossible : on
-      // dit quoi créer plutôt que de laisser buter sur un select vide.
-      el['flux-intro'].textContent = formulaireDe(t) === 'MOISSON'
-        ? "Aucune cellule à grain n'est enregistrée. Crée-la dans l'onglet Bâtiments (Contenu : Grain) avant de saisir la moisson."
-        : formulaireDe(t) === 'SECHAGE'
-          ? "Aucune cellule de séchage en grange n'est enregistrée. Crée-la dans l'onglet Bâtiments (Contenu : Fourrage) avant de saisir la récolte."
-          : "Aucun emplacement de fourrage n'est enregistré. Crée-le dans l'onglet Bâtiments avant de saisir le pressage.";
-    }
+    majBlocCreation(options.length);
   } else if (flux === 'DISTRIBUTION') {
     el['flux-intro'].textContent = 'Quel stock a été distribué, et à quel lot ? La sortie de stock sera enregistrée en même temps.';
     el['flux-source'].hidden = false;
     el['flux-dest'].hidden = false;
     remplirSelect(el['flux-source-id'], contenantsOptions(), prefill.source);
     remplirSelect(el['flux-dest-id'], lotsOptions(), prefill.dest);
+    majBlocCreation(-1);
   }
   majUniteFlux();
   majCalculFlux();
@@ -708,6 +710,115 @@ function especeDeduite() {
     }
   }
   return null;
+}
+
+// --- Créer le contenant sans quitter la saisie ---------------------------
+// Ce qu'il faut créer se déduit du chantier, comme la liste des destinations.
+function besoinDeContenant() {
+  const f = formulaireDe(typeCourant());
+  if (f === 'MOISSON') {
+    return { genre: 'CELLULE', contenu: 'GRAIN', quoi: 'une cellule à grain',
+             batimentOk: accepteCellules,
+             typeBatiment: 'un bâtiment de stockage grain (ou mixte)' };
+  }
+  if (f === 'SECHAGE') {
+    return { genre: 'CELLULE', contenu: 'FOURRAGE', quoi: 'une cellule de séchage en grange',
+             batimentOk: accepteFourrage,
+             typeBatiment: 'un bâtiment de stockage fourrage (ou mixte)' };
+  }
+  return { genre: 'EMPLACEMENT', contenu: null, quoi: 'un emplacement de fourrage (en bottes)',
+           batimentOk: accepteFourrage,
+           typeBatiment: 'un bâtiment de stockage fourrage (ou mixte)' };
+}
+
+function batimentsUtilisables() {
+  const b = besoinDeContenant();
+  return getBatiments().filter(b.batimentOk);
+}
+
+/**
+ * @param {number} nbOptions nombre de destinations déjà disponibles,
+ *                           ou -1 quand le bloc n'a pas lieu d'être.
+ */
+function majBlocCreation(nbOptions) {
+  if (nbOptions < 0) {
+    el['flux-creer-toggle'].hidden = true;
+    el['flux-creer-wrap'].hidden = true;
+    return;
+  }
+  const besoin = besoinDeContenant();
+  const batiments = batimentsUtilisables();
+  remplirSelect(el['flux-creer-bat'],
+    batiments.map((b) => ({ value: b.id, label: b.nom || 'Bâtiment' })),
+    el['flux-creer-bat'].value);
+  el['flux-creer-bat-wrap'].hidden = !batiments.length;
+
+  if (batiments.length) {
+    el['flux-creer-titre'].textContent = 'Créer ' + besoin.quoi;
+    el['flux-creer-aide'].textContent = nbOptions
+      ? ''
+      : `Aucun contenant du bon type n'existe encore. Crée-le ici, sans perdre ta saisie : tu reviens aussitôt à cette étape avec le nouveau contenant déjà choisi.`;
+    el['flux-creer'].textContent = '➕ Créer ' + besoin.quoi;
+  } else {
+    el['flux-creer-titre'].textContent = 'Créer le bâtiment de stockage';
+    el['flux-creer-aide'].textContent =
+      `Il faut d'abord ${besoin.typeBatiment}. Crée-le ici : on enchaînera sur ${besoin.quoi}, et tu reviendras à cette étape sans rien avoir perdu.`;
+    el['flux-creer'].textContent = '➕ Créer le bâtiment';
+  }
+
+  // Liste vide : le bloc est ouvert d'office, c'est la seule chose à faire.
+  // Liste garnie : un simple lien, pour ne pas encombrer le cas courant.
+  const vide = nbOptions === 0;
+  el['flux-creer-wrap'].hidden = !vide;
+  el['flux-creer-toggle'].hidden = vide;
+  el['flux-creer-toggle'].textContent = '＋ Nouvel emplacement de stockage';
+}
+
+el['flux-creer-toggle'].addEventListener('click', () => {
+  el['flux-creer-wrap'].hidden = !el['flux-creer-wrap'].hidden;
+  el['flux-creer-toggle'].textContent = el['flux-creer-wrap'].hidden
+    ? '＋ Nouvel emplacement de stockage' : '− Annuler la création';
+});
+
+// Le tunnel s'efface le temps de la création (les deux panneaux couvrent
+// l'écran) puis revient tel quel, avec le contenant tout neuf sélectionné.
+function eclipserTunnel() { panel.hidden = true; }
+function rouvrirTunnel(brutDest) {
+  panel.hidden = false;
+  preparerFlux(brutDest ? { dest: brutDest } : {});
+  if (brutDest) hideError();
+}
+
+el['flux-creer'].addEventListener('click', () => {
+  const besoin = besoinDeContenant();
+  const batimentId = el['flux-creer-bat'].value;
+  if (!batimentId) {
+    if (!createurs.batiment) { showError("Création de bâtiment indisponible."); return; }
+    eclipserTunnel();
+    createurs.batiment({
+      onCree: (id) => {
+        if (!id) { rouvrirTunnel(null); return; }
+        // Enchaînement immédiat : un bâtiment sans contenant ne débloquerait
+        // rien, et renvoyer l'exploitant le créer lui-même serait le même
+        // cul-de-sac qu'avant.
+        creerContenant(id, besoin);
+      }
+    });
+    return;
+  }
+  creerContenant(batimentId, besoin);
+});
+
+function creerContenant(batimentId, besoin) {
+  const suite = (id) => rouvrirTunnel(id ? besoin.genre === 'CELLULE' ? 'CELLULE:' + id : 'EMPLACEMENT_FOURRAGE:' + id : null);
+  eclipserTunnel();
+  if (besoin.genre === 'CELLULE') {
+    if (!createurs.cellule) { rouvrirTunnel(null); showError('Création de cellule indisponible.'); return; }
+    createurs.cellule(batimentId, { contenu: besoin.contenu, onCree: suite });
+  } else {
+    if (!createurs.emplacement) { rouvrirTunnel(null); showError("Création d'emplacement indisponible."); return; }
+    createurs.emplacement(batimentId, { onCree: suite });
+  }
 }
 
 function contenantVise() {

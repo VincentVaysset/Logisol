@@ -947,6 +947,21 @@
             </div>
           </div>
           <p id="itv-flux-aide" class="champ-aide" hidden></p>
+
+          <!-- Créer le contenant sans quitter la saisie. Sans ce bloc, une
+               récolte tombant sur un bâtiment non encore équipé était un
+               cul-de-sac : le message disait quoi créer, mais il fallait
+               annuler l'activité pour aller le faire. -->
+          <button type="button" id="itv-flux-creer-toggle" class="lien-section" hidden>＋ Nouvel emplacement de stockage</button>
+          <div id="itv-flux-creer-wrap" class="groupe-saisie" hidden>
+            <div class="groupe-titre" id="itv-flux-creer-titre">Créer l'emplacement de stockage</div>
+            <p id="itv-flux-creer-aide" class="champ-aide"></p>
+            <div id="itv-flux-creer-bat-wrap">
+              <label for="itv-flux-creer-bat">Dans quel bâtiment ?</label>
+              <select id="itv-flux-creer-bat"></select>
+            </div>
+            <button type="button" id="itv-flux-creer" class="btn btn-secondary">➕ Créer</button>
+          </div>
         </section>
 
         <div class="fiche-actions">

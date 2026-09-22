@@ -533,8 +533,26 @@ valeurs qui finissent par diverger.
 
 La destination proposée dépend du chantier — cellule à grain pour une moisson,
 cellule de séchage pour un séchage en grange, emplacement (en bottes) pour un
-pressage. Si aucun contenant du bon type n'existe, le message dit lequel créer
-plutôt que de laisser buter sur un sélecteur vide.
+pressage.
+
+### Créer le contenant sans quitter la saisie
+
+Si aucun contenant du bon type n'existe, l'étape 3 ouvre d'elle-même un bloc
+**« Créer l'emplacement de stockage »**. Le tunnel s'efface le temps du
+formulaire (les deux panneaux couvrent l'écran), puis revient **tel quel**,
+avec le contenant tout neuf déjà sélectionné. S'il n'y a pas non plus de
+bâtiment adapté, la création du bâtiment enchaîne directement sur celle du
+contenant. Annuler à n'importe quel moment ramène au tunnel sans rien perdre.
+
+Sans cela, l'obligation d'entrée en stock devenait un cul-de-sac : le message
+disait quoi créer, mais il fallait annuler l'activité en cours pour aller le
+faire. Quand des contenants existent déjà, le bloc se réduit à un lien
+discret, pour ne pas encombrer le cas courant.
+
+Une **cellule de séchage en grange vit dans un bâtiment de stockage
+fourrage** : le bouton « ➕ Cellule (séchage) » y est donc proposé, au même
+titre que « ➕ Cellule » sur un bâtiment à grain. Le contenu est pré-réglé
+d'après le type de bâtiment.
 
 Fauche, fanage et andainage **ne rentrent rien** : ils préparent l'andain.
 Rattacher un stock à la fauche ferait compter le fourrage deux fois.

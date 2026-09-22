@@ -26,7 +26,9 @@ import {
 } from './draw.js';
 import { initImport } from './import-geojson.js';
 import { openCreate, openEdit } from './ui.js';
-import { setParcellesDisponibles, setChauffeursConnus } from './ui-intervention.js';
+import {
+  setParcellesDisponibles, setChauffeursConnus, setCreateursDeContenant
+} from './ui-intervention.js';
 import { initAccueil, majEtat, renderFeed, ouvrirApercu, fermerApercu } from './accueil.js';
 import { watchStocks, onStocksChange, agregerParCategorie } from './stocks.js';
 import { ensureSeeded as ensureStadesSeeded, watchStades, onStadesChange } from './stades.js';
@@ -42,7 +44,10 @@ import { watchBatiments, onBatimentsChange, typeBatiment } from './batiments.js'
 import { watchCellules, onCellulesChange } from './cellules.js';
 import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
 import { watchMouvements, onMouvementsChange } from './mouvements.js';
-import { setParcellesBatiments, openEditBatiment, setOnDemanderPlacement } from './ui-batiments.js';
+import {
+  setParcellesBatiments, openEditBatiment, setOnDemanderPlacement,
+  openCreateBatiment, openCreateCellule, openCreateEmplacement
+} from './ui-batiments.js';
 import {
   initBatiments, setParcellesMouvements, renderVue as renderBatiments,
   ouvrirApercuBatiment, renderStockageParBatiment
@@ -423,6 +428,15 @@ async function boot() {
     initAlimentation();
     initBatiments({ onChange: recomputeBatiments });
     initMateriel();
+
+    // Le tunnel de saisie peut créer un contenant à la volée, sans perdre la
+    // récolte en cours. Branché ici plutôt qu'importé : ui-batiments.js
+    // dépend déjà (via accueil.js) de ui-intervention.js.
+    setCreateursDeContenant({
+      batiment: (opts) => openCreateBatiment(opts),
+      cellule: (batimentId, opts) => openCreateCellule(batimentId, opts),
+      emplacement: (batimentId, opts) => openCreateEmplacement(batimentId, opts)
+    });
 
     // Taper un bâtiment sur la carte ouvre sa fiche, comme pour une parcelle.
     setOnBatimentClick((id) => {

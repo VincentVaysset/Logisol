@@ -413,7 +413,7 @@ function carteBatiment(b, cellules, emplacements) {
     const n = niveauContenant('CELLULE', c.id).quantite;
     const taux = tauxRemplissage(c, n);
     contenus.push(`<div class="contenant-ligne" data-contenant="CELLULE" data-id="${esc(c.id)}">
-      <span class="contenant-icone">🌾</span>
+      <span class="contenant-icone">${contenuDe(c) === 'FOURRAGE' ? '🌿' : '🌾'}</span>
       <div class="contenant-body">
         <div class="contenant-nom">${esc(c.nom)}</div>
         <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelContenuCellule(c))}</div>

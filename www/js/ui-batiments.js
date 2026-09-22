@@ -76,7 +76,15 @@ function majPosition() {
     : 'Non renseignée';
 }
 
-export function openCreateBatiment() {
+// Rappels posés par le tunnel de saisie : après la création, il reprend la
+// main avec le contenant tout neuf déjà sélectionné, au lieu de renvoyer
+// l'exploitant se débrouiller dans l'onglet Bâtiments.
+let apresBatiment = null;
+let apresCellule = null;
+let apresEmplacement = null;
+
+export function openCreateBatiment(opts = {}) {
+  apresBatiment = opts.onCree || null;
   batEditId = null;
   batLat = null; batLon = null;
   bat.panel.hidden = false;
@@ -113,7 +121,12 @@ function renderContenantsDuBatiment(b) {
   const cels = cellulesDuBatiment(b.id);
   const emps = emplacementsDuBatiment(b.id);
   const lots = getLots().filter((l) => l.batimentId === b.id);
-  bat['add-cellule'].hidden = !accepteCellules(b);
+  // Une cellule se compte en tonnes : c'est un silo à grain, MAIS AUSSI une
+  // cellule de séchage en grange. Un bâtiment de stockage fourrage doit donc
+  // pouvoir en recevoir — sans quoi le séchage en grange n'a nulle part où
+  // rentrer, et la saisie de récolte reste bloquée.
+  bat['add-cellule'].hidden = !(accepteCellules(b) || accepteFourrage(b));
+  bat['add-cellule'].textContent = accepteCellules(b) ? '➕ Cellule' : '➕ Cellule (séchage)';
   bat['add-emplacement'].hidden = !accepteFourrage(b);
 
   const blocs = [];
@@ -218,7 +231,10 @@ function restaurerApresPlacement() {
   }
   etatAvantPlacement = null;
 }
-bat.cancel.addEventListener('click', () => { bat.panel.hidden = true; });
+bat.cancel.addEventListener('click', () => {
+  bat.panel.hidden = true;
+  if (apresBatiment) { const cb = apresBatiment; apresBatiment = null; cb(null); }
+});
 
 bat['add-cellule'].addEventListener('click', () => { if (batEditId) openCreateCellule(batEditId); });
 bat['add-emplacement'].addEventListener('click', () => { if (batEditId) openCreateEmplacement(batEditId); });
@@ -232,10 +248,12 @@ bat.form.addEventListener('submit', async (e) => {
       nom: bat.nom.value, type: bat.type.value, remarques: bat.remarques.value,
       latitude: batLat, longitude: batLon
     };
+    let nouveauId = batEditId;
     if (batEditId) await updateBatiment(batEditId, data);
-    else await createBatiment(data);
+    else nouveauId = (await createBatiment(data)).id;
     bat.panel.hidden = true;
     log('bâtiment enregistré');
+    if (apresBatiment) { const cb = apresBatiment; apresBatiment = null; cb(nouveauId, data.type); }
   } catch (err) {
     batError(messageErreur(err, 'lgs_batiments'));
   } finally {
@@ -286,16 +304,25 @@ function majOptionsContenu(valeur) {
 }
 majOptionsContenu('');
 cel['error-close'].addEventListener('click', () => { cel['error-banner'].hidden = true; });
-cel.cancel.addEventListener('click', () => { cel.panel.hidden = true; });
+cel.cancel.addEventListener('click', () => {
+  cel.panel.hidden = true;
+  if (apresCellule) { const cb = apresCellule; apresCellule = null; cb(null); }
+});
 
-export function openCreateCellule(batimentId) {
+export function openCreateCellule(batimentId, opts = {}) {
+  apresCellule = opts.onCree || null;
   celEditId = null; celBatimentId = batimentId;
   cel.panel.hidden = false;
   cel['error-banner'].hidden = true;
   cel.title.textContent = 'Nouvelle cellule';
   cel.delete.hidden = true;
   cel.nom.value = ''; cel.capacite.value = '';
-  cel.contenu.value = 'GRAIN';
+  // Contenu proposé d'après le bâtiment : un hangar à fourrage n'accueille
+  // pas du grain, et le redemander à chaque fois serait une question dont la
+  // réponse est déjà connue.
+  const b = getBatimentById(batimentId);
+  cel.contenu.value = opts.contenu
+    || (b && b.type === 'STOCKAGE_FOURRAGE' ? 'FOURRAGE' : 'GRAIN');
   majOptionsContenu('');
   cel.etat.hidden = true;
 }
@@ -327,11 +354,13 @@ cel.form.addEventListener('submit', async (e) => {
       contenu: cel.contenu.value,
       typeGrainActuel: cel.grain.value || null
     };
+    let nouveauId = celEditId;
     if (celEditId) await updateCellule(celEditId, data);
-    else await createCellule(data);
+    else nouveauId = (await createCellule(data)).id;
     cel.panel.hidden = true;
     const b = getBatimentById(celBatimentId);
     if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+    if (apresCellule) { const cb = apresCellule; apresCellule = null; cb(nouveauId); }
   } catch (err) {
     cel['error-text'].textContent = messageErreur(err, 'lgs_cellules_grain'); cel['error-banner'].hidden = false;
   } finally {
@@ -370,9 +399,13 @@ let empBatimentId = null;
 
 emp.type.innerHTML = TYPES_FOURRAGE.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
 emp['error-close'].addEventListener('click', () => { emp['error-banner'].hidden = true; });
-emp.cancel.addEventListener('click', () => { emp.panel.hidden = true; });
+emp.cancel.addEventListener('click', () => {
+  emp.panel.hidden = true;
+  if (apresEmplacement) { const cb = apresEmplacement; apresEmplacement = null; cb(null); }
+});
 
-export function openCreateEmplacement(batimentId) {
+export function openCreateEmplacement(batimentId, opts = {}) {
+  apresEmplacement = opts.onCree || null;
   empEditId = null; empBatimentId = batimentId;
   emp.panel.hidden = false;
   emp['error-banner'].hidden = true;
@@ -403,11 +436,13 @@ emp.form.addEventListener('submit', async (ev) => {
   emp.save.disabled = true; emp.save.textContent = 'Enregistrement...';
   try {
     const data = { batimentId: empBatimentId, nom: emp.nom.value, typeFourrage: emp.type.value };
+    let nouveauId = empEditId;
     if (empEditId) await updateEmplacement(empEditId, data);
-    else await createEmplacement(data);
+    else nouveauId = (await createEmplacement(data)).id;
     emp.panel.hidden = true;
     const b = getBatimentById(empBatimentId);
     if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+    if (apresEmplacement) { const cb = apresEmplacement; apresEmplacement = null; cb(nouveauId); }
   } catch (err) {
     emp['error-text'].textContent = messageErreur(err, 'lgs_emplacements_fourrage'); emp['error-banner'].hidden = false;
   } finally {
