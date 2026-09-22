@@ -176,6 +176,14 @@
   </div>
   <p id="draw-hint" class="draw-hint" hidden></p>
 
+  <!-- Barre du mode « placer un bâtiment ». Même principe que la barre de
+       dessin : en flux normal, hors de la carte, donc jamais recouverte. -->
+  <div id="place-toolbar" class="draw-toolbar" hidden>
+    <span id="place-info" class="draw-count">Touche la carte</span>
+    <button id="btn-place-ok" type="button" class="draw-btn draw-btn-primary">✅ Valider ici</button>
+    <button id="btn-place-cancel" type="button" class="draw-btn draw-btn-cancel">✖ Annuler</button>
+  </div>
+
   <div id="map"></div>
 
   <!-- Fil des dernières activités (vue Ferme) : toutes parcelles mélangées,
@@ -217,6 +225,12 @@
     </div>
     <div id="batiments-totaux" class="tuiles"></div>
     <div id="batiments-liste"></div>
+    <div class="vue-head vue-head-sous">
+      <h3 class="section-titre section-titre-inline">Parc matériel</h3>
+      <button type="button" id="btn-new-materiel" class="btn btn-secondary btn-mini">➕ Matériel</button>
+    </div>
+    <div id="materiels-liste"></div>
+
     <h3 class="section-titre">Derniers mouvements</h3>
     <div id="mouvements-liste"></div>
   </div>
@@ -266,6 +280,43 @@
     </div>
   </div>
 
+  <!-- Matériel -->
+  <div id="materiel-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="mat-title">Nouveau matériel</h2>
+      <div id="mat-error-banner" class="fiche-error-banner" hidden>
+        <span id="mat-error-text"></span>
+        <button type="button" id="mat-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="mat-form">
+        <label for="mat-nom">Nom</label>
+        <input type="text" id="mat-nom" required placeholder="ex: Semoir 3 m, Casseuse de pierres">
+
+        <label for="mat-marque">Marque</label>
+        <input type="text" id="mat-marque" placeholder="ex: Kuhn, Amazone">
+
+        <label for="mat-largeur">Largeur de travail (m)</label>
+        <input type="number" id="mat-largeur" step="0.1" min="0" inputmode="decimal">
+
+        <label for="mat-graissage">Dernier graissage</label>
+        <input type="date" id="mat-graissage">
+        <div class="graissage-box">
+          <span id="mat-graissage-info">jamais renseigné</span>
+          <button type="button" id="mat-graissage-aujourdhui" class="btn btn-primary btn-mini">🛢️ Graissé aujourd'hui</button>
+        </div>
+
+        <label for="mat-note">Note d'entretien</label>
+        <textarea id="mat-note" rows="3" placeholder="Pièces à changer, réglages, remarques..."></textarea>
+
+        <div class="fiche-actions">
+          <button type="submit" id="mat-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="mat-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="mat-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Bâtiment -->
   <div id="batiment-panel" class="fiche-overlay" hidden>
     <div class="fiche-panel">
@@ -284,7 +335,8 @@
         <label>Position sur la carte</label>
         <div class="meteo-box">
           <span id="bat-position">Non renseignée</span>
-          <button type="button" id="bat-locate" class="btn btn-secondary btn-mini">📍 Ici</button>
+          <button type="button" id="bat-placer" class="btn btn-secondary btn-mini">🗺️ Placer sur la carte</button>
+          <button type="button" id="bat-locate" class="btn btn-secondary btn-mini">📍 Ma position</button>
           <button type="button" id="bat-position-clear" class="btn btn-secondary btn-mini">Effacer</button>
         </div>
 
@@ -622,6 +674,22 @@
           <div id="itv-parcelles" class="parcelles-list"></div>
           <label>Activité</label>
           <div id="itv-activites" class="activites"></div>
+          <button type="button" id="itv-newtype-toggle" class="lien-section">＋ Action sur mesure</button>
+          <div id="itv-newtype" class="fiche-newtype" hidden>
+            <label for="itv-newtype-nom">Nom de l'action</label>
+            <input type="text" id="itv-newtype-nom" placeholder="ex: Semis direct">
+            <div class="row">
+              <div style="flex:1">
+                <label for="itv-newtype-icone">Icône</label>
+                <input type="text" id="itv-newtype-icone" value="🔧" maxlength="4">
+              </div>
+              <div style="flex:2">
+                <label for="itv-newtype-cat">Catégorie</label>
+                <select id="itv-newtype-cat"></select>
+              </div>
+            </div>
+            <button type="button" id="itv-newtype-add" class="btn btn-primary btn-mini">Créer et sélectionner</button>
+          </div>
         </section>
 
         <!-- ÉTAPE 2 : quand, statut, note -->
@@ -664,8 +732,9 @@
               </div>
             </div>
             <div id="itv-champ-materiel">
-              <label for="itv-materiel">Matériel utilisé</label>
-              <input type="text" id="itv-materiel" placeholder="ex: Épandeur 12 t, tracteur 120 ch">
+              <label for="itv-materiel-id">Matériel utilisé</label>
+              <select id="itv-materiel-id"></select>
+              <input type="text" id="itv-materiel" placeholder="Précision libre (tracteur, réglage...)">
             </div>
             <div id="itv-champ-duree">
               <label for="itv-duree">Temps passé (heures)</label>

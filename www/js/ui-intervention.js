@@ -13,8 +13,9 @@
 // d'en oublier un.
 import {
   CATEGORIES, getTypes, getTypeById, onTypesChange, typeAffiche,
-  typesPourCible, categorieDe, fluxDe, TYPE_NOTE
+  typesPourCible, categorieDe, fluxDe, addType, TYPE_NOTE
 } from './interventions-types.js';
+import { getMateriels, getMaterielById, onMaterielsChange } from './materiel.js';
 import { createIntervention, updateIntervention, deleteIntervention } from './interventions.js';
 import { releverMeteo, resumeMeteo } from './meteo.js';
 import { compresserPhoto, tailleLisible } from './photo.js';
@@ -32,7 +33,8 @@ const form = document.getElementById('itv-form');
 const el = {};
 [ 'title','back','steps','etape-1','etape-2','etape-3','cible','parcelles','pick-all',
   'pick-none','pick-count','activites','date','statut','notes','details','details-toggle',
-  'champ-produit','produit','quantite','unite','champ-materiel','materiel','champ-duree',
+  'champ-produit','produit','quantite','unite','champ-materiel','materiel','materiel-id','champ-duree',
+  'newtype','newtype-toggle','newtype-nom','newtype-icone','newtype-cat','newtype-add',
   'duree','champ-meteo','meteo-text','meteo-refresh','photo-btn','photo-clear','photo-input',
   'photo-preview','photo-info','flux-intro','flux-source','flux-source-id','flux-dest',
   'flux-dest-id','flux-quantite','flux-quantite-label','flux-champ-poids','flux-poids',
@@ -67,6 +69,55 @@ export function setParcellesDisponibles(list) {
 }
 
 onTypesChange(() => { if (!panel.hidden) renderActivites(); });
+
+// Liste du parc, tenue à jour en direct : un matériel créé depuis l'onglet
+// Bâtiments doit être proposé sans avoir à rouvrir le formulaire.
+onMaterielsChange(() => peuplerMateriels(el['materiel-id'].value));
+
+function peuplerMateriels(valeur) {
+  const liste = getMateriels();
+  el['materiel-id'].innerHTML =
+    '<option value="">— Aucun —</option>' +
+    liste.map((m) => `<option value="${escapeAttr(m.id)}">${escapeHtml(m.nom)}${m.largeurTravailMetres ? ' (' + m.largeurTravailMetres + ' m)' : ''}</option>`).join('');
+  if (valeur && liste.some((m) => m.id === valeur)) el['materiel-id'].value = valeur;
+}
+
+// --- Action sur mesure ----------------------------------------------------
+// Un chantier inhabituel ne doit pas obliger à se rabattre sur « Autre » :
+// le type créé ici est immédiatement sélectionné et réutilisable ensuite.
+el['newtype-cat'].innerHTML = CATEGORIES
+  .map((c) => `<option value="${c.value}">${c.icone} ${escapeHtml(c.label)}</option>`).join('');
+
+el['newtype-toggle'].addEventListener('click', () => {
+  el.newtype.hidden = !el.newtype.hidden;
+  el['newtype-toggle'].textContent = el.newtype.hidden ? '＋ Action sur mesure' : '− Annuler la création';
+});
+
+el['newtype-add'].addEventListener('click', async () => {
+  const nom = el['newtype-nom'].value.trim();
+  if (!nom) { showError("Donne un nom à l'action."); return; }
+  el['newtype-add'].disabled = true;
+  try {
+    const id = await addType(nom, el['newtype-icone'].value.trim(), '#9a988f', {
+      categorie: el['newtype-cat'].value,
+      cible: cible,          // créée depuis la cible en cours : une action
+                             // inventée pour une parcelle concerne les parcelles
+      flux: null
+    });
+    typeChoisiId = id;
+    el['newtype-nom'].value = '';
+    el.newtype.hidden = true;
+    el['newtype-toggle'].textContent = '＋ Action sur mesure';
+    hideError();
+    renderActivites();
+    appliquerType();
+    log('action sur mesure créée : ' + nom);
+  } catch (err) {
+    showError("Action non créée : " + ((err && err.message) || err));
+  } finally {
+    el['newtype-add'].disabled = false;
+  }
+});
 
 // --- Navigation entre étapes ---------------------------------------------
 function typeCourant() { return getTypeById(typeChoisiId); }
@@ -402,8 +453,11 @@ function reinitialiser() {
   statut = 'TERMINE';
   mouvementLie = null;
   fluxEnregistre = null;
-  ['produit', 'quantite', 'materiel', 'duree', 'notes', 'flux-quantite', 'flux-poids']
+  ['produit', 'quantite', 'materiel', 'duree', 'notes', 'flux-quantite', 'flux-poids', 'newtype-nom']
     .forEach((k) => { el[k].value = ''; });
+  peuplerMateriels('');
+  el.newtype.hidden = true;
+  el['newtype-toggle'].textContent = '＋ Action sur mesure';
   el.unite.value = '';
   el.details.hidden = true;
   el['details-toggle'].textContent = '＋ Détails (produit, matériel, temps, météo, photo)';
@@ -460,6 +514,7 @@ export function openEditIntervention(itv) {
     el.quantite.value = itv.quantite != null ? itv.quantite : '';
     el.unite.value = itv.unite || '';
     el.materiel.value = itv.materiel || '';
+    peuplerMateriels(itv.materielId || '');
     el.duree.value = itv.dureeHeures != null ? itv.dureeHeures : '';
     el.notes.value = itv.notes || '';
     meteoCourante = itv.meteo || null;
@@ -535,6 +590,10 @@ form.addEventListener('submit', async (e) => {
       quantite: el['champ-produit'].hidden ? null : el.quantite.value,
       unite: el['champ-produit'].hidden ? '' : el.unite.value,
       materiel: el['champ-materiel'].hidden ? '' : el.materiel.value.trim(),
+      materielId: el['champ-materiel'].hidden ? null : (el['materiel-id'].value || null),
+      // Nom figé : le fil reste lisible même si le matériel est renommé ou
+      // sorti du parc plus tard.
+      materielNom: el['champ-materiel'].hidden ? '' : nomMateriel(el['materiel-id'].value),
       dureeHeures: el['champ-duree'].hidden ? null : el.duree.value,
       meteo: el['champ-meteo'].hidden ? null : meteoCourante,
       photo: photoCourante,
@@ -660,6 +719,10 @@ el.delete.addEventListener('click', async () => {
   } finally { el.delete.disabled = false; }
 });
 
+function nomMateriel(id) {
+  const m = id ? getMaterielById(id) : null;
+  return m ? m.nom : '';
+}
 function arrondi(v) { return Math.round((Number(v) || 0) * 100) / 100; }
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

@@ -17,7 +17,7 @@ import {
 import { setQuantite, getCelluleById } from './cellules.js';
 import { setNiveau, getEmplacementById } from './emplacements.js';
 
-const COL = collection(db, 'mouvements_stock');
+const COL = collection(db, 'lgs_mouvements_stock');
 
 /**
  * @typedef {'ENTREE_RECOLTE'|'ENTREE_ACHAT'|'SORTIE_ALIMENTATION'|'PERTE'|'TRANSFERT'|'INVENTAIRE'} TypeMouvement
@@ -261,7 +261,7 @@ export async function updateMouvement(id, data) {
   const m = nettoyer(data);
   valider(m);
   const avant = courants.find((x) => x.id === id);
-  await updateDoc(doc(db, 'mouvements_stock', id), { ...m, majLe: serverTimestamp() });
+  await updateDoc(doc(db, 'lgs_mouvements_stock', id), { ...m, majLe: serverTimestamp() });
   // On rafraîchit AUSSI les contenants d'avant modification : déplacer un
   // mouvement d'un silo à un autre doit corriger les deux, pas seulement le
   // nouveau.
@@ -276,7 +276,7 @@ export async function updateMouvement(id, data) {
 
 export async function deleteMouvement(id) {
   const avant = courants.find((x) => x.id === id);
-  await deleteDoc(doc(db, 'mouvements_stock', id));
+  await deleteDoc(doc(db, 'lgs_mouvements_stock', id));
   if (avant) {
     await rafraichirContenants(
       [{ type: avant.destinationType, id: avant.destinationId },

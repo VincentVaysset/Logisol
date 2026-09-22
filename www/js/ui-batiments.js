@@ -22,7 +22,9 @@ import { getStadeById } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
-import { centrerSurMaPosition, getMap } from './map.js';
+import {
+  centrerSurMaPosition, getMap, demarrerPlacement, arreterPlacement, positionPlacement
+} from './map.js';
 
 class ErreurDeSaisie extends Error {}
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
@@ -52,7 +54,7 @@ export function setParcellesBatiments(list) { parcelles = list; }
 const bat = {
   panel: document.getElementById('batiment-panel'),
   form: document.getElementById('bat-form'),
-  ...panneau('bat', ['title', 'nom', 'type', 'position', 'locate', 'position-clear',
+  ...panneau('bat', ['title', 'nom', 'type', 'position', 'locate', 'placer', 'position-clear',
                      'remarques', 'contenants', 'contenants-wrap', 'add-cellule',
                      'add-emplacement', 'save', 'cancel', 'delete',
                      'error-banner', 'error-text', 'error-close'])
@@ -165,6 +167,53 @@ bat.locate.addEventListener('click', () => {
   });
 });
 bat['position-clear'].addEventListener('click', () => { batLat = null; batLon = null; majPosition(); });
+
+// --- Placement par tap sur la carte ---------------------------------------
+// Le panneau doit s'effacer le temps du placement : il couvre tout l'écran,
+// donc la carte en dessous. On mémorise l'état saisi pour le restaurer
+// ensuite — perdre un nom déjà tapé parce qu'on va placer le bâtiment serait
+// exactement le genre de détail qui fait abandonner une saisie.
+let etatAvantPlacement = null;
+let onDemanderPlacement = () => {};
+export function setOnDemanderPlacement(cb) { onDemanderPlacement = cb || (() => {}); }
+
+bat.placer.addEventListener('click', () => {
+  etatAvantPlacement = {
+    editId: batEditId,
+    nom: bat.nom.value,
+    type: bat.type.value,
+    remarques: bat.remarques.value,
+    lat: batLat,
+    lon: batLon
+  };
+  bat.panel.hidden = true;
+  onDemanderPlacement({
+    depart: (batLat != null && batLon != null) ? { lat: batLat, lng: batLon } : null,
+    onValider: (pos) => {
+      restaurerApresPlacement();
+      if (pos) { batLat = pos.lat; batLon = pos.lng; }
+      majPosition();
+    },
+    onAnnuler: () => { restaurerApresPlacement(); majPosition(); }
+  });
+});
+
+function restaurerApresPlacement() {
+  if (!etatAvantPlacement) return;
+  batEditId = etatAvantPlacement.editId;
+  bat.panel.hidden = false;
+  bat.nom.value = etatAvantPlacement.nom;
+  bat.type.value = etatAvantPlacement.type;
+  bat.remarques.value = etatAvantPlacement.remarques;
+  batLat = etatAvantPlacement.lat;
+  batLon = etatAvantPlacement.lon;
+  bat['contenants-wrap'].hidden = !batEditId;
+  if (batEditId) {
+    const b = getBatimentById(batEditId);
+    if (b) renderContenantsDuBatiment(b);
+  }
+  etatAvantPlacement = null;
+}
 bat.cancel.addEventListener('click', () => { bat.panel.hidden = true; });
 
 bat['add-cellule'].addEventListener('click', () => { if (batEditId) openCreateCellule(batEditId); });

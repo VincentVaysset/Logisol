@@ -398,3 +398,59 @@ L'activité crée alors le mouvement correspondant — les saisir séparément
 serait le meilleur moyen d'en oublier un. Une activité **« À faire » ne bouge
 rien** : son intention (quantité, destination) est conservée sur l'activité
 elle-même et le mouvement n'est créé qu'au passage à « Terminé ».
+
+
+## Parc matériel (`lgs_materiel`)
+
+Suivi volontairement minimal — nom, marque, largeur de travail, dernier
+graissage, note d'entretien — parce que c'est ce qui se tient à jour. Heures
+moteur, factures et pièces seraient de la saisie que personne ne maintient.
+
+Chaque fiche et chaque carte portent un bouton **« 🛢️ Graissé »** qui inscrit
+la date du jour en un geste. Le délai écoulé est affiché en clair (« il y a
+2 mois ») **sans seuil d'alerte inventé** : la fréquence de graissage dépend
+de l'outil et de l'usage, et une couleur d'alarme posée au hasard finirait
+ignorée.
+
+Le matériel s'associe à une intervention par un sélecteur, dans les détails du
+tunnel de saisie. Son nom est figé sur l'intervention : le fil reste lisible
+même si l'outil est renommé ou sorti du parc.
+
+## Vocabulaire des activités
+
+Les actions reprennent les termes exacts de l'exploitation :
+
+| Groupe | Actions |
+|---|---|
+| Sol & semis | Épandage fumier, Déchaumage, Alignement pierres, Broyage pierres (casseuse), Labour, Vibroculteur, Semis (semoir + tasse-avant), Roulage |
+| Fourrages | Fauche, Pirouette / Fanage, Andainage, **Pressage (bottes)**, **Ramassage vrac (séchage en grange)** |
+| Céréales | **Moisson** |
+| Troupeau | Pâturage, Distribution alimentation, Allotement, Soin, Traitement sanitaire |
+
+Les trois actions en gras sont les seules à faire **entrer du stock** : la
+fauche, le fanage et l'andainage préparent l'andain mais ne rentrent rien.
+Rattacher un stock à la fauche ferait compter le fourrage deux fois.
+
+Les anciens types génériques (Travail du sol, Épierrage, Irrigation,
+Fertilisation, Désherbage, Traitement) sont **conservés** et rangés en fin de
+liste dans « Divers » : des interventions y sont rattachées, et les supprimer
+rendrait leur historique incohérent. Six libellés ont été précisés sur place,
+sans changer de document : Récolte → Moisson, Fauche / Enrubannage → Fauche,
+Épandage → Épandage fumier, Fanage → Pirouette / Fanage, Pressage → Pressage
+(bottes), Semis → Semis (semoir + tasse-avant).
+
+Une **action sur mesure** peut être créée depuis l'étape 1 du tunnel (nom,
+icône, groupe) : elle est aussitôt sélectionnée et réutilisable.
+
+## Placement d'un bâtiment
+
+Deux voies, au choix :
+- **📍 Ma position** — relève le GPS de l'appareil ;
+- **🗺️ Placer sur la carte** — bascule en vue Carte, un tap pose le repère,
+  un second le déplace, et on peut le faire glisser au doigt pour ajuster.
+
+Tous les bâtiments ne se pointent pas depuis l'intérieur, et le GPS d'une
+tablette est imprécis à quelques mètres : un tap sur l'ortho est plus juste, et
+permet aussi de **corriger** un bâtiment déjà placé. Le formulaire est effacé
+le temps du placement (il couvre l'écran) puis restauré avec tout ce qui y
+avait déjà été saisi.

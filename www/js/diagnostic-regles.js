@@ -15,10 +15,13 @@ import { collection, getDocs, limit, query } from "../vendor/firebase/firebase-f
 // Toutes les collections dont l'appli a besoin. Ajouter un module = ajouter
 // son nom ici, et le diagnostic le couvre.
 const REQUISES = [
+  // Collections historiques, autorisées nommément dans les règles.
   'parcelles', 'cultures_config', 'implantations',
   'interventions', 'interventions_types',
   'stocks', 'stades_config', 'lots_animaux', 'prelevements',
-  'batiments', 'cellules_grain', 'emplacements_fourrage', 'mouvements_stock'
+  // Collections préfixées, couvertes d'avance par le joker des règles.
+  'lgs_batiments', 'lgs_cellules_grain', 'lgs_emplacements_fourrage',
+  'lgs_mouvements_stock', 'lgs_materiel'
 ];
 
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
@@ -61,7 +64,7 @@ export async function verifierRegles(onProbleme) {
         `Firestore refuse ${refusees.length} collection${refusees.length > 1 ? 's' : ''} : ` +
         refusees.join(', ') +
         '. Colle le contenu de firestore.rules dans la console Firebase (Firestore > Règles), ' +
-        "à côté des règles d'Ovilog.",
+        "à côté des règles d'Ovilog. Les collections en lgs_ sont couvertes par le joker de préfixe.",
         refusees
       );
     }

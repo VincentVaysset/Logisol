@@ -67,6 +67,8 @@ function nettoyer(data) {
     quantite: data.quantite === '' || data.quantite == null ? null : Number(data.quantite),
     unite: data.unite || '',
     materiel: data.materiel || '',
+    materielId: data.materielId || null,
+    materielNom: data.materielNom || '',
     dureeHeures: data.dureeHeures === '' || data.dureeHeures == null ? null : Number(data.dureeHeures),
     meteo: data.meteo || null,                         // objet plat, cf. meteo.js
     photo: data.photo || null,                         // data URL JPEG compressée

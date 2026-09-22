@@ -17,7 +17,8 @@ import { watchParcelles } from './parcelles.js';
 import {
   initMap, renderParcelles, renderLegend, refreshMapSize,
   fitToParcelles, centrerSurMaPosition, vueARestaurer,
-  renderBatiments as renderBatimentsCarte, setOnBatimentClick
+  renderBatiments as renderBatimentsCarte, setOnBatimentClick,
+  demarrerPlacement, arreterPlacement, positionPlacement
 } from './map.js';
 import {
   initDraw, startDrawing, cancelDrawing, undoLastPoint, finishDrawing,
@@ -41,12 +42,14 @@ import { watchBatiments, onBatimentsChange, typeBatiment } from './batiments.js'
 import { watchCellules, onCellulesChange } from './cellules.js';
 import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
 import { watchMouvements, onMouvementsChange } from './mouvements.js';
-import { setParcellesBatiments, openEditBatiment } from './ui-batiments.js';
+import { setParcellesBatiments, openEditBatiment, setOnDemanderPlacement } from './ui-batiments.js';
 import {
   initBatiments, setParcellesMouvements, renderVue as renderBatiments,
   ouvrirApercuBatiment, renderStockageParBatiment
 } from './ui-mouvements.js';
 import { verifierRegles } from './diagnostic-regles.js';
+import { watchMateriels, onMaterielsChange } from './materiel.js';
+import { initMateriel, renderMateriels } from './ui-materiel.js';
 
 let booted = false;
 let centrageInitialFait = false;
@@ -80,6 +83,8 @@ const drawHint = document.getElementById('draw-hint');
 const btnDrawUndo = document.getElementById('btn-draw-undo');
 const btnDrawFinish = document.getElementById('btn-draw-finish');
 const btnDrawCancel = document.getElementById('btn-draw-cancel');
+const placeToolbar = document.getElementById('place-toolbar');
+const placeInfo = document.getElementById('place-info');
 
 function log(msg) {
   if (window.__logisolDebug) window.__logisolDebug(msg);
@@ -146,7 +151,7 @@ function recomputeBatiments() {
   renderBatimentsCarte(enrichis);
   majEtat({ batiments: latestBatiments });
   if (currentView === 'ferme') renderFeed();
-  if (currentView === 'batiments') renderBatiments();
+  if (currentView === 'batiments') { renderBatiments(); renderMateriels(); }
   if (currentView === 'stocks') renderStockageParBatiment();
 }
 
@@ -254,12 +259,71 @@ function majEtatDessin({ actif, sommets }) {
   }
 }
 
+// --- Placement d'un bâtiment sur la carte ---------------------------------
+// Bascule l'appli en vue Carte, affiche une barre d'outils dédiée, et rend
+// la main au formulaire une fois le point validé ou abandonné.
+let placementEnCours = null;
+let vueAvantPlacement = null;
+
+function initPlacement() {
+  document.getElementById('btn-place-ok').addEventListener('click', () => terminerPlacement(true));
+  document.getElementById('btn-place-cancel').addEventListener('click', () => terminerPlacement(false));
+
+  setOnDemanderPlacement((opts) => {
+    placementEnCours = opts;
+    // On note d'où l'on vient : après validation, le formulaire réapparaît
+    // par-dessus SA vue d'origine (Bâtiments), et non par-dessus la carte —
+    // sinon, en fermant le formulaire, on se retrouve sur un écran qui n'a
+    // rien à voir avec ce qu'on était en train de faire.
+    vueAvantPlacement = currentView;
+    setView('carte');
+    placeToolbar.hidden = false;
+    fabCarte.hidden = true;
+    placeInfo.textContent = opts.depart ? 'Déplace le repère' : 'Touche la carte';
+    afficherIndice('Touche la carte à l\'emplacement du bâtiment. Tu peux ensuite faire glisser le repère pour ajuster.', 0);
+    demarrerPlacement({
+      depart: opts.depart,
+      onChange: (pos) => {
+        placeInfo.textContent = pos.lat.toFixed(5) + ', ' + pos.lng.toFixed(5);
+      }
+    });
+  });
+}
+
+function terminerPlacement(valider) {
+  const pos = valider ? positionPlacement() : null;
+  arreterPlacement();
+  placeToolbar.hidden = true;
+  fabCarte.hidden = currentView !== 'carte';
+  masquerIndice();
+  const opts = placementEnCours;
+  const retour = vueAvantPlacement;
+  placementEnCours = null;
+  vueAvantPlacement = null;
+  if (retour && retour !== 'carte') setView(retour);
+  if (!opts) return;
+  if (valider) {
+    if (!pos) {
+      // Valider sans avoir touché la carte ne doit pas effacer une position
+      // existante : on repasse simplement la main au formulaire.
+      opts.onAnnuler();
+      return;
+    }
+    opts.onValider(pos);
+  } else {
+    opts.onAnnuler();
+  }
+}
+
 // --- Navigation entre les trois vues --------------------------------------
 function setView(vue) {
   if (!VUES.includes(vue)) return;
   // Changer de vue pendant un tracé laisserait un dessin orphelin actif sur
   // une carte qui rétrécit ou disparaît : on le termine proprement d'abord.
   if (vue !== 'carte' && isDrawing()) cancelDrawing();
+  // Un placement en cours sur une carte qu'on quitte laisserait une barre
+  // d'outils orpheline et un formulaire qui n'est jamais rendu.
+  if (vue !== 'carte' && placementEnCours) terminerPlacement(false);
 
   currentView = vue;
   // La carte n'existe que dans les vues qui l'utilisent : la laisser affichée
@@ -281,7 +345,7 @@ function setView(vue) {
   if (vue === 'liste') renderListView(Array.from(enrichedById.values()));
   if (vue === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (vue === 'troupeau') renderTroupeau();
-  if (vue === 'batiments') renderBatiments();
+  if (vue === 'batiments') { renderBatiments(); renderMateriels(); }
   if (vue === 'ferme' || vue === 'carte') {
     // #map vient de changer de taille (ou de redevenir visible) : Leaflet ne
     // le détecte pas seul, ce qui décalerait tuiles, contrôles et surtout la
@@ -322,9 +386,11 @@ async function boot() {
     });
 
     initAccueil({ onModifierParcelle: openEditParcelle });
+    initPlacement();
     initStocks({ onChange: recomputeStocksEtTroupeau });
     initAlimentation();
     initBatiments({ onChange: recomputeBatiments });
+    initMateriel();
 
     // Taper un bâtiment sur la carte ouvre sa fiche, comme pour une parcelle.
     setOnBatimentClick((id) => {
@@ -414,6 +480,8 @@ async function boot() {
     watchEmplacements();
     onMouvementsChange(() => recomputeBatiments());
     watchMouvements();
+    onMaterielsChange(() => { if (currentView === 'batiments') renderMateriels(); });
+    watchMateriels();
 
     await ensureCulturesSeeded();
     await ensureTypesSeeded();

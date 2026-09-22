@@ -19,10 +19,11 @@ const COMPLET = ['produit', 'materiel', 'duree', 'meteo'];
 export const TYPE_NOTE = 'Note';
 
 export const CATEGORIES = [
-  { value: 'SOL',      label: 'Pâturage & sol',        icone: '🌱' },
-  { value: 'APPORTS',  label: 'Traitements & apports', icone: '🧪' },
-  { value: 'TROUPEAU', label: 'Troupeau / élevage',    icone: '🐑' },
-  { value: 'AUTRE',    label: 'Divers',                icone: '📝' }
+  { value: 'SOL',       label: 'Sol & semis',        icone: '🌱' },
+  { value: 'FOURRAGES', label: 'Fourrages',          icone: '🌾' },
+  { value: 'CEREALES',  label: 'Céréales',           icone: '🌽' },
+  { value: 'TROUPEAU',  label: 'Troupeau / élevage', icone: '🐑' },
+  { value: 'AUTRE',     label: 'Divers',             icone: '📝' }
 ];
 
 /** @typedef {'ENTREE_STOCK'|'DISTRIBUTION'|null} FluxType */
@@ -32,46 +33,64 @@ export const CATEGORIES = [
 // place (mêmes documents, donc les interventions existantes gardent leur
 // rattachement) ; les manquants sont ajoutés. Rien n'est jamais supprimé.
 const TYPES_PAR_DEFAUT = [
-  // --- Pâturage & sol ---
-  { nom: 'Pâturage',              icone: '🐑', couleur: '#3f6b3a', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['duree', 'meteo'] },
-  { nom: 'Roulage',               icone: '🛞', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
-  { nom: 'Fauche / Enrubannage',  icone: '🚜', couleur: '#4f9c5f', categorie: 'SOL', cible: 'PARCELLE', flux: 'ENTREE_STOCK', champs: COMPLET },
-  { nom: 'Moisson',               icone: '🌾', couleur: '#c98a3e', categorie: 'SOL', cible: 'PARCELLE', flux: 'ENTREE_STOCK', champs: COMPLET },
-  { nom: 'Semis',                 icone: '🌱', couleur: '#5b8c5a', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: COMPLET },
-  { nom: 'Travail du sol',        icone: '⛏️', couleur: '#8a6d5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
-  { nom: 'Labour',                icone: '🔵', couleur: '#6b5344', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
-  { nom: 'Fanage',                icone: '☀️', couleur: '#e0a326', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: COMPLET },
-  { nom: 'Andainage',             icone: '🌾', couleur: '#d4a53f', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: COMPLET },
-  { nom: 'Pressage',              icone: '🧻', couleur: '#b98b2f', categorie: 'SOL', cible: 'PARCELLE', flux: 'ENTREE_STOCK', champs: COMPLET },
-  { nom: 'Épierrage',             icone: '🪨', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
-  { nom: 'Irrigation',            icone: '💧', couleur: '#3f7fa8', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['duree', 'meteo'] },
+  // --- Sol & semis : les passages réels, dans l'ordre d'un itinéraire ---
+  { nom: 'Épandage fumier',              icone: '💩', couleur: '#8a6d5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: COMPLET },
+  { nom: 'Déchaumage',                   icone: '🌾', couleur: '#a08a5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
+  { nom: 'Alignement pierres',           icone: '🪨', couleur: '#8d8878', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
+  { nom: 'Broyage pierres (casseuse)',   icone: '🧱', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
+  { nom: 'Labour',                       icone: '🔵', couleur: '#6b5344', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
+  { nom: 'Vibroculteur',                 icone: '〰️', couleur: '#8a7c5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
+  { nom: 'Semis (semoir + tasse-avant)', icone: '🌱', couleur: '#5b8c5a', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: COMPLET },
+  { nom: 'Roulage',                      icone: '🛞', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
 
-  // --- Traitements & apports ---
-  { nom: 'Fertilisation',         icone: '🧪', couleur: '#c98a3e', categorie: 'APPORTS', cible: 'PARCELLE', flux: null, champs: COMPLET },
-  { nom: 'Épandage',              icone: '💩', couleur: '#8a6d5c', categorie: 'APPORTS', cible: 'PARCELLE', flux: null, champs: COMPLET },
-  { nom: 'Désherbage',            icone: '🌿', couleur: '#7ba05b', categorie: 'APPORTS', cible: 'PARCELLE', flux: null, champs: COMPLET },
-  { nom: 'Traitement',            icone: '⚗️', couleur: '#a8557a', categorie: 'APPORTS', cible: 'PARCELLE', flux: null, champs: COMPLET },
+  // --- Fourrages : la chaîne de récolte ---
+  // Seuls PRESSAGE et RAMASSAGE VRAC font entrer quelque chose en stock : la
+  // fauche, le fanage et l'andainage préparent l'andain mais ne rentrent rien.
+  // Rattacher un stock à la fauche ferait compter le fourrage deux fois.
+  { nom: 'Fauche',                       icone: '🚜', couleur: '#4f9c5f', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: null, champs: COMPLET },
+  { nom: 'Pirouette / Fanage',           icone: '☀️', couleur: '#e0a326', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
+  { nom: 'Andainage',                    icone: '🌾', couleur: '#d4a53f', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: null, champs: ['materiel', 'duree', 'meteo'] },
+  { nom: 'Pressage (bottes)',            icone: '🧻', couleur: '#b98b2f', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: 'ENTREE_STOCK', champs: COMPLET },
+  { nom: 'Ramassage vrac (séchage en grange)', icone: '🚛', couleur: '#c98a3e', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: 'ENTREE_STOCK', champs: COMPLET },
+
+  // --- Céréales ---
+  { nom: 'Moisson',                      icone: '🌽', couleur: '#c98a3e', categorie: 'CEREALES', cible: 'PARCELLE', flux: 'ENTREE_STOCK', champs: COMPLET },
 
   // --- Troupeau / élevage ---
-  { nom: 'Distribution alimentation', icone: '🥣', couleur: '#5b8c5a', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: 'DISTRIBUTION', champs: ['duree'] },
-  { nom: 'Allotement',            icone: '🔀', couleur: '#6b8fa8', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, champs: ['duree'] },
-  { nom: 'Soin',                  icone: '💉', couleur: '#a8557a', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, champs: ['produit', 'duree'] },
-  { nom: 'Traitement sanitaire',  icone: '🩺', couleur: '#b5546b', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, champs: ['produit', 'duree'] },
+  { nom: 'Pâturage',                     icone: '🐑', couleur: '#3f6b3a', categorie: 'TROUPEAU', cible: 'PARCELLE', flux: null, champs: ['duree', 'meteo'] },
+  { nom: 'Distribution alimentation',    icone: '🥣', couleur: '#5b8c5a', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: 'DISTRIBUTION', champs: ['duree'] },
+  { nom: 'Allotement',                   icone: '🔀', couleur: '#6b8fa8', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, champs: ['duree'] },
+  { nom: 'Soin',                         icone: '💉', couleur: '#a8557a', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, champs: ['produit', 'duree'] },
+  { nom: 'Traitement sanitaire',         icone: '🩺', couleur: '#b5546b', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, champs: ['produit', 'duree'] },
 
   // --- Divers ---
-  { nom: 'Note',                  icone: '📝', couleur: '#79765f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, champs: [] },
-  { nom: 'Observation',           icone: '👁️', couleur: '#79765f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, champs: ['meteo'] },
-  { nom: 'Autre',                 icone: '🔧', couleur: '#9a988f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, champs: COMPLET }
+  { nom: 'Note',                         icone: '📝', couleur: '#79765f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, champs: [] },
+  { nom: 'Observation',                  icone: '👁️', couleur: '#79765f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, champs: ['meteo'] },
+  { nom: 'Autre',                        icone: '🔧', couleur: '#9a988f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, champs: COMPLET }
 ];
 
-// Types de la première version dont le libellé a été précisé. Le document est
+
+// Types dont le libellé a été précisé au fil des versions. Le document est
 // CONSERVÉ (même id) et seulement renommé : les interventions déjà saisies
 // restent rattachées, et leur libellé figé garde de toute façon l'ancien nom
 // dans le fil d'activités.
 const RENOMMAGES = {
-  'Fauche': 'Fauche / Enrubannage',
-  'Récolte': 'Moisson'
+  'Récolte': 'Moisson',
+  'Fauche / Enrubannage': 'Fauche',
+  'Épandage': 'Épandage fumier',
+  'Fanage': 'Pirouette / Fanage',
+  'Pressage': 'Pressage (bottes)',
+  'Semis': 'Semis (semoir + tasse-avant)'
 };
+
+// Types génériques des premières versions, remplacés par le vocabulaire réel
+// mais JAMAIS supprimés : des interventions y sont peut-être rattachées, et
+// effacer un type rendrait leur historique incohérent. Ils sont simplement
+// rangés en fin de liste, dans « Divers », pour ne pas encombrer le choix.
+const HERITAGE = [
+  'Travail du sol', 'Épierrage', 'Irrigation',
+  'Fertilisation', 'Désherbage', 'Traitement'
+];
 
 let courants = [];
 const listeners = new Set();
@@ -117,6 +136,15 @@ export async function ensureSeeded() {
   const parNom = new Map();
   snap.docs.forEach((d) => parNom.set(String(d.data().nom || ''), { id: d.id, ...d.data() }));
 
+  // Les anciens types génériques sont rétrogradés dans « Divers » plutôt que
+  // laissés dans des catégories qui n'existent plus.
+  for (const nom of HERITAGE) {
+    const h = parNom.get(nom);
+    if (h && (h.categorie !== 'AUTRE' || !h.heritage)) {
+      await setDoc(doc(db, 'interventions_types', h.id), { categorie: 'AUTRE', heritage: true }, { merge: true });
+    }
+  }
+
   for (const t of TYPES_PAR_DEFAUT) {
     const ancienNom = Object.keys(RENOMMAGES).find((k) => RENOMMAGES[k] === t.nom);
     const existant = parNom.get(t.nom) || (ancienNom ? parNom.get(ancienNom) : null);
@@ -147,8 +175,9 @@ export function watchTypes() {
 
 function ordre(t) {
   if (t.nom === TYPE_NOTE) return -1;
+  if (t.heritage) return 2000;          // anciens types génériques, tout en bas
   const i = TYPES_PAR_DEFAUT.findIndex((d) => d.nom === t.nom);
-  return i === -1 ? 999 : i;
+  return i === -1 ? 1000 : i;           // types sur mesure juste avant
 }
 
 export async function addType(nom, icone, couleur, extra = {}) {

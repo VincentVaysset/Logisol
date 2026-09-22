@@ -82,6 +82,7 @@ function carteIntervention(itv) {
         (itv.quantite != null ? ` ${itv.quantite}${itv.unite ? ' ' + escapeHtml(itv.unite) : ''}` : '')
     );
   }
+  if (itv.materielNom) details.push('🛠️ ' + escapeHtml(itv.materielNom));
   if (itv.materiel) details.push(escapeHtml(itv.materiel));
   if (itv.dureeHeures != null) details.push(itv.dureeHeures + ' h');
   const meteo = resumeMeteo(itv.meteo);

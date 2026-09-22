@@ -308,6 +308,81 @@ export function renderBatiments(list) {
   });
 }
 
+// --- Mode « placer un point sur la carte » --------------------------------
+// Sert à positionner un bâtiment autrement que par le GPS de l'appareil :
+// tous les bâtiments ne se pointent pas depuis l'intérieur (silo au fond de
+// la cour, hangar qu'on situe depuis le siège de l'exploitation), et la
+// position relevée par le téléphone est de toute façon imprécise à quelques
+// mètres. Un tap sur l'ortho est plus juste, et permet aussi de CORRIGER un
+// bâtiment déjà placé.
+let placementActif = false;
+let marqueurPlacement = null;
+let onPlacementChange = () => {};
+
+export function placementEnCours() { return placementActif; }
+
+/**
+ * @param {object} opts
+ * @param {{lat:number,lng:number}} [opts.depart] position initiale du repère
+ * @param {(pos:{lat:number,lng:number}) => void} [opts.onChange] à chaque tap
+ */
+export function demarrerPlacement(opts = {}) {
+  if (!map) return;
+  arreterPlacement();
+  placementActif = true;
+  onPlacementChange = opts.onChange || (() => {});
+
+  const poser = (latlng) => {
+    if (marqueurPlacement) {
+      marqueurPlacement.setLatLng(latlng);
+    } else {
+      marqueurPlacement = L.marker(latlng, {
+        draggable: true,          // ajustement fin au doigt après le tap
+        zIndexOffset: 1000,
+        icon: L.divIcon({ className: 'placement-marqueur', html: '<span>📍</span>',
+                          iconSize: [40, 40], iconAnchor: [20, 36] })
+      }).addTo(map);
+      marqueurPlacement.on('dragend', () => {
+        const p = marqueurPlacement.getLatLng();
+        onPlacementChange({ lat: p.lat, lng: p.lng });
+      });
+    }
+    onPlacementChange({ lat: latlng.lat, lng: latlng.lng });
+  };
+
+  if (opts.depart && opts.depart.lat != null) {
+    poser(L.latLng(opts.depart.lat, opts.depart.lng));
+    map.setView([opts.depart.lat, opts.depart.lng], Math.max(map.getZoom(), 17));
+  }
+
+  map.on('click', surClicPlacement);
+  const c = map.getContainer();
+  if (c) c.classList.add('map-placement');
+
+  function surClicPlacement(e) { poser(e.latlng); }
+  demarrerPlacement._handler = surClicPlacement;
+}
+
+export function arreterPlacement() {
+  placementActif = false;
+  if (map && demarrerPlacement._handler) {
+    map.off('click', demarrerPlacement._handler);
+    demarrerPlacement._handler = null;
+  }
+  if (marqueurPlacement && map) {
+    map.removeLayer(marqueurPlacement);
+  }
+  marqueurPlacement = null;
+  const c = map && map.getContainer();
+  if (c) c.classList.remove('map-placement');
+}
+
+export function positionPlacement() {
+  if (!marqueurPlacement) return null;
+  const p = marqueurPlacement.getLatLng();
+  return { lat: p.lat, lng: p.lng };
+}
+
 // list : parcelles enrichies par main.js, chaque item porte _couleur et _label.
 export function renderParcelles(list) {
   const seen = new Set();

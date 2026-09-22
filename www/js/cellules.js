@@ -13,7 +13,7 @@ import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 
-const COL = collection(db, 'cellules_grain');
+const COL = collection(db, 'lgs_cellules_grain');
 
 /**
  * @typedef {object} CelluleGrain
@@ -82,7 +82,7 @@ export async function createCellule(data) {
 export async function updateCellule(id, data) {
   const c = nettoyer(data);
   if (!c.nom) throw new Error('Donne un nom à la cellule.');
-  return updateDoc(doc(db, 'cellules_grain', id), { ...c, majLe: serverTimestamp() });
+  return updateDoc(doc(db, 'lgs_cellules_grain', id), { ...c, majLe: serverTimestamp() });
 }
 
 // Écrit le niveau recalculé depuis le journal. Appelé par mouvements.js, et
@@ -90,9 +90,9 @@ export async function updateCellule(id, data) {
 export async function setQuantite(id, tonnes, typeGrainActuel) {
   const maj = { quantiteActuelleTonnes: Math.round((Number(tonnes) || 0) * 1000) / 1000, majLe: serverTimestamp() };
   if (typeGrainActuel !== undefined) maj.typeGrainActuel = typeGrainActuel;
-  return updateDoc(doc(db, 'cellules_grain', id), maj);
+  return updateDoc(doc(db, 'lgs_cellules_grain', id), maj);
 }
 
 export async function deleteCellule(id) {
-  return deleteDoc(doc(db, 'cellules_grain', id));
+  return deleteDoc(doc(db, 'lgs_cellules_grain', id));
 }

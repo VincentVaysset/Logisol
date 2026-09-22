@@ -15,7 +15,7 @@ import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 
-const COL = collection(db, 'emplacements_fourrage');
+const COL = collection(db, 'lgs_emplacements_fourrage');
 
 /**
  * @typedef {object} EmplacementFourrage
@@ -76,13 +76,13 @@ export async function createEmplacement(data) {
 export async function updateEmplacement(id, data) {
   const e = nettoyer(data);
   if (!e.nom) throw new Error("Donne un nom à l'emplacement.");
-  return updateDoc(doc(db, 'emplacements_fourrage', id), { ...e, majLe: serverTimestamp() });
+  return updateDoc(doc(db, 'lgs_emplacements_fourrage', id), { ...e, majLe: serverTimestamp() });
 }
 
 // Écrit le niveau et la moyenne recalculés depuis le journal. Appelé par
 // mouvements.js uniquement.
 export async function setNiveau(id, nbBottes, poidsMoyenBotteKg) {
-  return updateDoc(doc(db, 'emplacements_fourrage', id), {
+  return updateDoc(doc(db, 'lgs_emplacements_fourrage', id), {
     nbBottesActuel: Math.round(Number(nbBottes) || 0),
     poidsMoyenBotteKg: Math.round((Number(poidsMoyenBotteKg) || 0) * 10) / 10,
     majLe: serverTimestamp()
@@ -90,5 +90,5 @@ export async function setNiveau(id, nbBottes, poidsMoyenBotteKg) {
 }
 
 export async function deleteEmplacement(id) {
-  return deleteDoc(doc(db, 'emplacements_fourrage', id));
+  return deleteDoc(doc(db, 'lgs_emplacements_fourrage', id));
 }

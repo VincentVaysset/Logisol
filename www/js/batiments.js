@@ -14,7 +14,7 @@ import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 
-const COL = collection(db, 'batiments');
+const COL = collection(db, 'lgs_batiments');
 
 /** @typedef {'BERGERIE'|'STOCKAGE_GRAIN'|'STOCKAGE_FOURRAGE'|'MIXTE'} TypeBatiment */
 /** @typedef {'ORGE'|'TRITICALE'|'MAIS'|'ALIMENT_COMPLET'|'AUTRE'} TypeGrain */
@@ -120,9 +120,9 @@ export async function createBatiment(data) {
 export async function updateBatiment(id, data) {
   const b = nettoyer(data);
   if (!b.nom) throw new Error('Donne un nom au bâtiment.');
-  return updateDoc(doc(db, 'batiments', id), { ...b, majLe: serverTimestamp() });
+  return updateDoc(doc(db, 'lgs_batiments', id), { ...b, majLe: serverTimestamp() });
 }
 
 export async function deleteBatiment(id) {
-  return deleteDoc(doc(db, 'batiments', id));
+  return deleteDoc(doc(db, 'lgs_batiments', id));
 }
