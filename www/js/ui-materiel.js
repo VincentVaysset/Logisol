@@ -5,6 +5,7 @@ import {
   validerGraissage, deleteMateriel, graissageLisible, joursDepuisGraissage, resume
 } from './materiel.js';
 import { aujourdhui } from './implantations.js';
+import { messagePermission } from './diagnostic-regles.js';
 
 const panel = document.getElementById('materiel-panel');
 const form = document.getElementById('mat-form');
@@ -87,8 +88,7 @@ async function enregistrer(e) {
     fermer();
     log('matériel enregistré');
   } catch (err) {
-    const code = err && err.code ? `${err.code} — ` : '';
-    showError(`${code}${(err && err.message) || err}`);
+    showError(messagePermission(err, 'lgs_materiel'));
   } finally {
     el.save.disabled = false; el.save.textContent = 'Enregistrer';
   }

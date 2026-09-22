@@ -32,6 +32,7 @@
      Conséquence : quelle que soit la longueur du message, il lui est
      structurellement impossible d'intercepter le clic d'un bouton — ce que
      ni max-height ni pointer-events:none ne garantissaient de façon fiable. -->
+<script src="version.js"></script>
 <div id="debug-wrap" style="flex:0 0 auto;display:flex;flex-direction:column;">
   <button id="debug-toggle" type="button"
           style="flex:0 0 auto;border:none;width:100%;text-align:left;background:#8e2b20;color:#fff;padding:4px 14px;font:600 11px/1.3 monospace;cursor:pointer;">
@@ -106,16 +107,21 @@
   // Repli du journal : sur une tablette, 12vh de logs en permanence, c'est
   // autant de carte en moins. Replié, le bandeau ne garde qu'une barre de
   // titre — et continue d'enregistrer, donc rien n'est perdu.
+  var v = window.__LOGISOL_VERSION || { build: '?', commit: '?' };
+  var etiquette = 'build ' + v.build + (v.commit && v.commit !== 'dev' ? ' · ' + v.commit : '');
   var toggle = document.getElementById('debug-toggle');
   if (toggle && el) {
+    var majToggle = function (replie) {
+      toggle.textContent = (replie ? '▶ Diagnostic replié' : '▼ Diagnostic') + ' — ' + etiquette;
+    };
+    majToggle(false);
     toggle.addEventListener('click', function () {
       var replie = el.style.display === 'none';
       el.style.display = replie ? 'block' : 'none';
-      toggle.textContent = replie
-        ? '▼ Diagnostic (toucher pour replier)'
-        : '▶ Diagnostic replié (toucher pour afficher)';
+      majToggle(!replie);
     });
   }
+  window.__logisolDebug('Logisol ' + etiquette);
 
   document.addEventListener('DOMContentLoaded', function () { window.__logisolDebug('DOM prêt'); });
   window.addEventListener('load', function () { window.__logisolDebug('page chargée (load)'); });
@@ -161,6 +167,15 @@
     <button type="button" class="tab" data-vue="troupeau">🐑 Troupeau</button>
     <button type="button" class="tab" data-vue="batiments">🏚️ Bâtiments</button>
   </nav>
+
+  <!-- Alerte de règles Firestore. En flux normal sous les onglets, donc
+       visible depuis TOUTES les vues — l'indice de la carte ne l'était que
+       depuis Ferme et Carte, et passait inaperçu depuis l'onglet Bâtiments,
+       justement celui où le refus se produit. -->
+  <div id="alerte-regles" class="alerte alerte-regles" hidden>
+    <span id="alerte-regles-texte"></span>
+    <button type="button" id="alerte-regles-close" aria-label="Fermer">✕</button>
+  </div>
 
   <!-- Barre d'outils du mode dessin.
        Elle est en FLUX NORMAL, juste sous l'en-tête et AU-DESSUS de #map (donc

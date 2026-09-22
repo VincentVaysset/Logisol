@@ -25,6 +25,7 @@ import { formatTonnes } from './ui-stocks.js';
 import {
   centrerSurMaPosition, getMap, demarrerPlacement, arreterPlacement, positionPlacement
 } from './map.js';
+import { messagePermission } from './diagnostic-regles.js';
 
 class ErreurDeSaisie extends Error {}
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
@@ -233,7 +234,7 @@ bat.form.addEventListener('submit', async (e) => {
     bat.panel.hidden = true;
     log('bâtiment enregistré');
   } catch (err) {
-    batError(messageErreur(err));
+    batError(messageErreur(err, 'lgs_batiments'));
   } finally {
     bat.save.disabled = false; bat.save.textContent = 'Enregistrer';
   }
@@ -311,7 +312,7 @@ cel.form.addEventListener('submit', async (e) => {
     const b = getBatimentById(celBatimentId);
     if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
   } catch (err) {
-    cel['error-text'].textContent = messageErreur(err); cel['error-banner'].hidden = false;
+    cel['error-text'].textContent = messageErreur(err, 'lgs_cellules_grain'); cel['error-banner'].hidden = false;
   } finally {
     cel.save.disabled = false; cel.save.textContent = 'Enregistrer';
   }
@@ -387,7 +388,7 @@ emp.form.addEventListener('submit', async (ev) => {
     const b = getBatimentById(empBatimentId);
     if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
   } catch (err) {
-    emp['error-text'].textContent = messageErreur(err); emp['error-banner'].hidden = false;
+    emp['error-text'].textContent = messageErreur(err, 'lgs_emplacements_fourrage'); emp['error-banner'].hidden = false;
   } finally {
     emp.save.disabled = false; emp.save.textContent = 'Enregistrer';
   }
@@ -410,10 +411,11 @@ emp.delete.addEventListener('click', async () => {
   } finally { emp.delete.disabled = false; }
 });
 
-function messageErreur(err) {
+// Collection visée par chaque formulaire, pour nommer la bonne dans un refus.
+let collectionCourante = 'lgs_batiments';
+function messageErreur(err, collection) {
   if (err instanceof ErreurDeSaisie) return err.message;
-  const code = err && err.code ? `${err.code} — ` : '';
-  return `${code}${(err && err.message) || err}`;
+  return messagePermission(err, collection || collectionCourante);
 }
 
 export { messageErreur, esc, ErreurDeSaisie, renderContenantsDuBatiment };

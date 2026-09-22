@@ -221,6 +221,16 @@ function centrerAuPremierChargement(enriched) {
   });
 }
 
+// Bandeau d'alerte des règles : visible depuis toutes les vues, et pas
+// seulement depuis celles qui affichent la carte.
+function afficherAlerteRegles(message) {
+  const el = document.getElementById('alerte-regles');
+  const texte = document.getElementById('alerte-regles-texte');
+  if (!el || !texte) return;
+  texte.textContent = '⚠️ ' + message;
+  el.hidden = false;
+}
+
 // --- Messages contextuels au-dessus de la carte ---------------------------
 let indiceTimer = null;
 function afficherIndice(texte, dureeMs) {
@@ -387,6 +397,9 @@ async function boot() {
 
     initAccueil({ onModifierParcelle: openEditParcelle });
     initPlacement();
+    document.getElementById('alerte-regles-close').addEventListener('click', () => {
+      document.getElementById('alerte-regles').hidden = true;
+    });
     initStocks({ onChange: recomputeStocksEtTroupeau });
     initAlimentation();
     initBatiments({ onChange: recomputeBatiments });
@@ -493,7 +506,7 @@ async function boot() {
     // Diagnostic des règles, en dernier et sans bloquer : il transforme un
     // « permission-denied » muet en message qui dit quelle collection est
     // refusée et quoi coller dans la console Firebase.
-    verifierRegles((message) => afficherIndice(message, 0));
+    verifierRegles((message) => afficherAlerteRegles(message));
 
     log('Prêt.');
   } catch (err) {

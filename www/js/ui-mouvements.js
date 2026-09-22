@@ -319,7 +319,7 @@ async function enregistrer(e) {
     if (monToken === saveToken) { log('mouvement enregistré'); fermer(); onChangeExterne(); }
   } catch (err) {
     fini = true; clearTimeout(minuteur);
-    if (monToken === saveToken) showError(messageErreur(err));
+    if (monToken === saveToken) showError(messageErreur(err, 'lgs_mouvements_stock'));
   } finally {
     fini = true;
     if (monToken === saveToken) { el.save.disabled = false; el.save.textContent = 'Enregistrer'; }

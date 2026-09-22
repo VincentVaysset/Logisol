@@ -959,3 +959,22 @@ header button {
 
 #itv-newtype[hidden] { display: none; }
 #place-toolbar[hidden] { display: none; }
+
+/* Alerte de règles Firestore : en flux normal sous les onglets, donc visible
+   dans toutes les vues, y compris celles qui n'affichent pas la carte. */
+.alerte-regles {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  border-radius: 0;
+  position: relative;
+  z-index: 1100;
+}
+.alerte-regles[hidden] { display: none; }
+.alerte-regles span { flex: 1; }
+.alerte-regles button {
+  background: transparent; border: none; color: #2b2a22;
+  font-size: 16px; line-height: 1; padding: 0; cursor: pointer; flex-shrink: 0;
+}

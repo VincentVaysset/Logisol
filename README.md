@@ -454,3 +454,18 @@ tablette est imprécis à quelques mètres : un tap sur l'ortho est plus juste, 
 permet aussi de **corriger** un bâtiment déjà placé. Le formulaire est effacé
 le temps du placement (il couvre l'écran) puis restauré avec tout ce qui y
 avait déjà été saisi.
+
+
+## Numéro de build affiché dans l'appli
+
+La barre du bandeau de diagnostic affiche en permanence le build installé
+(« ▼ Diagnostic — build 20 · 23a62ee »). Il est injecté par la CI dans
+`www/version.js` **avant** `cap sync`.
+
+Sans cela, un symptôme corrigé dans le code mais persistant sur la tablette
+était indiscernable d'un correctif qui ne fonctionne pas : on cherche dans le
+code un problème déjà réglé, simplement pas encore installé. Le numéro de
+build répond à la question en un coup d'œil.
+
+En cas de refus Firestore, le message **nomme la collection** concernée et
+rappelle de vérifier ce numéro.

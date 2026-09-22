@@ -27,6 +27,27 @@ const REQUISES = [
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
 
 /**
+ * Message d'erreur nommant la collection refusée.
+ *
+ * Un « permission-denied » brut ne dit pas SUR QUOI il porte : face à une
+ * fiche bâtiment qui refuse d'enregistrer, impossible de savoir s'il s'agit
+ * du bâtiment, d'une cellule ou d'un mouvement. On nomme donc la collection
+ * et on rappelle l'action à faire.
+ * @param {*} err
+ * @param {string} collection
+ */
+export function messagePermission(err, collection) {
+  const code = err && err.code ? err.code : '';
+  if (code !== 'permission-denied') {
+    return `${code ? code + ' — ' : ''}${(err && err.message) || err}`;
+  }
+  return `Firestore refuse la collection « ${collection} ». Les règles publiées ne la couvrent pas : ` +
+         `colle le contenu de firestore.rules dans la console Firebase (Firestore > Règles). ` +
+         `Vérifie aussi le numéro de build affiché en haut de l'écran — un correctif ne s'applique ` +
+         `qu'une fois le nouvel APK installé.`;
+}
+
+/**
  * Teste l'accès en lecture à chaque collection et renvoie celles qui sont
  * refusées. Une seule lecture d'un document par collection : négligeable au
  * démarrage, et servie par le cache hors-ligne aux lancements suivants.

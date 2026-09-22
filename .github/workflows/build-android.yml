@@ -22,6 +22,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Stamp build version into the web app
+        # AVANT cap sync, sinon l'APK emporterait la version « local ».
+        # Permet de lire sur la tablette quel build est réellement installé.
+        run: |
+          cat > www/version.js <<EOF
+          window.__LOGISOL_VERSION = {
+            build: '${{ github.run_number }}',
+            commit: '${{ github.sha }}'.slice(0, 7),
+            date: '$(date -u +%Y-%m-%d)'
+          };
+          EOF
+          cat www/version.js
+
       - name: Sync Capacitor (copy web assets into Android project)
         run: npx cap sync android
 

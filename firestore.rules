@@ -48,12 +48,14 @@ service cloud.firestore {
     // ================= COLLECTIONS FUTURES (rien à faire) =============
     // Tout nom commençant par "lgs_" est autorisé d'avance. C'est ce bloc
     // qui supprime le besoin de revenir ici à chaque nouveau module.
+    // matches() compare la chaîne ENTIÈRE, pas un fragment : le motif s'écrit
+    // donc 'lgs_.*' et non '^lgs_.*'. L'ancre initiale était au mieux inutile.
     match /{collection}/{docId} {
-      allow read, write: if request.auth != null && collection.matches('^lgs_.*');
+      allow read, write: if request.auth != null && collection.matches('lgs_.*');
     }
     // Idem pour leurs sous-collections éventuelles.
     match /{collection}/{docId}/{sub=**} {
-      allow read, write: if request.auth != null && collection.matches('^lgs_.*');
+      allow read, write: if request.auth != null && collection.matches('lgs_.*');
     }
 
     // ================= COLLECTIONS EXISTANTES =========================
@@ -74,11 +76,20 @@ service cloud.firestore {
     match /lots_animaux/{docId}          { allow read, write: if request.auth != null; }
     match /prelevements/{docId}          { allow read, write: if request.auth != null; }
 
-    // Bâtiments, mouvements de stock et parc matériel : ces collections ont
-    // été renommées avec le préfixe lgs_ et sont donc déjà couvertes par le
-    // bloc « collections futures » ci-dessus. Rien à ajouter ici, ni
-    // maintenant ni pour les prochains modules.
-    //   lgs_batiments, lgs_cellules_grain, lgs_emplacements_fourrage,
-    //   lgs_mouvements_stock, lgs_materiel
+    // Bâtiments, mouvements de stock et parc matériel.
+    //
+    // Ces quatre lignes FONT DOUBLON avec le joker de préfixe ci-dessus, et
+    // c'est délibéré. Le joker repose sur matches(), dont le comportement
+    // exact (comparaison de la chaîne entière) est une source d'erreur
+    // silencieuse : s'il ne se comporte pas comme prévu, tout le module
+    // Bâtiments tombe en « permission-denied » sans que rien n'indique
+    // pourquoi. Ces lignes explicites coûtent six lignes et suppriment ce
+    // point de défaillance unique. Le joker, lui, continue de couvrir
+    // d'avance les collections des prochains modules.
+    match /lgs_batiments/{docId}             { allow read, write: if request.auth != null; }
+    match /lgs_cellules_grain/{docId}        { allow read, write: if request.auth != null; }
+    match /lgs_emplacements_fourrage/{docId} { allow read, write: if request.auth != null; }
+    match /lgs_mouvements_stock/{docId}      { allow read, write: if request.auth != null; }
+    match /lgs_materiel/{docId}              { allow read, write: if request.auth != null; }
   }
 }
