@@ -18,7 +18,7 @@
 import { db } from './firebase-config.js';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "../vendor/firebase/firebase-firestore.js";
 import { aujourdhui } from './implantations.js';
 
 const COL_LOTS = collection(db, 'lots_animaux');

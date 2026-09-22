@@ -3,7 +3,7 @@ import {
   signInWithEmailAndPassword,
   onAuthStateChanged,
   signOut
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+} from "../vendor/firebase/firebase-auth.js";
 
 const screenLogin = document.getElementById('screen-login');
 const screenApp = document.getElementById('screen-app');

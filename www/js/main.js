@@ -43,8 +43,10 @@ import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
 import { watchMouvements, onMouvementsChange } from './mouvements.js';
 import { setParcellesBatiments, openEditBatiment } from './ui-batiments.js';
 import {
-  initBatiments, setParcellesMouvements, renderVue as renderBatiments
+  initBatiments, setParcellesMouvements, renderVue as renderBatiments,
+  ouvrirApercuBatiment, renderStockageParBatiment
 } from './ui-mouvements.js';
+import { verifierRegles } from './diagnostic-regles.js';
 
 let booted = false;
 let centrageInitialFait = false;
@@ -114,7 +116,8 @@ function recomputeAndRender() {
     cultures: latestCultures,
     implantations: latestImplantations,
     interventions: latestInterventions,
-    typesIntervention: latestTypes
+    typesIntervention: latestTypes,
+    batiments: latestBatiments
   });
   if (currentView === 'ferme') renderFeed();
   if (currentView === 'liste') renderListView(enriched);
@@ -127,7 +130,7 @@ function recomputeAndRender() {
 // un lot d'animaux prélève. La calculer une fois évite qu'elles divergent.
 function recomputeStocksEtTroupeau() {
   setCategories(agregerParCategorie(latestStocks));
-  if (currentView === 'stocks') renderStocks();
+  if (currentView === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (currentView === 'troupeau') renderTroupeau();
 }
 
@@ -141,7 +144,10 @@ function recomputeBatiments() {
     return { ...b, _icone: t.icone, _couleur: t.couleur };
   });
   renderBatimentsCarte(enrichis);
+  majEtat({ batiments: latestBatiments });
+  if (currentView === 'ferme') renderFeed();
   if (currentView === 'batiments') renderBatiments();
+  if (currentView === 'stocks') renderStockageParBatiment();
 }
 
 function computeLegendItems(enriched) {
@@ -273,7 +279,7 @@ function setView(vue) {
 
   if (vue === 'ferme') renderFeed();
   if (vue === 'liste') renderListView(Array.from(enrichedById.values()));
-  if (vue === 'stocks') renderStocks();
+  if (vue === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (vue === 'troupeau') renderTroupeau();
   if (vue === 'batiments') renderBatiments();
   if (vue === 'ferme' || vue === 'carte') {
@@ -323,7 +329,7 @@ async function boot() {
     // Taper un bâtiment sur la carte ouvre sa fiche, comme pour une parcelle.
     setOnBatimentClick((id) => {
       const b = latestBatiments.find((x) => x.id === id);
-      if (b) { setView('batiments'); openEditBatiment(b); }
+      if (b) ouvrirApercuBatiment(b);
     });
 
     tabsEl.querySelectorAll('.tab').forEach((b) => {
@@ -415,6 +421,11 @@ async function boot() {
 
     const reprises = await migrerAnciensAssolements();
     if (reprises) log(reprises + ' ancien(s) assolement(s) repris en implantations');
+
+    // Diagnostic des règles, en dernier et sans bloquer : il transforme un
+    // « permission-denied » muet en message qui dit quelle collection est
+    // refusée et quoi coller dans la console Firebase.
+    verifierRegles((message) => afficherIndice(message, 0));
 
     log('Prêt.');
   } catch (err) {

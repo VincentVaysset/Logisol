@@ -467,3 +467,125 @@ function ligneMouvement(m) {
 function tuile(nom, val, unite, cls) {
   return `<div class="tuile tuile-${cls}"><div class="tuile-val">${val}<small>${unite || ''}</small></div><div class="tuile-nom">${nom}</div></div>`;
 }
+
+// ==========================================================================
+// Aperçu d'un bâtiment (ouvert depuis la carte) et bloc « Stockage par
+// bâtiment » de l'onglet Stocks. Les deux réutilisent le même rendu de
+// contenu : un bâtiment doit se lire pareil partout.
+// ==========================================================================
+const apercuPanel = document.getElementById('batapercu-panel');
+const apercuNom = document.getElementById('batapercu-nom');
+const apercuType = document.getElementById('batapercu-type');
+const apercuContenu = document.getElementById('batapercu-contenu');
+const stocksBatimentsEl = document.getElementById('stocks-batiments');
+let batimentAffiche = null;
+
+document.getElementById('batapercu-fermer').addEventListener('click', fermerApercuBatiment);
+document.getElementById('batapercu-modifier').addEventListener('click', () => {
+  const b = batimentAffiche;
+  fermerApercuBatiment();
+  if (b) openEditBatiment(b);
+});
+document.getElementById('batapercu-mouvement').addEventListener('click', () => {
+  const b = batimentAffiche;
+  fermerApercuBatiment();
+  // Pré-cibler le premier contenant du bâtiment : depuis sa fiche, c'est
+  // presque toujours sur lui qu'on veut enregistrer un mouvement.
+  const c = b ? getCellules().find((x) => x.batimentId === b.id) : null;
+  const e = !c && b ? getEmplacements().find((x) => x.batimentId === b.id) : null;
+  openCreateMouvement(c
+    ? { typeMouvement: 'ENTREE_RECOLTE', destinationType: 'CELLULE', destinationId: c.id }
+    : e
+      ? { typeMouvement: 'ENTREE_RECOLTE', destinationType: 'EMPLACEMENT_FOURRAGE', destinationId: e.id }
+      : {});
+});
+
+export function ouvrirApercuBatiment(batiment) {
+  if (!batiment) return;
+  batimentAffiche = batiment;
+  apercuPanel.hidden = false;   // affiché d'abord, rempli ensuite
+  try {
+    const t = typeBatiment(batiment.type);
+    apercuNom.textContent = batiment.nom || 'Bâtiment';
+    apercuType.textContent = `${t.icone} ${t.label}${batiment.remarques ? ' — ' + batiment.remarques : ''}`;
+    apercuContenu.innerHTML = contenuBatiment(batiment) ||
+      '<p class="list-empty">Aucun contenu enregistré pour ce bâtiment.</p>';
+  } catch (err) {
+    apercuContenu.innerHTML = '<p class="list-empty">Détails indisponibles : ' + esc((err && err.message) || err) + '</p>';
+  }
+}
+
+export function fermerApercuBatiment() {
+  apercuPanel.hidden = true;
+  batimentAffiche = null;
+}
+
+// Rendu commun : jauges de remplissage des cellules, bottes par travée, lots
+// présents et leur stade physiologique.
+function contenuBatiment(b) {
+  const blocs = [];
+  getCellules().filter((c) => c.batimentId === b.id).forEach((c) => {
+    const n = niveauContenant('CELLULE', c.id).quantite;
+    const taux = tauxRemplissage(c, n);
+    blocs.push(`<div class="contenant-ligne">
+      <span class="contenant-icone">🌾</span>
+      <div class="contenant-body">
+        <div class="contenant-nom">${esc(c.nom)}</div>
+        <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelGrain(c.typeGrainActuel))}</div>
+        <div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux || 0)}%"></div></div>
+      </div>
+      <div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux != null ? taux + '%' : ''}</div>
+    </div>`);
+  });
+  getEmplacements().filter((e) => e.batimentId === b.id).forEach((e) => {
+    const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id);
+    blocs.push(`<div class="contenant-ligne">
+      <span class="contenant-icone">🧻</span>
+      <div class="contenant-body">
+        <div class="contenant-nom">${esc(e.nom)}</div>
+        <div class="contenant-detail">${n.quantite} botte${n.quantite > 1 ? 's' : ''} · ${esc(labelFourrage(e.typeFourrage))}${n.poidsMoyenBotteKg ? ' · ~' + n.poidsMoyenBotteKg + ' kg/botte' : ''}</div>
+      </div>
+      <div class="contenant-taux">${n.poidsMoyenBotteKg ? formatTonnes((n.quantite * n.poidsMoyenBotteKg) / 1000) + ' t' : ''}</div>
+    </div>`);
+  });
+  getLots().filter((l) => l.batimentId === b.id).forEach((l) => {
+    const st = getStadeById(l.stadeId);
+    blocs.push(`<div class="contenant-ligne">
+      <span class="contenant-icone">🐑</span>
+      <div class="contenant-body">
+        <div class="contenant-nom">${esc(l.nom)}</div>
+        <div class="contenant-detail">${l.nbBrebis} brebis · ${esc(st ? st.nom : 'stade non défini')}</div>
+      </div>
+      ${st ? `<span class="pastille" style="background:${esc(st.couleur || '#9a988f')}"></span>` : ''}
+    </div>`);
+  });
+  return blocs.join('');
+}
+
+// Bloc « Stockage par bâtiment » de l'onglet Stocks : les mêmes jauges, pour
+// répondre à « où en sont mes silos » sans changer d'onglet.
+export function renderStockageParBatiment() {
+  if (!stocksBatimentsEl) return;
+  const avecStockage = getBatiments().filter(
+    (b) => getCellules().some((c) => c.batimentId === b.id) ||
+           getEmplacements().some((e) => e.batimentId === b.id)
+  );
+  if (!avecStockage.length) {
+    stocksBatimentsEl.innerHTML =
+      '<p class="list-empty">Aucun bâtiment de stockage. Crée-les dans l\'onglet Bâtiments.</p>';
+    return;
+  }
+  stocksBatimentsEl.innerHTML = avecStockage.map((b) => {
+    const t = typeBatiment(b.type);
+    return `<div class="bat-card bat-card-statique">
+      <div class="bat-card-head">
+        <span class="bat-icone" style="background:${esc(t.couleur)}">${t.icone}</span>
+        <div class="bat-card-body">
+          <div class="bat-card-nom">${esc(b.nom || 'Bâtiment')}</div>
+          <div class="bat-card-sub">${esc(t.label)}</div>
+        </div>
+      </div>
+      <div class="bat-contenus">${contenuBatiment(b)}</div>
+    </div>`;
+  }).join('');
+}

@@ -851,3 +851,69 @@ header button {
    point de devenir illisibles sur un écran étroit. */
 .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tab { flex: 1 0 auto; min-width: 92px; padding: 12px 8px; }
+
+/* ========================================================================
+   Tunnel de saisie d'activité
+   ======================================================================== */
+.tunnel-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.tunnel-head h2 { flex: 1; margin: 0; font-size: 18px; }
+.tunnel-back {
+  flex: 0 0 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--card); font-size: 19px; cursor: pointer; color: var(--text);
+}
+.tunnel-back[hidden] { display: none; }
+
+.tunnel-steps { display: flex; gap: 8px; margin-bottom: 14px; }
+.tunnel-step {
+  flex: 1; height: 5px; border-radius: 3px; background: var(--border);
+  font-size: 0; overflow: hidden;
+}
+.tunnel-step.is-active { background: var(--primary); }
+.tunnel-step.is-done { background: var(--primary-light); }
+.tunnel-etape[hidden] { display: none; }
+
+/* Choix binaires (cible, statut) : deux grandes cibles tactiles plutôt qu'une
+   liste déroulante, qui demande deux gestes et une visée précise. */
+.choix-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.choix-btn {
+  flex: 1; min-height: 54px; border: 2px solid var(--border); background: var(--card);
+  border-radius: var(--radius); font-size: 15px; font-weight: 600; color: var(--text);
+  cursor: pointer; padding: 10px;
+}
+.choix-btn.is-active {
+  border-color: var(--primary); background: rgba(60,122,78,0.12); color: var(--primary);
+}
+
+.activites { margin-bottom: 8px; }
+.activite-groupe { margin-bottom: 14px; }
+.activite-groupe-titre {
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 7px;
+}
+.activite-grille {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px;
+}
+.activite-btn {
+  position: relative;
+  min-height: 78px; border: 2px solid var(--border); background: var(--card);
+  border-radius: var(--radius); cursor: pointer; padding: 8px 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+}
+.activite-btn.is-active { border-color: var(--act-couleur); background: color-mix(in srgb, var(--act-couleur) 14%, transparent); }
+.activite-icone { font-size: 22px; line-height: 1; }
+.activite-nom { font-size: 12px; font-weight: 600; text-align: center; line-height: 1.2; color: var(--text); }
+/* Marque les activités qui déclencheront une étape « stock » : on sait avant
+   de cliquer qu'il y aura une question de plus. */
+.activite-flux {
+  position: absolute; top: 4px; right: 4px;
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  background: var(--accent); color: white; border-radius: 5px; padding: 1px 4px;
+}
+
+.badge-afaire {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  background: var(--warning); color: #2b2a22; border-radius: 5px; padding: 2px 5px;
+}
+
+#itv-details[hidden] { display: none; }
+.bat-card-statique { cursor: default; }

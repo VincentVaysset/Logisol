@@ -1,121 +1,83 @@
-// Règles de sécurité pour les collections Logisol UNIQUEMENT.
+// =====================================================================
+// RÈGLES FIRESTORE — collections Logisol UNIQUEMENT
+// =====================================================================
 //
-// ⚠️ Ce fichier n'est PAS déployé automatiquement (aucune CI de ce dépôt ne
-// touche aux règles Firestore, volontairement — voir README). Le projet
-// Firebase "ovilog-15ef6" est partagé avec l'appli Ovilog, qui a ses propres
-// règles pour ses propres collections. Firestore n'ayant qu'un seul jeu de
-// règles par projet, tu dois AJOUTER le bloc "parcelles" / "parcelles_config"
-// ci-dessous aux règles existantes dans la console Firebase, sans toucher
-// au reste (règles d'Ovilog).
+// ⚠️ POURQUOI LA SOLUTION ÉVIDENTE EST À PROSCRIRE ICI
 //
-// rules_version = '2';
-// service cloud.firestore {
-//   match /databases/{database}/documents {
+// La règle qui vient naturellement à l'esprit pour « tout autoriser
+// automatiquement » est :
 //
-//     // --- Règles existantes d'Ovilog : NE PAS MODIFIER depuis ce fichier ---
-//     // match /brebis/{id} { ... }
-//     // match /... { ... }
+//     match /{document=**} { allow read, write: if request.auth != null; }
 //
-//     // --- Bloc à ajouter pour Logisol ---
-//     match /parcelles/{parcelleId} {
-//       allow read, write: if request.auth != null;
-//     }
-//     match /parcelles_config/{docId} {
-//       allow read, write: if request.auth != null;
-//     }
-//     match /cultures_config/{docId} {
-//       allow read, write: if request.auth != null;
-//     }
-//     match /assolements/{docId} {
-//       allow read, write: if request.auth != null;
-//     }
-//     match /implantations/{docId} {
-//       allow read, write: if request.auth != null;
-//     }
-//     match /interventions/{docId} {
-//       allow read, write: if request.auth != null;
-//     }
-//     match /interventions_types/{docId} {
-//       allow read, write: if request.auth != null;
-//     }
-//     match /stocks/{docId}        { allow read, write: if request.auth != null; }
-//     match /stades_config/{docId} { allow read, write: if request.auth != null; }
-//     match /lots_animaux/{docId}  { allow read, write: if request.auth != null; }
-//     match /prelevements/{docId}  { allow read, write: if request.auth != null; }
-//     match /batiments/{docId}              { allow read, write: if request.auth != null; }
-//     match /cellules_grain/{docId}         { allow read, write: if request.auth != null; }
-//     match /emplacements_fourrage/{docId}  { allow read, write: if request.auth != null; }
-//     match /mouvements_stock/{docId}       { allow read, write: if request.auth != null; }
-//   }
-// }
+// Elle est INAPPLICABLE sur ce projet. Les règles Firestore s'additionnent :
+// dès qu'UNE règle autorise, l'accès est accordé, et aucune règle ne peut le
+// reprendre. Or le projet ovilog-15ef6 héberge AUSSI Ovilog. Ce joker
+// ouvrirait donc en lecture ET en écriture l'intégralité des collections
+// d'Ovilog à toute personne connectée depuis Logisol — exactement
+// l'interférence que Logisol doit s'interdire.
+//
+// ✅ LA SOLUTION RETENUE : un joker CADRÉ PAR UN PRÉFIXE DE NOM
+//
+// Le bloc « collections futures » ci-dessous autorise d'avance tout nom de
+// collection commençant par "lgs_", sans jamais rien ouvrir d'autre. À partir
+// de maintenant, toute nouvelle collection Logisol portera ce préfixe : elle
+// fonctionnera immédiatement, sans que tu aies à revenir ici.
+//
+// Les collections existantes gardent leur nom (elles contiennent déjà des
+// données réelles ; les renommer imposerait une migration risquée pour un
+// gain nul) et sont listées explicitement une fois pour toutes.
+//
+// ⚠️ CE FICHIER N'EST PAS DÉPLOYÉ AUTOMATIQUEMENT, ET C'EST VOLONTAIRE.
+// Déployer des règles depuis la CI écraserait le jeu de règles ENTIER du
+// projet, donc celles d'Ovilog, qui ne figurent pas dans ce dépôt. Aucune
+// automatisation ne peut contourner ça sans risquer de casser Ovilog : le
+// déploiement reste un copier-coller manuel dans la console Firebase.
+// Ce fichier est fait pour n'avoir à le faire qu'UNE DERNIÈRE FOIS.
+//
+// ---------------------------------------------------------------------
+// MODE D'EMPLOI (une seule fois)
+// Console Firebase > Firestore Database > Règles. Colle le bloc ci-dessous
+// À CÔTÉ des règles d'Ovilog, à l'intérieur du même
+// `match /databases/{database}/documents { ... }`. Ne supprime rien.
+// ---------------------------------------------------------------------
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /parcelles/{parcelleId} {
-      allow read, write: if request.auth != null;
+
+    // ================= COLLECTIONS FUTURES (rien à faire) =============
+    // Tout nom commençant par "lgs_" est autorisé d'avance. C'est ce bloc
+    // qui supprime le besoin de revenir ici à chaque nouveau module.
+    match /{collection}/{docId} {
+      allow read, write: if request.auth != null && collection.matches('^lgs_.*');
     }
-    // parcelles_config (ancien typeUsage) : obsolète depuis le passage aux
-    // assolements/cultures ci-dessous, mais laissé en place — inoffensif si
-    // déjà collé, et évite d'imposer une manipulation supplémentaire.
-    match /parcelles_config/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    match /cultures_config/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    // assolements : ancien modèle (une culture par année civile), remplacé
-    // par "implantations". Conservé le temps de la reprise automatique, qui
-    // marque chaque document repris.
-    match /assolements/{docId} {
-      allow read, write: if request.auth != null;
+    // Idem pour leurs sous-collections éventuelles.
+    match /{collection}/{docId}/{sub=**} {
+      allow read, write: if request.auth != null && collection.matches('^lgs_.*');
     }
 
-    // --- Ajouts du lot « journal d'interventions » ---
-    // Une culture est une PÉRIODE (semis -> fin), pas une année civile.
-    match /implantations/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    // Journal des interventions : une intervention peut porter sur plusieurs
-    // parcelles à la fois.
-    match /interventions/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    // Types d'intervention : liste prédéfinie + types personnalisés.
-    match /interventions_types/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    // --- Ajouts du lot « stocks + alimentation » ---
-    // Récoltes saisies parcelle par parcelle.
-    match /stocks/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    // Stades physiologiques et leur ration journalière par brebis.
-    match /stades_config/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    // Lots d'animaux (groupe de brebis au même stade, nourries ensemble).
-    match /lots_animaux/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    // Périodes de prélèvement d'un lot sur une catégorie de stock.
-    match /prelevements/{docId} {
-      allow read, write: if request.auth != null;
-    }
+    // ================= COLLECTIONS EXISTANTES =========================
+    // Parcellaire
+    match /parcelles/{docId}             { allow read, write: if request.auth != null; }
+    match /parcelles_config/{docId}      { allow read, write: if request.auth != null; }
+    match /cultures_config/{docId}       { allow read, write: if request.auth != null; }
+    match /implantations/{docId}         { allow read, write: if request.auth != null; }
+    match /assolements/{docId}           { allow read, write: if request.auth != null; }
 
-    // --- Ajouts du lot « bâtiments, silos et hangars » ---
-    match /batiments/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    match /cellules_grain/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    match /emplacements_fourrage/{docId} {
-      allow read, write: if request.auth != null;
-    }
-    // Journal des mouvements : c'est lui qui fait foi pour les niveaux.
-    match /mouvements_stock/{docId} {
-      allow read, write: if request.auth != null;
-    }
+    // Journal d'interventions
+    match /interventions/{docId}         { allow read, write: if request.auth != null; }
+    match /interventions_types/{docId}   { allow read, write: if request.auth != null; }
+
+    // Stocks et alimentation
+    match /stocks/{docId}                { allow read, write: if request.auth != null; }
+    match /stades_config/{docId}         { allow read, write: if request.auth != null; }
+    match /lots_animaux/{docId}          { allow read, write: if request.auth != null; }
+    match /prelevements/{docId}          { allow read, write: if request.auth != null; }
+
+    // Bâtiments et mouvements de stock
+    match /batiments/{docId}             { allow read, write: if request.auth != null; }
+    match /cellules_grain/{docId}        { allow read, write: if request.auth != null; }
+    match /emplacements_fourrage/{docId} { allow read, write: if request.auth != null; }
+    match /mouvements_stock/{docId}      { allow read, write: if request.auth != null; }
   }
 }

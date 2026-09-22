@@ -13,7 +13,7 @@
 import { db, auth } from './firebase-config.js';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "../vendor/firebase/firebase-firestore.js";
 import { setQuantite, getCelluleById } from './cellules.js';
 import { setNiveau, getEmplacementById } from './emplacements.js';
 

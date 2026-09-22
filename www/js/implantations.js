@@ -25,7 +25,7 @@
 import { db } from './firebase-config.js';
 import {
   collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "../vendor/firebase/firebase-firestore.js";
 
 const COL_NAME = 'implantations';
 const COL = collection(db, COL_NAME);

@@ -4,8 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Logisol</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+<!-- Librairies EMBARQUÉES (www/vendor), pas chargées depuis un CDN : sans
+     réseau, un <script src="https://..."> ne se charge pas et l'appli ne
+     démarre pas du tout. Seules les tuiles de la carte restent tributaires du
+     réseau — elles ne peuvent pas être embarquées, c'est la France entière. -->
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+<link rel="stylesheet" href="vendor/leaflet-draw/leaflet.draw.css" />
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -198,6 +202,8 @@
     <div id="stocks-croise" class="table-scroll"></div>
     <h3 class="section-titre">Par catégorie</h3>
     <div id="stocks-categories"></div>
+    <h3 class="section-titre">Stockage par bâtiment</h3>
+    <div id="stocks-batiments"></div>
     <h3 class="section-titre">Récoltes saisies</h3>
     <div id="stocks-lignes"></div>
   </div>
@@ -243,6 +249,22 @@
     <button id="btn-import" type="button" class="btn btn-fab btn-fab-secondary">📂 Importer</button>
   </div>
   <input type="file" id="input-geojson" accept=".json,.geojson,application/geo+json,application/json" hidden>
+
+  <!-- Aperçu d'un bâtiment, ouvert en le touchant sur la carte.
+       Volontairement séparé du formulaire d'édition : depuis la carte, on
+       veut d'abord SAVOIR ce qu'il y a dedans. -->
+  <div id="batapercu-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="batapercu-nom">Bâtiment</h2>
+      <p id="batapercu-type" class="champ-aide"></p>
+      <div id="batapercu-contenu"></div>
+      <div class="fiche-actions">
+        <button type="button" id="batapercu-mouvement" class="btn btn-primary">🔁 Mouvement de stock</button>
+        <button type="button" id="batapercu-modifier" class="btn btn-secondary">✏️ Modifier le bâtiment</button>
+        <button type="button" id="batapercu-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Bâtiment -->
   <div id="batiment-panel" class="fiche-overlay" hidden>
@@ -566,100 +588,142 @@
     </div>
   </div>
 
-  <!-- Formulaire d'intervention (création et modification) -->
+  <!-- Formulaire d'activité : tunnel en trois étapes.
+       Priorité à la vitesse de saisie au champ — étape 1 entièrement au doigt
+       (grands boutons), étape 2 réduite à l'essentiel (les détails sont
+       repliés et facultatifs), étape 3 affichée SEULEMENT quand l'activité
+       implique un mouvement de stock. Aucune heure de début/fin n'est
+       demandée nulle part. -->
   <div id="intervention-panel" class="fiche-overlay" hidden>
     <div class="fiche-panel">
-      <h2 id="itv-title">Nouvelle intervention</h2>
+      <div class="tunnel-head">
+        <button type="button" id="itv-back" class="tunnel-back" hidden>←</button>
+        <h2 id="itv-title">Nouvelle activité</h2>
+      </div>
+      <div id="itv-steps" class="tunnel-steps"></div>
       <div id="itv-error-banner" class="fiche-error-banner" hidden>
         <span id="itv-error-text"></span>
         <button type="button" id="itv-error-close" aria-label="Fermer">✕</button>
       </div>
+
       <form id="itv-form">
-        <label for="itv-date">Date</label>
-        <input type="date" id="itv-date" required>
-
-        <label for="itv-type">Type d'intervention</label>
-        <select id="itv-type"></select>
-
-        <div id="itv-newtype-wrap" class="fiche-newtype" hidden>
-          <label for="itv-newtype-nom">Nom du nouveau type</label>
-          <input type="text" id="itv-newtype-nom" placeholder="ex: Hersage">
-          <div class="row">
-            <div style="flex:1">
-              <label for="itv-newtype-icone">Icône</label>
-              <input type="text" id="itv-newtype-icone" value="🔧" maxlength="4">
-            </div>
-            <div style="flex:1">
-              <label for="itv-newtype-couleur">Couleur</label>
-              <input type="color" id="itv-newtype-couleur" value="#9a988f">
-            </div>
+        <!-- ÉTAPE 1 : cible + activité -->
+        <section id="itv-etape-1" class="tunnel-etape">
+          <label>Sur quoi ?</label>
+          <div class="choix-row" id="itv-cible">
+            <button type="button" class="choix-btn" data-cible="PARCELLE">🌾 Parcelle</button>
+            <button type="button" class="choix-btn" data-cible="BERGERIE">🏚️ Bergerie</button>
           </div>
-        </div>
+          <div class="parcelles-pick">
+            <button type="button" id="itv-pick-all" class="btn btn-secondary btn-mini">Tout sélectionner</button>
+            <button type="button" id="itv-pick-none" class="btn btn-secondary btn-mini">Tout décocher</button>
+            <span id="itv-pick-count" class="pick-count">0 sélection</span>
+          </div>
+          <div id="itv-parcelles" class="parcelles-list"></div>
+          <label>Activité</label>
+          <div id="itv-activites" class="activites"></div>
+        </section>
 
-        <label>Parcelles concernées</label>
-        <div class="parcelles-pick">
-          <button type="button" id="itv-pick-all" class="btn btn-secondary btn-mini">Tout sélectionner</button>
-          <button type="button" id="itv-pick-none" class="btn btn-secondary btn-mini">Tout décocher</button>
-          <span id="itv-pick-count" class="pick-count">0 parcelle</span>
-        </div>
-        <div id="itv-parcelles" class="parcelles-list"></div>
+        <!-- ÉTAPE 2 : quand, statut, note -->
+        <section id="itv-etape-2" class="tunnel-etape" hidden>
+          <label for="itv-date">Date</label>
+          <input type="date" id="itv-date" required>
 
-        <div id="itv-champ-produit">
-          <label for="itv-produit">Produit</label>
-          <input type="text" id="itv-produit" placeholder="ex: Fumier, Ammonitrate 33.5">
+          <label>Statut</label>
+          <div class="choix-row" id="itv-statut">
+            <button type="button" class="choix-btn" data-statut="TERMINE">✅ Terminé</button>
+            <button type="button" class="choix-btn" data-statut="A_FAIRE">🕑 À faire</button>
+          </div>
+
+          <label for="itv-notes">Note (facultative)</label>
+          <textarea id="itv-notes" rows="3" placeholder="Observations, remarques..."></textarea>
+
+          <button type="button" id="itv-details-toggle" class="lien-section">＋ Détails (produit, matériel, temps, météo, photo)</button>
+          <div id="itv-details" hidden>
+            <div id="itv-champ-produit">
+              <label for="itv-produit">Produit</label>
+              <input type="text" id="itv-produit" placeholder="ex: Fumier, Ammonitrate 33.5">
+              <div class="row">
+                <div style="flex:2">
+                  <label for="itv-quantite">Quantité</label>
+                  <input type="number" id="itv-quantite" step="0.01" min="0" inputmode="decimal">
+                </div>
+                <div style="flex:1">
+                  <label for="itv-unite">Unité</label>
+                  <select id="itv-unite">
+                    <option value="">—</option>
+                    <option value="t">t</option>
+                    <option value="kg">kg</option>
+                    <option value="L">L</option>
+                    <option value="t/ha">t/ha</option>
+                    <option value="kg/ha">kg/ha</option>
+                    <option value="L/ha">L/ha</option>
+                    <option value="u">unités</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div id="itv-champ-materiel">
+              <label for="itv-materiel">Matériel utilisé</label>
+              <input type="text" id="itv-materiel" placeholder="ex: Épandeur 12 t, tracteur 120 ch">
+            </div>
+            <div id="itv-champ-duree">
+              <label for="itv-duree">Temps passé (heures)</label>
+              <input type="number" id="itv-duree" step="0.25" min="0" inputmode="decimal" placeholder="ex: 2.5">
+            </div>
+            <div id="itv-champ-meteo">
+              <label>Météo (relevée automatiquement)</label>
+              <div class="meteo-box">
+                <span id="itv-meteo-text">—</span>
+                <button type="button" id="itv-meteo-refresh" class="btn btn-secondary btn-mini">🔄 Relever</button>
+              </div>
+            </div>
+            <label>Photo</label>
+            <div class="photo-box">
+              <button type="button" id="itv-photo-btn" class="btn btn-secondary btn-mini">📷 Prendre / choisir</button>
+              <button type="button" id="itv-photo-clear" class="btn btn-secondary btn-mini" hidden>🗑 Retirer</button>
+              <span id="itv-photo-info" class="photo-info"></span>
+            </div>
+            <img id="itv-photo-preview" class="photo-preview" alt="" hidden>
+            <input type="file" id="itv-photo-input" accept="image/*" capture="environment" hidden>
+          </div>
+        </section>
+
+        <!-- ÉTAPE 3 : mouvement de stock, affichée seulement si l'activité en
+             implique un (fauche, moisson, pressage, distribution). -->
+        <section id="itv-etape-3" class="tunnel-etape" hidden>
+          <p id="itv-flux-intro" class="champ-aide"></p>
+
+          <div id="itv-flux-source" hidden>
+            <label for="itv-flux-source-id">Depuis</label>
+            <select id="itv-flux-source-id"></select>
+          </div>
+
+          <div id="itv-flux-dest">
+            <label for="itv-flux-dest-id">Vers</label>
+            <select id="itv-flux-dest-id"></select>
+          </div>
+
           <div class="row">
             <div style="flex:2">
-              <label for="itv-quantite">Quantité</label>
-              <input type="number" id="itv-quantite" step="0.01" min="0" inputmode="decimal">
+              <label for="itv-flux-quantite" id="itv-flux-quantite-label">Quantité</label>
+              <input type="number" id="itv-flux-quantite" step="0.01" min="0" inputmode="decimal">
             </div>
-            <div style="flex:1">
-              <label for="itv-unite">Unité</label>
-              <select id="itv-unite">
-                <option value="">—</option>
-                <option value="t">t</option>
-                <option value="kg">kg</option>
-                <option value="L">L</option>
-                <option value="t/ha">t/ha</option>
-                <option value="kg/ha">kg/ha</option>
-                <option value="L/ha">L/ha</option>
-                <option value="u">unités</option>
-              </select>
+            <div style="flex:1" id="itv-flux-champ-poids" hidden>
+              <label for="itv-flux-poids">Poids / botte (kg)</label>
+              <input type="number" id="itv-flux-poids" step="1" min="0" inputmode="decimal">
+            </div>
+            <div style="flex:1" id="itv-flux-champ-grain" hidden>
+              <label for="itv-flux-grain">Grain</label>
+              <select id="itv-flux-grain"></select>
             </div>
           </div>
-        </div>
-
-        <div id="itv-champ-materiel">
-          <label for="itv-materiel">Matériel utilisé</label>
-          <input type="text" id="itv-materiel" placeholder="ex: Épandeur 12 t, tracteur 120 ch">
-        </div>
-
-        <div id="itv-champ-duree">
-          <label for="itv-duree">Temps passé (heures)</label>
-          <input type="number" id="itv-duree" step="0.25" min="0" inputmode="decimal" placeholder="ex: 2.5">
-        </div>
-
-        <div id="itv-champ-meteo">
-          <label>Météo (relevée automatiquement)</label>
-          <div class="meteo-box">
-            <span id="itv-meteo-text">—</span>
-            <button type="button" id="itv-meteo-refresh" class="btn btn-secondary btn-mini">🔄 Relever</button>
-          </div>
-        </div>
-
-        <label>Photo</label>
-        <div class="photo-box">
-          <button type="button" id="itv-photo-btn" class="btn btn-secondary btn-mini">📷 Prendre / choisir</button>
-          <button type="button" id="itv-photo-clear" class="btn btn-secondary btn-mini" hidden>🗑 Retirer</button>
-          <span id="itv-photo-info" class="photo-info"></span>
-        </div>
-        <img id="itv-photo-preview" class="photo-preview" alt="" hidden>
-        <input type="file" id="itv-photo-input" accept="image/*" capture="environment" hidden>
-
-        <label for="itv-notes">Notes</label>
-        <textarea id="itv-notes" rows="3" placeholder="Observations, remarques..."></textarea>
+          <p id="itv-flux-aide" class="champ-aide" hidden></p>
+        </section>
 
         <div class="fiche-actions">
-          <button type="submit" id="itv-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="itv-next" class="btn btn-primary">Suivant →</button>
+          <button type="submit" id="itv-save" class="btn btn-primary" hidden>Enregistrer</button>
           <button type="button" id="itv-cancel" class="btn btn-secondary">Annuler</button>
           <button type="button" id="itv-delete" class="btn btn-danger" hidden>Supprimer</button>
         </div>
@@ -734,7 +798,7 @@
   </div>
 </section>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+<script src="vendor/leaflet/leaflet.js"></script>
 <script>
   // Vérification explicite juste après le chargement du script Leaflet,
   // AVANT tout appel à L.map(...) (qui n'a lieu que plus tard, dans
@@ -742,10 +806,10 @@
   window.__logisolDebug(
     (typeof window.L !== 'undefined')
       ? 'Leaflet chargé (v' + (window.L.version || '?') + ')'
-      : 'Leaflet INDISPONIBLE — script non chargé (réseau ? CDN bloqué ?)'
+      : 'Leaflet INDISPONIBLE — fichier www/vendor/leaflet manquant'
   );
 </script>
-<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin="anonymous"></script>
+<script src="vendor/leaflet-draw/leaflet.draw.js"></script>
 <script>
   window.__logisolDebug(
     (typeof window.L !== 'undefined' && window.L.Draw)

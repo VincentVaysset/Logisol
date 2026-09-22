@@ -13,7 +13,7 @@
 import { db, auth } from './firebase-config.js';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "../vendor/firebase/firebase-firestore.js";
 
 const COL = collection(db, 'emplacements_fourrage');
 

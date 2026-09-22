@@ -336,3 +336,65 @@ match /cellules_grain/{docId}        { allow read, write: if request.auth != nul
 match /emplacements_fourrage/{docId} { allow read, write: if request.auth != null; }
 match /mouvements_stock/{docId}      { allow read, write: if request.auth != null; }
 ```
+
+
+## Fonctionnement hors-ligne
+
+Les librairies (Firebase SDK, Leaflet, Leaflet.draw) sont **embarquées dans
+`www/vendor/`**, donc dans l'APK. Avant cela, elles étaient chargées depuis un
+CDN : sans réseau, le premier `import` échouait et l'appli ne démarrait pas du
+tout — aucun cache de données n'y aurait changé quoi que ce soit.
+
+Firestore est initialisé avec un **cache persistant** (IndexedDB) : les
+documents déjà vus restent lisibles sans réseau, et les écritures faites hors
+couverture sont mises en file puis envoyées au retour du signal. `onSnapshot`
+répond depuis le cache, si bien que l'interface se comporte de la même façon
+dans les deux cas.
+
+Ce qui reste tributaire du réseau, et ne peut pas en être affranchi :
+- **les tuiles de la carte** — il s'agit de l'imagerie aérienne de la France
+  entière, elle ne peut pas être embarquée. Les parcelles, elles, restent
+  dessinées et cliquables sur fond vide ;
+- **le relevé météo** — sans réseau, l'activité s'enregistre simplement sans
+  météo, sans jamais bloquer la saisie ;
+- **la première connexion** sur un appareil. Une fois connecté, Firebase Auth
+  conserve la session et l'appli s'ouvre hors-ligne.
+
+## Règles Firestore — un seul collage, définitif
+
+Le fichier `firestore.rules` contient un **joker cadré par un préfixe** :
+toute collection dont le nom commence par `lgs_` est autorisée d'avance. Les
+prochains modules n'exigeront donc plus aucune intervention dans la console.
+
+Le joker large `match /{document=**}` est **volontairement écarté** : les
+règles Firestore s'additionnent (dès qu'une règle autorise, l'accès est
+accordé et rien ne peut le reprendre), et le projet héberge aussi Ovilog. Un
+tel joker ouvrirait l'intégralité des collections d'Ovilog en lecture et en
+écriture à toute personne connectée depuis Logisol.
+
+Le déploiement automatique des règles depuis la CI reste écarté pour la même
+raison : déployer remplace le jeu de règles **entier** du projet, donc celles
+d'Ovilog, qui ne figurent pas dans ce dépôt.
+
+En complément, `www/js/diagnostic-regles.js` teste chaque collection au
+démarrage et affiche, le cas échéant, **quelle** collection est refusée et quoi
+coller — au lieu d'un « permission-denied » muet.
+
+## Tunnel de saisie d'activité
+
+Trois étapes, dont la troisième n'apparaît que si l'activité déplace du stock :
+
+1. **Cible** (parcelle ou bergerie) puis **activité**, en grands boutons
+   tactiles regroupés par catégorie. Choisir l'activité fait passer
+   directement à l'étape 2.
+2. **Date** (aujourd'hui par défaut), **statut** (Terminé / À faire) et note
+   facultative. Produit, matériel, temps, météo et photo sont repliés derrière
+   « ＋ Détails ». Aucune heure de début ou de fin n'est demandée.
+3. **Mouvement de stock**, pour les seules activités concernées :
+   - *Fauche / Enrubannage, Moisson, Pressage* → où est rentré le produit ;
+   - *Distribution alimentation* → depuis quel stock, vers quel lot.
+
+L'activité crée alors le mouvement correspondant — les saisir séparément
+serait le meilleur moyen d'en oublier un. Une activité **« À faire » ne bouge
+rien** : son intention (quantité, destination) est conservée sur l'activité
+elle-même et le mouvement n'est créé qu'au passage à « Terminé ».

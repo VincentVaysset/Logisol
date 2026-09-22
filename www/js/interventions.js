@@ -9,7 +9,7 @@
 import { db, auth } from './firebase-config.js';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "../vendor/firebase/firebase-firestore.js";
 
 const COL = collection(db, 'interventions');
 
@@ -47,6 +47,22 @@ function nettoyer(data) {
                                                        // reste lisible même si
                                                        // le type est renommé
     parcelleIds: Array.isArray(data.parcelleIds) ? data.parcelleIds.slice() : [],
+    // cibleType : les parcelleIds désignent des parcelles OU des bergeries
+    // selon ce champ. Un seul tableau plutôt que deux évite d'avoir à traiter
+    // partout le cas « les deux sont remplis ».
+    cibleType: data.cibleType || 'PARCELLE',
+    // 'TERMINE' par défaut : au champ, on saisit ce qu'on vient de faire.
+    statut: data.statut === 'A_FAIRE' ? 'A_FAIRE' : 'TERMINE',
+    // Mouvement de stock engendré par cette activité, s'il y en a un.
+    mouvementId: data.mouvementId || null,
+    // INTENTION de mouvement, conservée même quand aucun mouvement n'existe.
+    //
+    // Une activité « À faire » ne doit rien bouger dans les stocks, mais ce
+    // qu'on a prévu (58 t vers le Silo 1) doit être retrouvé tel quel le jour
+    // où on la passe à « Terminé ». Sans ce champ, tout ce qui avait été saisi
+    // à l'étape 3 était perdu à la réouverture : c'est l'activité qui porte
+    // l'intention, le mouvement n'en est que la conséquence sur le stock.
+    flux: data.flux || null,
     produit: data.produit || '',
     quantite: data.quantite === '' || data.quantite == null ? null : Number(data.quantite),
     unite: data.unite || '',

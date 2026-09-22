@@ -65,9 +65,12 @@ export function renderFeed() {
 }
 
 function carteIntervention(itv) {
+  // Une activité peut porter sur des parcelles OU des bergeries : on cherche
+  // dans la bonne liste selon cibleType.
+  const source = itv.cibleType === 'BERGERIE' ? (etat.batiments || []) : etat.parcelles;
   const nomsParcelles = (itv.parcelleIds || [])
     .map((id) => {
-      const p = etat.parcelles.find((x) => x.id === id);
+      const p = source.find((x) => x.id === id);
       return p ? p.nom || 'Sans nom' : null;
     })
     .filter(Boolean);
@@ -90,6 +93,7 @@ function carteIntervention(itv) {
     <div class="feed-body">
       <div class="feed-line1">
         <span class="feed-type">${escapeHtml(itv.typeNom || 'Intervention')}</span>
+        ${itv.statut === 'A_FAIRE' ? '<span class="badge-afaire">à faire</span>' : ''}
         <span class="feed-date">${escapeHtml(dateLisible(itv.date))}</span>
       </div>
       <div class="feed-parcelles">${

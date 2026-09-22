@@ -9,7 +9,7 @@
 import { db } from './firebase-config.js';
 import {
   collection, doc, addDoc, updateDoc, getDocs, onSnapshot
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "../vendor/firebase/firebase-firestore.js";
 
 const COL = collection(db, 'stades_config');
 
