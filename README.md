@@ -362,15 +362,36 @@ Ce qui reste tributaire du réseau, et ne peut pas en être affranchi :
 
 ## Règles Firestore — quel fichier coller
 
-**Deux fichiers, et un seul se colle dans la console :**
+👉 **`firestore-logisol.rules`** : jeu **complet**, à coller en **remplaçant
+tout** (Ctrl+A puis coller). Il reprend l'intégralité des règles en place,
+Ovilog compris, et se suffit à lui-même — plus aucune insertion manuelle dans
+un bloc existant, c'est là que tout s'est joué.
 
-| Fichier | Usage |
-|---|---|
-| `firestore-logisol.rules` | **👉 celui à coller.** Uniquement des lignes `match`, à insérer dans le bloc `match /databases/{database}/documents { … }` existant, à côté des règles d'Ovilog. |
-| `firestore.rules` | Référence seulement. Document **complet** (`rules_version` + `service` + `match /databases`). Le coller à l'intérieur du bloc d'Ovilog crée un document imbriqué, donc une **erreur de syntaxe** : Firebase refuse alors de publier et **garde silencieusement les anciennes règles**. |
+`firestore.rules` ne sert que de référence pour les seules collections
+Logisol.
 
-Les collections plus anciennes (parcelles, stocks, lots_animaux…) sont déjà
-autorisées : il n'y a rien à recoller pour elles.
+### Le piège qui a coûté plusieurs allers-retours
+
+Les règles Firestore n'ont que deux niveaux qui comptent :
+
+```
+service cloud.firestore {              // niveau 1 — rien d'utile ici
+  match /databases/{database}/documents {   // niveau 2
+     ... TOUTES les règles doivent être ICI ...
+  }
+}
+```
+
+Une règle écrite au **niveau 1**, hors du conteneur `documents`, est
+syntaxiquement acceptée et **publiée sans erreur** — mais elle ne correspond à
+aucun document réel et ne s'applique jamais. Une accolade fermante placée
+trop tôt suffit à faire basculer tout ce qui suit dans ce niveau mort, sans
+le moindre avertissement.
+
+C'est exactement ce qui s'était produit : `stocks`, `stades_config`,
+`lots_animaux`, `prelevements` et le joker `lgs_` se retrouvaient au
+niveau 1. D'où un refus à l'enregistrement d'une récolte alors que les règles
+semblaient correctes et publiées.
 
 Après publication, les règles s'appliquent **immédiatement côté serveur** :
 ni réinstallation ni redémarrage. Le bouton « 🔄 Revérifier » du bandeau

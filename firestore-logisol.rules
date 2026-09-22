@@ -1,33 +1,85 @@
+// =====================================================================
+// RÈGLES FIRESTORE — JEU COMPLET, À COLLER EN REMPLAÇANT TOUT
+// =====================================================================
+//
+// Ouvre Firebase > Firestore Database > Règles, SÉLECTIONNE TOUT (Ctrl+A),
+// colle ce fichier par-dessus, puis Publier.
+//
+// Ce fichier reprend l'INTÉGRALITÉ des règles en place — celles d'Ovilog
+// comprises, telles que tu me les as transmises — avec une seule correction
+// de structure. Rien n'est retiré à Ovilog.
+//
 // ---------------------------------------------------------------------
-// À COLLER TEL QUEL, À L'INTÉRIEUR du bloc existant :
+// CE QUI N'ALLAIT PAS
 //
-//     match /databases/{database}/documents {
-//         <--- ICI, juste après cette ligne
-//         ... règles d'Ovilog, ne rien y toucher ...
-//     }
+// L'accolade qui ferme `match /databases/{database}/documents { ... }` était
+// placée trop tôt, juste après `interventions_types`. Tout ce qui suivait se
+// retrouvait donc directement sous `service cloud.firestore`, un niveau au-
+// dessus — c'est-à-dire nulle part : à ce niveau, seul le chemin
+// /databases/{database}/documents existe, et une règle posée là ne
+// correspond à aucun document réel. Elle ne s'applique jamais.
 //
-// Ce fichier ne contient QUE des lignes `match`. Il n'a volontairement ni
-// `rules_version`, ni `service`, ni `match /databases/...` : les coller à
-// l'intérieur du bloc d'Ovilog produirait un document imbriqué, donc une
-// erreur de syntaxe, et Firebase garderait silencieusement les anciennes
-// règles. C'est précisément ce qui s'est produit.
+// Étaient concernées : stocks, stades_config, lots_animaux, prelevements,
+// et le joker de préfixe lgs_. D'où le refus à l'enregistrement d'une
+// récolte (collection « stocks ») et, le joker étant lui aussi hors du bloc,
+// le refus sur les collections lgs_.
 //
-// Les collections plus anciennes (parcelles, stocks, lots_animaux...) sont
-// déjà autorisées et fonctionnent : il n'y a RIEN à recoller pour elles.
+// Correction : une seule accolade déplacée, tout est rapatrié à l'intérieur.
 // ---------------------------------------------------------------------
 
-    match /lgs_batiments/{docId}             { allow read, write: if request.auth != null; }
-    match /lgs_cellules_grain/{docId}        { allow read, write: if request.auth != null; }
-    match /lgs_emplacements_fourrage/{docId} { allow read, write: if request.auth != null; }
-    match /lgs_mouvements_stock/{docId}      { allow read, write: if request.auth != null; }
-    match /lgs_materiel/{docId}              { allow read, write: if request.auth != null; }
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
 
-// --- Facultatif : évite d'avoir à revenir ici aux prochains modules ---
-// Autorise d'avance toute collection dont le nom commence par "lgs_", sans
-// rien ouvrir d'autre. À ajouter seulement si les cinq lignes ci-dessus
-// fonctionnent — en cas de doute sur le comportement de matches(), les cinq
-// lignes explicites suffisent.
-//
-//     match /{collection}/{docId} {
-//       allow read, write: if request.auth != null && collection.matches('lgs_.*');
-//     }
+    // ===================== OVILOG — NE PAS RETIRER =====================
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    match /campagnes/{campagneId}                  { allow read, write: if request.auth != null; }
+    match /produits/{produitId}                    { allow read, write: if request.auth != null; }
+    match /mouvements_stock/{mouvementId}          { allow read, write: if request.auth != null; }
+    match /rotations_plans/{planId}                { allow read, write: if request.auth != null; }
+    match /rotations_revisions/{revisionId}        { allow read, write: if request.auth != null; }
+    match /stades_physiologiques_config/{docId}    { allow read, write: if request.auth != null; }
+    match /affectations_stade/{affectationId}      { allow read, write: if request.auth != null; }
+    match /plans_alimentation/{planId}             { allow read, write: if request.auth != null; }
+    match /distributions_alimentation/{docId}      { allow read, write: if request.auth != null; }
+    match /interventions_config/{docId}            { allow read, write: if request.auth != null; }
+
+    // ===================== LOGISOL — parcellaire =======================
+    match /parcelles/{docId}                       { allow read, write: if request.auth != null; }
+    match /parcelles_config/{docId}                { allow read, write: if request.auth != null; }
+    match /cultures_config/{docId}                 { allow read, write: if request.auth != null; }
+    match /implantations/{docId}                   { allow read, write: if request.auth != null; }
+    match /assolements/{docId}                     { allow read, write: if request.auth != null; }
+
+    // ===================== LOGISOL — interventions =====================
+    match /interventions/{docId}                   { allow read, write: if request.auth != null; }
+    match /interventions_types/{docId}             { allow read, write: if request.auth != null; }
+
+    // ===================== LOGISOL — stocks et troupeau ================
+    // C'est ce bloc qui se retrouvait hors du conteneur : d'où le refus à
+    // l'enregistrement d'une récolte.
+    match /stocks/{docId}                          { allow read, write: if request.auth != null; }
+    match /stades_config/{docId}                   { allow read, write: if request.auth != null; }
+    match /lots_animaux/{docId}                    { allow read, write: if request.auth != null; }
+    match /prelevements/{docId}                    { allow read, write: if request.auth != null; }
+
+    // ===================== LOGISOL — bâtiments et matériel =============
+    match /lgs_batiments/{docId}                   { allow read, write: if request.auth != null; }
+    match /lgs_cellules_grain/{docId}              { allow read, write: if request.auth != null; }
+    match /lgs_emplacements_fourrage/{docId}       { allow read, write: if request.auth != null; }
+    match /lgs_mouvements_stock/{docId}            { allow read, write: if request.auth != null; }
+    match /lgs_materiel/{docId}                    { allow read, write: if request.auth != null; }
+
+    // ===================== COLLECTIONS FUTURES =========================
+    // Autorise d'avance toute collection nommée lgs_*, sans rien ouvrir
+    // d'autre : les prochains modules n'exigeront plus de passage ici.
+    // matches() compare la chaîne ENTIÈRE, d'où 'lgs_.*' et non '^lgs_.*'.
+    // Les cinq lignes explicites ci-dessus suffisent de toute façon : ce
+    // joker n'est qu'un confort, jamais un point de passage obligé.
+    match /{collection}/{docId} {
+      allow read, write: if request.auth != null && collection.matches('lgs_.*');
+    }
+  }
+}
