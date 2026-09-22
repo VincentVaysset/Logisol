@@ -42,9 +42,9 @@ export function messagePermission(err, collection) {
     return `${code ? code + ' — ' : ''}${(err && err.message) || err}`;
   }
   return `Firestore refuse la collection « ${collection} ». Les règles publiées ne la couvrent pas : ` +
-         `colle le contenu de firestore.rules dans la console Firebase (Firestore > Règles). ` +
-         `Vérifie aussi le numéro de build affiché en haut de l'écran — un correctif ne s'applique ` +
-         `qu'une fois le nouvel APK installé.`;
+         `colle le fichier firestore-logisol.rules (celui-là, PAS firestore.rules) À L'INTÉRIEUR du bloc ` +
+         `match /databases/{database}/documents { … } existant, puis publie. Les règles s'appliquent ` +
+         `aussitôt : il suffit ensuite de retaper Enregistrer, ta saisie est conservée.`;
 }
 
 /**
@@ -84,8 +84,8 @@ export async function verifierRegles(onProbleme) {
       onProbleme(
         `Firestore refuse ${refusees.length} collection${refusees.length > 1 ? 's' : ''} : ` +
         refusees.join(', ') +
-        '. Colle le contenu de firestore.rules dans la console Firebase (Firestore > Règles), ' +
-        "à côté des règles d'Ovilog. Les collections en lgs_ sont couvertes par le joker de préfixe.",
+        '. Colle firestore-logisol.rules (5 lignes, PAS le fichier firestore.rules) à l\'intérieur du ' +
+        'bloc match /databases/{database}/documents existant, à côté des règles d\'Ovilog, puis publie.',
         refusees
       );
     }

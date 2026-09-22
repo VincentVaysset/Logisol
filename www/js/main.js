@@ -231,6 +231,24 @@ function afficherAlerteRegles(message) {
   el.hidden = false;
 }
 
+// Les règles vivent côté serveur : une fois corrigées dans la console, elles
+// s'appliquent immédiatement, sans réinstaller ni même redémarrer l'appli.
+// Ce bouton le rend évident et évite un cycle de désinstallation inutile.
+async function revérifierRegles() {
+  const bouton = document.getElementById('alerte-regles-retest');
+  const texte = document.getElementById('alerte-regles-texte');
+  if (bouton) { bouton.disabled = true; bouton.textContent = 'Vérification...'; }
+  try {
+    const refusees = await verifierRegles(afficherAlerteRegles);
+    if (!refusees.length && texte) {
+      texte.textContent = '✅ Toutes les collections sont accessibles. Tu peux enregistrer.';
+      setTimeout(() => { document.getElementById('alerte-regles').hidden = true; }, 6000);
+    }
+  } finally {
+    if (bouton) { bouton.disabled = false; bouton.textContent = '🔄 Revérifier'; }
+  }
+}
+
 // --- Messages contextuels au-dessus de la carte ---------------------------
 let indiceTimer = null;
 function afficherIndice(texte, dureeMs) {
@@ -400,6 +418,7 @@ async function boot() {
     document.getElementById('alerte-regles-close').addEventListener('click', () => {
       document.getElementById('alerte-regles').hidden = true;
     });
+    document.getElementById('alerte-regles-retest').addEventListener('click', revérifierRegles);
     initStocks({ onChange: recomputeStocksEtTroupeau });
     initAlimentation();
     initBatiments({ onChange: recomputeBatiments });

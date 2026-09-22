@@ -1,0 +1,33 @@
+// ---------------------------------------------------------------------
+// À COLLER TEL QUEL, À L'INTÉRIEUR du bloc existant :
+//
+//     match /databases/{database}/documents {
+//         <--- ICI, juste après cette ligne
+//         ... règles d'Ovilog, ne rien y toucher ...
+//     }
+//
+// Ce fichier ne contient QUE des lignes `match`. Il n'a volontairement ni
+// `rules_version`, ni `service`, ni `match /databases/...` : les coller à
+// l'intérieur du bloc d'Ovilog produirait un document imbriqué, donc une
+// erreur de syntaxe, et Firebase garderait silencieusement les anciennes
+// règles. C'est précisément ce qui s'est produit.
+//
+// Les collections plus anciennes (parcelles, stocks, lots_animaux...) sont
+// déjà autorisées et fonctionnent : il n'y a RIEN à recoller pour elles.
+// ---------------------------------------------------------------------
+
+    match /lgs_batiments/{docId}             { allow read, write: if request.auth != null; }
+    match /lgs_cellules_grain/{docId}        { allow read, write: if request.auth != null; }
+    match /lgs_emplacements_fourrage/{docId} { allow read, write: if request.auth != null; }
+    match /lgs_mouvements_stock/{docId}      { allow read, write: if request.auth != null; }
+    match /lgs_materiel/{docId}              { allow read, write: if request.auth != null; }
+
+// --- Facultatif : évite d'avoir à revenir ici aux prochains modules ---
+// Autorise d'avance toute collection dont le nom commence par "lgs_", sans
+// rien ouvrir d'autre. À ajouter seulement si les cinq lignes ci-dessus
+// fonctionnent — en cas de doute sur le comportement de matches(), les cinq
+// lignes explicites suffisent.
+//
+//     match /{collection}/{docId} {
+//       allow read, write: if request.auth != null && collection.matches('lgs_.*');
+//     }

@@ -1,45 +1,22 @@
 // =====================================================================
-// RÈGLES FIRESTORE — collections Logisol UNIQUEMENT
+// RÈGLES FIRESTORE — collections Logisol
 // =====================================================================
 //
-// ⚠️ POURQUOI LA SOLUTION ÉVIDENTE EST À PROSCRIRE ICI
+// ⚠️ NE COLLE PAS CE FICHIER DANS LA CONSOLE.
 //
-// La règle qui vient naturellement à l'esprit pour « tout autoriser
-// automatiquement » est :
+// C'est un document COMPLET (rules_version + service + match /databases).
+// Le coller à l'intérieur du bloc existant d'Ovilog produirait un document
+// imbriqué, donc une erreur de syntaxe, et Firebase garderait silencieusement
+// les anciennes règles.
 //
-//     match /{document=**} { allow read, write: if request.auth != null; }
+// 👉 Pour la console, utilise « firestore-logisol.rules » : il ne contient
+//    que les lignes `match` à insérer, sans enveloppe.
 //
-// Elle est INAPPLICABLE sur ce projet. Les règles Firestore s'additionnent :
-// dès qu'UNE règle autorise, l'accès est accordé, et aucune règle ne peut le
-// reprendre. Or le projet ovilog-15ef6 héberge AUSSI Ovilog. Ce joker
-// ouvrirait donc en lecture ET en écriture l'intégralité des collections
-// d'Ovilog à toute personne connectée depuis Logisol — exactement
-// l'interférence que Logisol doit s'interdire.
-//
-// ✅ LA SOLUTION RETENUE : un joker CADRÉ PAR UN PRÉFIXE DE NOM
-//
-// Le bloc « collections futures » ci-dessous autorise d'avance tout nom de
-// collection commençant par "lgs_", sans jamais rien ouvrir d'autre. À partir
-// de maintenant, toute nouvelle collection Logisol portera ce préfixe : elle
-// fonctionnera immédiatement, sans que tu aies à revenir ici.
-//
-// Les collections existantes gardent leur nom (elles contiennent déjà des
-// données réelles ; les renommer imposerait une migration risquée pour un
-// gain nul) et sont listées explicitement une fois pour toutes.
-//
-// ⚠️ CE FICHIER N'EST PAS DÉPLOYÉ AUTOMATIQUEMENT, ET C'EST VOLONTAIRE.
-// Déployer des règles depuis la CI écraserait le jeu de règles ENTIER du
-// projet, donc celles d'Ovilog, qui ne figurent pas dans ce dépôt. Aucune
-// automatisation ne peut contourner ça sans risquer de casser Ovilog : le
-// déploiement reste un copier-coller manuel dans la console Firebase.
-// Ce fichier est fait pour n'avoir à le faire qu'UNE DERNIÈRE FOIS.
-//
-// ---------------------------------------------------------------------
-// MODE D'EMPLOI (une seule fois)
-// Console Firebase > Firestore Database > Règles. Colle le bloc ci-dessous
-// À CÔTÉ des règles d'Ovilog, à l'intérieur du même
-// `match /databases/{database}/documents { ... }`. Ne supprime rien.
-// ---------------------------------------------------------------------
+// Ce fichier-ci sert de référence : il montre l'état complet attendu des
+// règles Logisol, et servirait de base si le projet n'hébergeait qu'elle.
+// Le raisonnement (pourquoi pas de joker large, pourquoi pas de déploiement
+// automatique depuis la CI) est dans le README.
+// =====================================================================
 
 rules_version = '2';
 service cloud.firestore {

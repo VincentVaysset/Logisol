@@ -360,6 +360,22 @@ Ce qui reste tributaire du réseau, et ne peut pas en être affranchi :
 - **la première connexion** sur un appareil. Une fois connecté, Firebase Auth
   conserve la session et l'appli s'ouvre hors-ligne.
 
+## Règles Firestore — quel fichier coller
+
+**Deux fichiers, et un seul se colle dans la console :**
+
+| Fichier | Usage |
+|---|---|
+| `firestore-logisol.rules` | **👉 celui à coller.** Uniquement des lignes `match`, à insérer dans le bloc `match /databases/{database}/documents { … }` existant, à côté des règles d'Ovilog. |
+| `firestore.rules` | Référence seulement. Document **complet** (`rules_version` + `service` + `match /databases`). Le coller à l'intérieur du bloc d'Ovilog crée un document imbriqué, donc une **erreur de syntaxe** : Firebase refuse alors de publier et **garde silencieusement les anciennes règles**. |
+
+Les collections plus anciennes (parcelles, stocks, lots_animaux…) sont déjà
+autorisées : il n'y a rien à recoller pour elles.
+
+Après publication, les règles s'appliquent **immédiatement côté serveur** :
+ni réinstallation ni redémarrage. Le bouton « 🔄 Revérifier » du bandeau
+d'alerte le confirme sur place.
+
 ## Règles Firestore — un seul collage, définitif
 
 Le fichier `firestore.rules` contient un **joker cadré par un préfixe** :
