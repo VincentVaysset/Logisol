@@ -16,7 +16,8 @@ import { resolveCouleur, resolveLabel } from './vocation.js';
 import { watchParcelles } from './parcelles.js';
 import {
   initMap, renderParcelles, renderLegend, refreshMapSize,
-  fitToParcelles, centrerSurMaPosition, vueARestaurer
+  fitToParcelles, centrerSurMaPosition, vueARestaurer,
+  renderBatiments as renderBatimentsCarte, setOnBatimentClick
 } from './map.js';
 import {
   initDraw, startDrawing, cancelDrawing, undoLastPoint, finishDrawing,
@@ -36,6 +37,14 @@ import {
 import {
   initAlimentation, setCategories, renderVue as renderTroupeau
 } from './ui-alimentation.js';
+import { watchBatiments, onBatimentsChange, typeBatiment } from './batiments.js';
+import { watchCellules, onCellulesChange } from './cellules.js';
+import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
+import { watchMouvements, onMouvementsChange } from './mouvements.js';
+import { setParcellesBatiments, openEditBatiment } from './ui-batiments.js';
+import {
+  initBatiments, setParcellesMouvements, renderVue as renderBatiments
+} from './ui-mouvements.js';
 
 let booted = false;
 let centrageInitialFait = false;
@@ -48,10 +57,11 @@ let latestImplantations = [];
 let latestInterventions = [];
 let latestTypes = [];
 let latestStocks = [];
+let latestBatiments = [];
 let enrichedById = new Map();
 let implantationsByParcelle = new Map();
 
-const VUES = ['ferme', 'carte', 'liste', 'stocks', 'troupeau'];
+const VUES = ['ferme', 'carte', 'liste', 'stocks', 'troupeau', 'batiments'];
 let currentView = 'ferme';
 
 const mapEl = document.getElementById('map');
@@ -59,6 +69,7 @@ const feedEl = document.getElementById('feed');
 const listViewEl = document.getElementById('list-view');
 const stocksViewEl = document.getElementById('stocks-view');
 const troupeauViewEl = document.getElementById('troupeau-view');
+const batimentsViewEl = document.getElementById('batiments-view');
 const tabsEl = document.getElementById('tabs');
 const fabCarte = document.getElementById('fab-carte');
 const drawToolbar = document.getElementById('draw-toolbar');
@@ -95,6 +106,8 @@ function recomputeAndRender() {
   renderLegend(computeLegendItems(enriched));
   setParcellesDisponibles(enriched);
   setParcellesStocks(enriched);
+  setParcellesBatiments(enriched);
+  setParcellesMouvements(enriched);
 
   majEtat({
     parcelles: enriched,
@@ -116,6 +129,19 @@ function recomputeStocksEtTroupeau() {
   setCategories(agregerParCategorie(latestStocks));
   if (currentView === 'stocks') renderStocks();
   if (currentView === 'troupeau') renderTroupeau();
+}
+
+// Bâtiments : la carte les affiche dans les vues Ferme et Carte, la vue
+// Bâtiments en donne le détail. Les deux sont alimentées par la même liste
+// enrichie (icône et couleur du type) pour qu'un bâtiment ait exactement la
+// même identité visuelle partout.
+function recomputeBatiments() {
+  const enrichis = latestBatiments.map((b) => {
+    const t = typeBatiment(b.type);
+    return { ...b, _icone: t.icone, _couleur: t.couleur };
+  });
+  renderBatimentsCarte(enrichis);
+  if (currentView === 'batiments') renderBatiments();
 }
 
 function computeLegendItems(enriched) {
@@ -238,6 +264,7 @@ function setView(vue) {
   listViewEl.hidden = vue !== 'liste';
   stocksViewEl.hidden = vue !== 'stocks';
   troupeauViewEl.hidden = vue !== 'troupeau';
+  batimentsViewEl.hidden = vue !== 'batiments';
   fabCarte.hidden = vue !== 'carte';
 
   tabsEl.querySelectorAll('.tab').forEach((b) => {
@@ -248,6 +275,7 @@ function setView(vue) {
   if (vue === 'liste') renderListView(Array.from(enrichedById.values()));
   if (vue === 'stocks') renderStocks();
   if (vue === 'troupeau') renderTroupeau();
+  if (vue === 'batiments') renderBatiments();
   if (vue === 'ferme' || vue === 'carte') {
     // #map vient de changer de taille (ou de redevenir visible) : Leaflet ne
     // le détecte pas seul, ce qui décalerait tuiles, contrôles et surtout la
@@ -290,6 +318,13 @@ async function boot() {
     initAccueil({ onModifierParcelle: openEditParcelle });
     initStocks({ onChange: recomputeStocksEtTroupeau });
     initAlimentation();
+    initBatiments({ onChange: recomputeBatiments });
+
+    // Taper un bâtiment sur la carte ouvre sa fiche, comme pour une parcelle.
+    setOnBatimentClick((id) => {
+      const b = latestBatiments.find((x) => x.id === id);
+      if (b) { setView('batiments'); openEditBatiment(b); }
+    });
 
     tabsEl.querySelectorAll('.tab').forEach((b) => {
       b.addEventListener('click', () => setView(b.dataset.vue));
@@ -364,6 +399,15 @@ async function boot() {
     watchLots();
     onPrelevementsChange(() => recomputeStocksEtTroupeau());
     watchPrelevements();
+
+    onBatimentsChange((list) => { latestBatiments = list; recomputeBatiments(); });
+    watchBatiments();
+    onCellulesChange(() => recomputeBatiments());
+    watchCellules();
+    onEmplacementsChange(() => recomputeBatiments());
+    watchEmplacements();
+    onMouvementsChange(() => recomputeBatiments());
+    watchMouvements();
 
     await ensureCulturesSeeded();
     await ensureTypesSeeded();

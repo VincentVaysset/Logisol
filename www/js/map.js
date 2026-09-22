@@ -264,6 +264,50 @@ export function refreshMapSize() {
   requestAnimationFrame(() => map.invalidateSize());
 }
 
+// --- Bâtiments sur la carte ----------------------------------------------
+const marqueursBatiments = new Map(); // id -> L.Marker
+let onBatimentClick = () => {};
+
+export function setOnBatimentClick(cb) { onBatimentClick = cb || (() => {}); }
+
+// Les bâtiments sans coordonnées sont simplement absents de la carte : c'est
+// un champ facultatif, et un marqueur posé à 0,0 (au large du Ghana) serait
+// bien pire qu'un marqueur manquant.
+export function renderBatiments(list) {
+  if (!map) return;
+  const vus = new Set();
+  (list || []).forEach((b) => {
+    if (b.latitude == null || b.longitude == null) return;
+    vus.add(b.id);
+    const icone = L.divIcon({
+      className: 'batiment-marqueur',
+      html: `<span style="background:${escapeAttr(b._couleur || '#79765f')}">${escapeHtml(b._icone || '🏚️')}</span>`,
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+    let marqueur = marqueursBatiments.get(b.id);
+    if (marqueur) {
+      marqueur.setLatLng([b.latitude, b.longitude]);
+      marqueur.setIcon(icone);
+    } else {
+      marqueur = L.marker([b.latitude, b.longitude], { icon: icone, zIndexOffset: 500 });
+      marqueur.on('click', () => onBatimentClick(b.id));
+      marqueur.addTo(map);
+      marqueursBatiments.set(b.id, marqueur);
+    }
+    marqueur.unbindTooltip();
+    marqueur.bindTooltip(escapeHtml(b.nom || 'Bâtiment'), {
+      permanent: true, direction: 'bottom', className: 'parcelle-label', offset: [0, 14]
+    });
+  });
+  Array.from(marqueursBatiments.keys()).forEach((id) => {
+    if (!vus.has(id)) {
+      map.removeLayer(marqueursBatiments.get(id));
+      marqueursBatiments.delete(id);
+    }
+  });
+}
+
 // list : parcelles enrichies par main.js, chaque item porte _couleur et _label.
 export function renderParcelles(list) {
   const seen = new Set();

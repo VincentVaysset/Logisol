@@ -299,3 +299,40 @@ match /stades_config/{docId} { allow read, write: if request.auth != null; }
 match /lots_animaux/{docId}  { allow read, write: if request.auth != null; }
 match /prelevements/{docId}  { allow read, write: if request.auth != null; }
 ```
+
+### Bâtiments, silos et hangars
+Trois collections de structure — `batiments`, `cellules_grain`,
+`emplacements_fourrage` — et une de journal, `mouvements_stock`.
+
+Un **bâtiment** (`BERGERIE`, `STOCKAGE_GRAIN`, `STOCKAGE_FOURRAGE`, `MIXTE`)
+peut porter, selon son type, des cellules à grain, des emplacements de
+fourrage et des lots d'animaux. Sa position est facultative ; renseignée, il
+apparaît sur la carte des vues Ferme et Carte, et se touche comme une parcelle.
+
+**Les niveaux ne se saisissent jamais** : ils se calculent comme « somme des
+entrées moins somme des sorties » sur le journal des mouvements. Un niveau
+modifiable à la main doublé d'un journal finit toujours par diverger, sans
+qu'on sache laquelle des deux valeurs croire. Le champ
+`quantiteActuelleTonnes` (resp. `nbBottesActuel`) existe dans le document,
+mais n'est qu'un cache réécrit à chaque mouvement.
+
+Types de mouvement : `ENTREE_RECOLTE`, `ENTREE_ACHAT`, `SORTIE_ALIMENTATION`,
+`PERTE`, plus deux ajouts nécessaires — `TRANSFERT` (vider un silo dans un
+autre, que saisir comme une perte suivie d'un achat fausserait des deux côtés)
+et `INVENTAIRE` (un re-comptage qui ne colle pas au calcul doit laisser une
+trace, pas être corrigé en douce : un inventaire **remplace** le niveau au lieu
+de s'y ajouter).
+
+Unités : **tonnes** pour le grain, **nombre de bottes** pour le fourrage.
+`poidsMoyenBotteKg` n'est pas une constante saisie : c'est la moyenne pondérée
+des poids réellement portés par les entrées de l'emplacement, recalculée à
+chaque mouvement — le poids d'une botte change à chaque récolte.
+
+## ⚠️ Règles Firestore — quatre collections de plus
+
+```
+match /batiments/{docId}             { allow read, write: if request.auth != null; }
+match /cellules_grain/{docId}        { allow read, write: if request.auth != null; }
+match /emplacements_fourrage/{docId} { allow read, write: if request.auth != null; }
+match /mouvements_stock/{docId}      { allow read, write: if request.auth != null; }
+```

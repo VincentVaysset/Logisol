@@ -1,0 +1,370 @@
+// Vue Bâtiments : bergeries, cellules à grain, emplacements de fourrage, et
+// le journal des mouvements qui fait varier leurs niveaux.
+import {
+  TYPES_BATIMENT, TYPES_GRAIN, TYPES_FOURRAGE, typeBatiment, labelGrain, labelFourrage,
+  accepteCellules, accepteFourrage, accepteLots,
+  getBatiments, getBatimentById, createBatiment, updateBatiment, deleteBatiment
+} from './batiments.js';
+import {
+  getCellules, getCelluleById, cellulesDuBatiment, tauxRemplissage,
+  createCellule, updateCellule, deleteCellule
+} from './cellules.js';
+import {
+  getEmplacements, getEmplacementById, emplacementsDuBatiment, tonnes as tonnesFourrage,
+  createEmplacement, updateEmplacement, deleteEmplacement
+} from './emplacements.js';
+import {
+  TYPES_MOUVEMENT, typeMouvement, getMouvements, niveauContenant, mouvementsDuContenant,
+  createMouvement, updateMouvement, deleteMouvement
+} from './mouvements.js';
+import { getLots } from './lots.js';
+import { getStadeById } from './stades.js';
+import { aujourdhui } from './implantations.js';
+import { dateLisible } from './accueil.js';
+import { formatTonnes } from './ui-stocks.js';
+import { centrerSurMaPosition, getMap } from './map.js';
+
+class ErreurDeSaisie extends Error {}
+function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Fabrique un petit contrôleur de panneau : même squelette pour les quatre
+// formulaires (bâtiment, cellule, emplacement, mouvement), donc une seule
+// implémentation du bandeau d'erreur, du jeton anti-course et du timeout.
+function panneau(prefix, ids) {
+  const el = {};
+  ids.forEach((id) => { el[id] = document.getElementById(`${prefix}-${id}`); });
+  return el;
+}
+
+const listeEl = document.getElementById('batiments-liste');
+const totauxEl = document.getElementById('batiments-totaux');
+const mouvementsEl = document.getElementById('mouvements-liste');
+
+let parcelles = [];
+export function setParcellesBatiments(list) { parcelles = list; }
+
+// ==========================================================================
+// Bâtiment
+// ==========================================================================
+const bat = {
+  panel: document.getElementById('batiment-panel'),
+  form: document.getElementById('bat-form'),
+  ...panneau('bat', ['title', 'nom', 'type', 'position', 'locate', 'position-clear',
+                     'remarques', 'contenants', 'contenants-wrap', 'add-cellule',
+                     'add-emplacement', 'save', 'cancel', 'delete',
+                     'error-banner', 'error-text', 'error-close'])
+};
+let batEditId = null;
+let batLat = null;
+let batLon = null;
+
+bat.type.innerHTML = TYPES_BATIMENT.map((t) => `<option value="${t.value}">${t.icone} ${t.label}</option>`).join('');
+bat['error-close'].addEventListener('click', () => { bat['error-banner'].hidden = true; });
+
+function batError(m) { bat['error-text'].textContent = m; bat['error-banner'].hidden = false; }
+
+function majPosition() {
+  bat.position.textContent = (batLat != null && batLon != null)
+    ? `${batLat.toFixed(5)}, ${batLon.toFixed(5)}`
+    : 'Non renseignée';
+}
+
+export function openCreateBatiment() {
+  batEditId = null;
+  batLat = null; batLon = null;
+  bat.panel.hidden = false;
+  bat['error-banner'].hidden = true;
+  bat.title.textContent = 'Nouveau bâtiment';
+  bat.delete.hidden = true;
+  bat.nom.value = '';
+  bat.type.value = 'MIXTE';
+  bat.remarques.value = '';
+  majPosition();
+  // Les contenants ne peuvent être rattachés qu'à un bâtiment déjà
+  // enregistré : sans id, une cellule n'aurait nulle part où aller.
+  bat['contenants-wrap'].hidden = true;
+  log('formulaire bâtiment ouvert (création)');
+}
+
+export function openEditBatiment(b) {
+  batEditId = b.id;
+  batLat = b.latitude != null ? Number(b.latitude) : null;
+  batLon = b.longitude != null ? Number(b.longitude) : null;
+  bat.panel.hidden = false;
+  bat['error-banner'].hidden = true;
+  bat.title.textContent = b.nom || 'Bâtiment';
+  bat.delete.hidden = false;
+  bat.nom.value = b.nom || '';
+  bat.type.value = b.type || 'MIXTE';
+  bat.remarques.value = b.remarques || '';
+  majPosition();
+  bat['contenants-wrap'].hidden = false;
+  renderContenantsDuBatiment(b);
+}
+
+function renderContenantsDuBatiment(b) {
+  const cels = cellulesDuBatiment(b.id);
+  const emps = emplacementsDuBatiment(b.id);
+  const lots = getLots().filter((l) => l.batimentId === b.id);
+  bat['add-cellule'].hidden = !accepteCellules(b);
+  bat['add-emplacement'].hidden = !accepteFourrage(b);
+
+  const blocs = [];
+  cels.forEach((c) => {
+    const n = niveauContenant('CELLULE', c.id).quantite;
+    blocs.push(ligneContenant('🌾', c.nom, `${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${labelGrain(c.typeGrainActuel)}`, 'cellule', c.id, tauxRemplissage(c, n)));
+  });
+  emps.forEach((e) => {
+    const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id);
+    blocs.push(ligneContenant('🧻', e.nom, `${n.quantite} bottes · ${labelFourrage(e.typeFourrage)}${n.poidsMoyenBotteKg ? ' · ~' + n.poidsMoyenBotteKg + ' kg/botte' : ''}`, 'emplacement', e.id, null));
+  });
+  lots.forEach((l) => {
+    const st = getStadeById(l.stadeId);
+    blocs.push(ligneContenant('🐑', l.nom, `${l.nbBrebis} brebis · ${st ? st.nom : 'stade non défini'}`, null, null, null));
+  });
+  bat.contenants.innerHTML = blocs.length ? blocs.join('') : '<p class="list-empty">Aucun contenu pour l\'instant.</p>';
+  bat.contenants.querySelectorAll('[data-kind]').forEach((el) => {
+    el.addEventListener('click', () => {
+      if (el.dataset.kind === 'cellule') openEditCellule(getCelluleById(el.dataset.id));
+      else openEditEmplacement(getEmplacementById(el.dataset.id));
+    });
+  });
+}
+
+function ligneContenant(icone, nom, detail, kind, id, taux) {
+  const attrs = kind ? ` data-kind="${kind}" data-id="${esc(id)}" style="cursor:pointer"` : '';
+  const jauge = taux != null
+    ? `<div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux)}%"></div></div>`
+    : '';
+  return `<div class="contenant-ligne"${attrs}>
+    <span class="contenant-icone">${icone}</span>
+    <div class="contenant-body">
+      <div class="contenant-nom">${esc(nom)}</div>
+      <div class="contenant-detail">${esc(detail)}</div>
+      ${jauge}
+    </div>
+    ${taux != null ? `<div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux}%</div>` : ''}
+  </div>`;
+}
+
+bat.locate.addEventListener('click', () => {
+  bat.position.textContent = 'Recherche...';
+  // Pointer un bâtiment se fait sur place : on relève la position de
+  // l'appareil plutôt que de demander des coordonnées à taper.
+  centrerSurMaPosition({
+    zoom: 18,
+    onSuccess: () => {
+      const map = getMap();
+      if (map) { const c = map.getCenter(); batLat = c.lat; batLon = c.lng; }
+      majPosition();
+    },
+    onError: (m) => { bat.position.textContent = 'Position indisponible : ' + m; }
+  });
+});
+bat['position-clear'].addEventListener('click', () => { batLat = null; batLon = null; majPosition(); });
+bat.cancel.addEventListener('click', () => { bat.panel.hidden = true; });
+
+bat['add-cellule'].addEventListener('click', () => { if (batEditId) openCreateCellule(batEditId); });
+bat['add-emplacement'].addEventListener('click', () => { if (batEditId) openCreateEmplacement(batEditId); });
+
+bat.form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  bat['error-banner'].hidden = true;
+  bat.save.disabled = true; bat.save.textContent = 'Enregistrement...';
+  try {
+    const data = {
+      nom: bat.nom.value, type: bat.type.value, remarques: bat.remarques.value,
+      latitude: batLat, longitude: batLon
+    };
+    if (batEditId) await updateBatiment(batEditId, data);
+    else await createBatiment(data);
+    bat.panel.hidden = true;
+    log('bâtiment enregistré');
+  } catch (err) {
+    batError(messageErreur(err));
+  } finally {
+    bat.save.disabled = false; bat.save.textContent = 'Enregistrer';
+  }
+});
+
+bat.delete.addEventListener('click', async () => {
+  if (!batEditId) return;
+  const cels = cellulesDuBatiment(batEditId);
+  const emps = emplacementsDuBatiment(batEditId);
+  if (cels.length || emps.length) {
+    batError(`Ce bâtiment contient encore ${cels.length} cellule(s) et ${emps.length} emplacement(s). Supprime-les d'abord — sinon leurs mouvements resteraient rattachés à un bâtiment disparu.`);
+    return;
+  }
+  if (!confirm('Supprimer ce bâtiment ? Cette action est irréversible.')) return;
+  bat.delete.disabled = true;
+  try { await deleteBatiment(batEditId); bat.panel.hidden = true; }
+  catch (err) { batError(messageErreur(err)); }
+  finally { bat.delete.disabled = false; }
+});
+
+// ==========================================================================
+// Cellule à grain
+// ==========================================================================
+const cel = {
+  panel: document.getElementById('cellule-panel'),
+  form: document.getElementById('cel-form'),
+  ...panneau('cel', ['title', 'nom', 'capacite', 'grain', 'etat', 'niveau',
+                     'save', 'cancel', 'delete', 'error-banner', 'error-text', 'error-close'])
+};
+let celEditId = null;
+let celBatimentId = null;
+
+cel.grain.innerHTML = '<option value="">— Vide —</option>' +
+  TYPES_GRAIN.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
+cel['error-close'].addEventListener('click', () => { cel['error-banner'].hidden = true; });
+cel.cancel.addEventListener('click', () => { cel.panel.hidden = true; });
+
+export function openCreateCellule(batimentId) {
+  celEditId = null; celBatimentId = batimentId;
+  cel.panel.hidden = false;
+  cel['error-banner'].hidden = true;
+  cel.title.textContent = 'Nouvelle cellule';
+  cel.delete.hidden = true;
+  cel.nom.value = ''; cel.capacite.value = ''; cel.grain.value = '';
+  cel.etat.hidden = true;
+}
+
+export function openEditCellule(c) {
+  if (!c) return;
+  celEditId = c.id; celBatimentId = c.batimentId;
+  cel.panel.hidden = false;
+  cel['error-banner'].hidden = true;
+  cel.title.textContent = c.nom || 'Cellule';
+  cel.delete.hidden = false;
+  cel.nom.value = c.nom || '';
+  cel.capacite.value = c.capaciteMaxTonnes != null ? c.capaciteMaxTonnes : '';
+  cel.grain.value = c.typeGrainActuel || '';
+  const n = niveauContenant('CELLULE', c.id);
+  cel.niveau.textContent = formatTonnes(n.quantite) + ' t';
+  cel.etat.hidden = false;
+}
+
+cel.form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  cel['error-banner'].hidden = true;
+  cel.save.disabled = true; cel.save.textContent = 'Enregistrement...';
+  try {
+    const data = {
+      batimentId: celBatimentId, nom: cel.nom.value,
+      capaciteMaxTonnes: cel.capacite.value, typeGrainActuel: cel.grain.value || null
+    };
+    if (celEditId) await updateCellule(celEditId, data);
+    else await createCellule(data);
+    cel.panel.hidden = true;
+    const b = getBatimentById(celBatimentId);
+    if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+  } catch (err) {
+    cel['error-text'].textContent = messageErreur(err); cel['error-banner'].hidden = false;
+  } finally {
+    cel.save.disabled = false; cel.save.textContent = 'Enregistrer';
+  }
+});
+
+cel.delete.addEventListener('click', async () => {
+  if (!celEditId) return;
+  const n = mouvementsDuContenant('CELLULE', celEditId).length;
+  if (!confirm(n
+    ? `Cette cellule porte ${n} mouvement(s) qui resteraient orphelins. Supprimer quand même ?`
+    : 'Supprimer cette cellule ?')) return;
+  cel.delete.disabled = true;
+  try {
+    await deleteCellule(celEditId);
+    cel.panel.hidden = true;
+    const b = getBatimentById(celBatimentId);
+    if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+  } catch (err) {
+    cel['error-text'].textContent = messageErreur(err); cel['error-banner'].hidden = false;
+  } finally { cel.delete.disabled = false; }
+});
+
+// ==========================================================================
+// Emplacement de fourrage
+// ==========================================================================
+const emp = {
+  panel: document.getElementById('emplacement-panel'),
+  form: document.getElementById('emp-form'),
+  ...panneau('emp', ['title', 'nom', 'type', 'etat', 'niveau',
+                     'save', 'cancel', 'delete', 'error-banner', 'error-text', 'error-close'])
+};
+let empEditId = null;
+let empBatimentId = null;
+
+emp.type.innerHTML = TYPES_FOURRAGE.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
+emp['error-close'].addEventListener('click', () => { emp['error-banner'].hidden = true; });
+emp.cancel.addEventListener('click', () => { emp.panel.hidden = true; });
+
+export function openCreateEmplacement(batimentId) {
+  empEditId = null; empBatimentId = batimentId;
+  emp.panel.hidden = false;
+  emp['error-banner'].hidden = true;
+  emp.title.textContent = 'Nouvel emplacement';
+  emp.delete.hidden = true;
+  emp.nom.value = ''; emp.type.value = 'FOIN';
+  emp.etat.hidden = true;
+}
+
+export function openEditEmplacement(e2) {
+  if (!e2) return;
+  empEditId = e2.id; empBatimentId = e2.batimentId;
+  emp.panel.hidden = false;
+  emp['error-banner'].hidden = true;
+  emp.title.textContent = e2.nom || 'Emplacement';
+  emp.delete.hidden = false;
+  emp.nom.value = e2.nom || '';
+  emp.type.value = e2.typeFourrage || 'FOIN';
+  const n = niveauContenant('EMPLACEMENT_FOURRAGE', e2.id);
+  emp.niveau.textContent = `${n.quantite} botte${n.quantite > 1 ? 's' : ''}` +
+    (n.poidsMoyenBotteKg ? ` · ${formatTonnes((n.quantite * n.poidsMoyenBotteKg) / 1000)} t` : '');
+  emp.etat.hidden = false;
+}
+
+emp.form.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  emp['error-banner'].hidden = true;
+  emp.save.disabled = true; emp.save.textContent = 'Enregistrement...';
+  try {
+    const data = { batimentId: empBatimentId, nom: emp.nom.value, typeFourrage: emp.type.value };
+    if (empEditId) await updateEmplacement(empEditId, data);
+    else await createEmplacement(data);
+    emp.panel.hidden = true;
+    const b = getBatimentById(empBatimentId);
+    if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+  } catch (err) {
+    emp['error-text'].textContent = messageErreur(err); emp['error-banner'].hidden = false;
+  } finally {
+    emp.save.disabled = false; emp.save.textContent = 'Enregistrer';
+  }
+});
+
+emp.delete.addEventListener('click', async () => {
+  if (!empEditId) return;
+  const n = mouvementsDuContenant('EMPLACEMENT_FOURRAGE', empEditId).length;
+  if (!confirm(n
+    ? `Cet emplacement porte ${n} mouvement(s) qui resteraient orphelins. Supprimer quand même ?`
+    : 'Supprimer cet emplacement ?')) return;
+  emp.delete.disabled = true;
+  try {
+    await deleteEmplacement(empEditId);
+    emp.panel.hidden = true;
+    const b = getBatimentById(empBatimentId);
+    if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+  } catch (err) {
+    emp['error-text'].textContent = messageErreur(err); emp['error-banner'].hidden = false;
+  } finally { emp.delete.disabled = false; }
+});
+
+function messageErreur(err) {
+  if (err instanceof ErreurDeSaisie) return err.message;
+  const code = err && err.code ? `${err.code} — ` : '';
+  return `${code}${(err && err.message) || err}`;
+}
+
+export { messageErreur, esc, ErreurDeSaisie, renderContenantsDuBatiment };

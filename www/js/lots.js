@@ -87,22 +87,26 @@ function lendemain(dateIso) {
 }
 
 // --- Écriture -------------------------------------------------------------
-export async function createLot({ nom, nbBrebis, stadeId, notes = '' }) {
+export async function createLot({ nom, nbBrebis, stadeId, batimentId = null, notes = '' }) {
   if (!nom || !nom.trim()) throw new Error('Donne un nom au lot.');
   const n = Number(nbBrebis);
   if (!isFinite(n) || n <= 0) throw new Error('Le nombre de brebis doit être supérieur à 0.');
   const ref = await addDoc(COL_LOTS, {
-    nom: nom.trim(), nbBrebis: n, stadeId: stadeId || null, notes,
+    // batimentId rattache le lot à sa bergerie — c'est le « LotBergerie » du
+    // schéma reçu, fusionné avec les lots existants plutôt que dupliqué : un
+    // second modèle de lot aurait fait cohabiter deux effectifs concurrents
+    // pour les mêmes brebis, l'un nourri par les rations, l'autre non.
+    nom: nom.trim(), nbBrebis: n, stadeId: stadeId || null, batimentId, notes,
     creeLe: serverTimestamp(), majLe: serverTimestamp()
   });
   return ref.id;
 }
 
-export async function updateLot(id, { nom, nbBrebis, stadeId, notes = '' }) {
+export async function updateLot(id, { nom, nbBrebis, stadeId, batimentId = null, notes = '' }) {
   const n = Number(nbBrebis);
   if (!isFinite(n) || n <= 0) throw new Error('Le nombre de brebis doit être supérieur à 0.');
   return updateDoc(doc(db, 'lots_animaux', id), {
-    nom: String(nom || '').trim(), nbBrebis: n, stadeId: stadeId || null, notes,
+    nom: String(nom || '').trim(), nbBrebis: n, stadeId: stadeId || null, batimentId, notes,
     majLe: serverTimestamp()
   });
 }

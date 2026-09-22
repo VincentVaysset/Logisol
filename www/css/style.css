@@ -774,3 +774,80 @@ header button {
 .tableau-croise thead th.coin { background: #eef3ef; }
 .tableau-croise tfoot th { background: #eef3ef; }
 .tableau-croise .ligne-inactive th { background: var(--card); }
+
+/* ========================================================================
+   Bâtiments, cellules, emplacements, mouvements
+   ======================================================================== */
+.bat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 13px;
+  margin-bottom: 9px;
+  cursor: pointer;
+}
+.bat-card-head { display: flex; align-items: center; gap: 11px; }
+.bat-icone {
+  flex: 0 0 38px; height: 38px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center; font-size: 19px;
+}
+.bat-card-body { flex: 1; min-width: 0; }
+.bat-card-nom { font-size: 16px; font-weight: 700; }
+.bat-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.bat-vide { margin: 10px 0 0; font-size: 12px; }
+.bat-contenus { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+
+.contenant-ligne {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 4px; border-radius: 8px;
+}
+.contenant-ligne[data-contenant], .contenant-ligne[data-kind] { cursor: pointer; }
+.contenant-ligne[data-contenant]:active { background: rgba(60,122,78,0.08); }
+.contenant-icone { font-size: 17px; flex: 0 0 22px; text-align: center; }
+.contenant-body { flex: 1; min-width: 0; }
+.contenant-nom { font-size: 14px; font-weight: 600; }
+.contenant-detail { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.contenant-taux { font-size: 13px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+
+/* Jauge de remplissage d'un silo : un chiffre seul se compare mal d'un coup
+   d'œil, une barre se lit sans lire. */
+.jauge {
+  height: 6px; border-radius: 3px; background: var(--border);
+  margin-top: 5px; overflow: hidden;
+}
+.jauge-barre { height: 100%; background: var(--primary); border-radius: 3px; }
+.jauge-barre.jauge-trop { background: var(--danger); }
+
+.mvt-ligne {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 12px; margin-bottom: 6px;
+  cursor: pointer;
+}
+.mvt-icone { font-size: 17px; flex: 0 0 24px; text-align: center; }
+.mvt-body { flex: 1; min-width: 0; }
+.mvt-nom { font-size: 14px; font-weight: 600; }
+.mvt-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.mvt-qte { font-size: 14px; font-weight: 700; white-space: nowrap; }
+.mvt-entree { color: var(--success); }
+.mvt-sortie { color: var(--accent); }
+
+/* Marqueur de bâtiment sur la carte */
+.batiment-marqueur span {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  font-size: 17px;
+}
+
+#mvt-champ-source[hidden], #mvt-champ-destination[hidden],
+#mvt-champ-poids[hidden], #mvt-champ-grain[hidden] { display: none; }
+#mvt-source-id[hidden], #mvt-dest-id[hidden],
+#mvt-source-libre[hidden], #mvt-dest-libre[hidden] { display: none; }
+#bat-contenants-wrap[hidden], #cel-etat[hidden], #emp-etat[hidden] { display: none; }
+#mvt-aide[hidden] { display: none; }
+
+/* Six onglets : ils défilent horizontalement plutôt que de se tasser au
+   point de devenir illisibles sur un écran étroit. */
+.tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tab { flex: 1 0 auto; min-width: 92px; padding: 12px 8px; }

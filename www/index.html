@@ -155,6 +155,7 @@
     <button type="button" class="tab" data-vue="liste">📋 Parcelles</button>
     <button type="button" class="tab" data-vue="stocks">🌾 Stocks</button>
     <button type="button" class="tab" data-vue="troupeau">🐑 Troupeau</button>
+    <button type="button" class="tab" data-vue="batiments">🏚️ Bâtiments</button>
   </nav>
 
   <!-- Barre d'outils du mode dessin.
@@ -201,6 +202,19 @@
     <div id="stocks-lignes"></div>
   </div>
 
+  <!-- Vue Bâtiments : bergeries, silos à grain, hangars à fourrage. -->
+  <div id="batiments-view" class="scroll-view" hidden>
+    <div class="vue-head">
+      <h2>Bâtiments</h2>
+      <button type="button" id="btn-new-mouvement" class="btn btn-secondary btn-mini">🔁 Mouvement</button>
+      <button type="button" id="btn-new-batiment" class="btn btn-primary btn-mini">➕ Bâtiment</button>
+    </div>
+    <div id="batiments-totaux" class="tuiles"></div>
+    <div id="batiments-liste"></div>
+    <h3 class="section-titre">Derniers mouvements</h3>
+    <div id="mouvements-liste"></div>
+  </div>
+
   <!-- Vue Troupeau : croisement stades physiologiques × stocks. -->
   <div id="troupeau-view" class="scroll-view" hidden>
     <div class="vue-head">
@@ -229,6 +243,164 @@
     <button id="btn-import" type="button" class="btn btn-fab btn-fab-secondary">📂 Importer</button>
   </div>
   <input type="file" id="input-geojson" accept=".json,.geojson,application/geo+json,application/json" hidden>
+
+  <!-- Bâtiment -->
+  <div id="batiment-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="bat-title">Nouveau bâtiment</h2>
+      <div id="bat-error-banner" class="fiche-error-banner" hidden>
+        <span id="bat-error-text"></span>
+        <button type="button" id="bat-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="bat-form">
+        <label for="bat-nom">Nom</label>
+        <input type="text" id="bat-nom" required placeholder="ex: Bergerie principale, Hangar Sud">
+
+        <label for="bat-type">Type</label>
+        <select id="bat-type"></select>
+
+        <label>Position sur la carte</label>
+        <div class="meteo-box">
+          <span id="bat-position">Non renseignée</span>
+          <button type="button" id="bat-locate" class="btn btn-secondary btn-mini">📍 Ici</button>
+          <button type="button" id="bat-position-clear" class="btn btn-secondary btn-mini">Effacer</button>
+        </div>
+
+        <label for="bat-remarques">Remarques</label>
+        <textarea id="bat-remarques" rows="2" placeholder="Accès, particularités..."></textarea>
+
+        <div id="bat-contenants-wrap">
+          <h3 class="apercu-sous-titre">Contenu</h3>
+          <div id="bat-contenants"></div>
+          <div class="parcelles-pick">
+            <button type="button" id="bat-add-cellule" class="btn btn-secondary btn-mini">➕ Cellule à grain</button>
+            <button type="button" id="bat-add-emplacement" class="btn btn-secondary btn-mini">➕ Emplacement fourrage</button>
+          </div>
+        </div>
+
+        <div class="fiche-actions">
+          <button type="submit" id="bat-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="bat-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="bat-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Cellule à grain -->
+  <div id="cellule-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="cel-title">Nouvelle cellule</h2>
+      <div id="cel-error-banner" class="fiche-error-banner" hidden>
+        <span id="cel-error-text"></span>
+        <button type="button" id="cel-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="cel-form">
+        <label for="cel-nom">Nom</label>
+        <input type="text" id="cel-nom" required placeholder="ex: Silo 1">
+        <label for="cel-capacite">Capacité maximale (t)</label>
+        <input type="number" id="cel-capacite" step="0.1" min="0" inputmode="decimal" required>
+        <label for="cel-grain">Grain actuellement stocké</label>
+        <select id="cel-grain"></select>
+        <p class="champ-aide">Le niveau se calcule depuis les mouvements : il ne se saisit pas ici.</p>
+        <div id="cel-etat" class="tonnage-calcule" hidden>
+          <span>Niveau actuel</span><strong id="cel-niveau">0 t</strong>
+        </div>
+        <div class="fiche-actions">
+          <button type="submit" id="cel-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="cel-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="cel-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Emplacement de fourrage -->
+  <div id="emplacement-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="emp-title">Nouvel emplacement</h2>
+      <div id="emp-error-banner" class="fiche-error-banner" hidden>
+        <span id="emp-error-text"></span>
+        <button type="button" id="emp-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="emp-form">
+        <label for="emp-nom">Nom</label>
+        <input type="text" id="emp-nom" required placeholder="ex: Hangar Sud - Travée 1">
+        <label for="emp-type">Type de fourrage</label>
+        <select id="emp-type"></select>
+        <p class="champ-aide">Le nombre de bottes se calcule depuis les mouvements. Le poids moyen d'une botte est la moyenne des poids réellement saisis à chaque entrée.</p>
+        <div id="emp-etat" class="tonnage-calcule" hidden>
+          <span>Stock actuel</span><strong id="emp-niveau">0 botte</strong>
+        </div>
+        <div class="fiche-actions">
+          <button type="submit" id="emp-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="emp-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="emp-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Mouvement de stock -->
+  <div id="mouvement-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="mvt-title">Nouveau mouvement</h2>
+      <div id="mvt-error-banner" class="fiche-error-banner" hidden>
+        <span id="mvt-error-text"></span>
+        <button type="button" id="mvt-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="mvt-form">
+        <label for="mvt-date">Date</label>
+        <input type="date" id="mvt-date" required>
+
+        <label for="mvt-type">Type de mouvement</label>
+        <select id="mvt-type"></select>
+
+        <div id="mvt-champ-source">
+          <label for="mvt-source-type">Provenance</label>
+          <select id="mvt-source-type"></select>
+          <select id="mvt-source-id"></select>
+          <input type="text" id="mvt-source-libre" placeholder="Nom du fournisseur" hidden>
+        </div>
+
+        <div id="mvt-champ-destination">
+          <label for="mvt-dest-type">Destination</label>
+          <select id="mvt-dest-type"></select>
+          <select id="mvt-dest-id"></select>
+          <input type="text" id="mvt-dest-libre" placeholder="Destination" hidden>
+        </div>
+
+        <div class="row">
+          <div style="flex:2">
+            <label for="mvt-quantite" id="mvt-quantite-label">Quantité</label>
+            <input type="number" id="mvt-quantite" step="0.01" min="0" inputmode="decimal" required>
+          </div>
+          <div style="flex:1" id="mvt-champ-poids">
+            <label for="mvt-poids">Poids / botte (kg)</label>
+            <input type="number" id="mvt-poids" step="1" min="0" inputmode="decimal">
+          </div>
+        </div>
+        <p class="champ-aide" id="mvt-aide"></p>
+
+        <div id="mvt-champ-grain">
+          <label for="mvt-grain">Type de grain</label>
+          <select id="mvt-grain"></select>
+        </div>
+
+        <label for="mvt-libelle">Libellé</label>
+        <input type="text" id="mvt-libelle" placeholder="ex: Moisson orge parcelle Le Clos">
+
+        <label for="mvt-intervenant">Intervenant</label>
+        <input type="text" id="mvt-intervenant" placeholder="Qui a fait l'opération">
+
+        <div class="fiche-actions">
+          <button type="submit" id="mvt-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="mvt-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="mvt-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Saisie d'une récolte -->
   <div id="stock-panel" class="fiche-overlay" hidden>
@@ -334,6 +506,9 @@
 
         <label for="lot-nb">Nombre de brebis</label>
         <input type="number" id="lot-nb" step="1" min="1" inputmode="numeric" required>
+
+        <label for="lot-batiment">Bergerie</label>
+        <select id="lot-batiment"></select>
 
         <label for="lot-stade">Stade physiologique</label>
         <select id="lot-stade"></select>

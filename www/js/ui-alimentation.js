@@ -12,12 +12,14 @@ import { construireTableau, lotsSansStock, autonomieLisible } from './alimentati
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
+import { getBatiments, accepteLots } from './batiments.js';
 
 const panel = document.getElementById('lot-panel');
 const form = document.getElementById('lot-form');
 const titleEl = document.getElementById('lot-title');
 const inputNom = document.getElementById('lot-nom');
 const inputNb = document.getElementById('lot-nb');
+const selectBatiment = document.getElementById('lot-batiment');
 const selectStade = document.getElementById('lot-stade');
 const rationInfo = document.getElementById('lot-ration-info');
 const selectStock = document.getElementById('lot-stock');
@@ -64,6 +66,16 @@ export function initAlimentation() {
   form.addEventListener('submit', enregistrer);
   btnDelete.addEventListener('click', supprimer);
   onStadesChange(peuplerStades);
+}
+
+// Seuls les bâtiments qui hébergent des animaux sont proposés : rattacher un
+// lot à un silo n'aurait aucun sens.
+function peuplerBatiments(valeur) {
+  const dispo = getBatiments().filter(accepteLots);
+  selectBatiment.innerHTML =
+    '<option value="">— Aucune bergerie —</option>' +
+    dispo.map((b) => `<option value="${escapeAttr(b.id)}">${escapeHtml(b.nom)}</option>`).join('');
+  if (valeur && dispo.some((b) => b.id === valeur)) selectBatiment.value = valeur;
 }
 
 export function setCategories(list) {
@@ -128,6 +140,7 @@ export function openCreate() {
     titleEl.textContent = 'Nouveau lot';
     btnDelete.hidden = true;
     peuplerStades(getStades());
+    peuplerBatiments('');
     peuplerStocks(SANS_STOCK);
     inputDebut.value = aujourdhui();
     majRationEtBesoin();
@@ -147,6 +160,7 @@ export function openEditLot(lot) {
     inputNom.value = lot.nom || '';
     inputNb.value = lot.nbBrebis != null ? lot.nbBrebis : '';
     peuplerStades(getStades());
+    peuplerBatiments(lot.batimentId || '');
     if (lot.stadeId) selectStade.value = lot.stadeId;
     const prel = prelevementEnCours(lot.id);
     peuplerStocks(prel ? prel.categorieCle : SANS_STOCK);
@@ -199,6 +213,7 @@ async function enregistrer(e) {
     const nom = inputNom.value.trim();
     const nbBrebis = inputNb.value;
     const stadeId = selectStade.value;
+    const batimentId = selectBatiment.value || null;
     const stade = getStadeById(stadeId);
     const categorieCle = selectStock.value || null;
     const categorie = categories.find((c) => c.cle === categorieCle) || null;
@@ -213,9 +228,9 @@ async function enregistrer(e) {
 
     let lotId = editingId;
     if (mode === 'create') {
-      lotId = await createLot({ nom, nbBrebis: n, stadeId, notes });
+      lotId = await createLot({ nom, nbBrebis: n, stadeId, batimentId, notes });
     } else {
-      await updateLot(lotId, { nom, nbBrebis: n, stadeId, notes });
+      await updateLot(lotId, { nom, nbBrebis: n, stadeId, batimentId, notes });
     }
 
     await affecterStock(
