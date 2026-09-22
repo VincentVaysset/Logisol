@@ -554,6 +554,13 @@ fourrage** : le bouton « ➕ Cellule (séchage) » y est donc proposé, au mêm
 titre que « ➕ Cellule » sur un bâtiment à grain. Le contenu est pré-réglé
 d'après le type de bâtiment.
 
+### Lots de brebis
+
+Un lot s'ouvre — et donc se modifie ou se supprime — depuis l'onglet
+Troupeau, mais aussi en touchant sa ligne dans la bergerie (liste de l'onglet
+Bâtiments ou fiche du bâtiment). Il y était affiché sans être cliquable, ce
+qui laissait croire qu'on ne pouvait pas le supprimer.
+
 Fauche, fanage et andainage **ne rentrent rien** : ils préparent l'andain.
 Rattacher un stock à la fauche ferait compter le fourrage deux fois.
 
@@ -569,13 +576,31 @@ Rattacher un stock à la fauche ferait compter le fourrage deux fois.
 - **Pressage** : le poids de botte n'est plus redemandé à l'étape 3, il vient
   du comptage.
 
-### Cellules : grain ou fourrage
+### Cellules : grain ou fourrage, jamais mélangés
 
-Une cellule se compte **en tonnes**, qu'elle contienne du grain (silo) ou du
-foin rentré en vrac (séchage en grange). Un champ **Contenu** (`contenu`,
-`GRAIN` par défaut) distingue les deux ; c'est lui qui filtre les destinations
-du tunnel et choisit le vocabulaire affiché. Un second type de contenant
-aurait dupliqué tout le journal des mouvements pour rien.
+Une cellule se compte **en tonnes**, mais les deux usages n'ont rien à voir :
+
+- **cellule à grain (silo)** → céréales : blé, orge, triticale, avoine,
+  seigle, méteil, maïs, aliment complet ;
+- **cellule de séchage en grange** → fourrage : foin, enrubannage, paille,
+  ensilage.
+
+Un champ **Contenu** (`contenu`, `GRAIN` par défaut) distingue les deux. Un
+second type de contenant aurait dupliqué tout le journal des mouvements pour
+rien — mais le contenu est suivi partout où les deux peuvent se croiser :
+
+- le **type proposé** dans la fiche cellule et dans le formulaire de
+  mouvement suit la cellule visée (proposer « Orge » pour une cellule de
+  séchage n'a pas de sens) ;
+- les **listes de destination** portent l'icône et le mot (`🌾 … · grain`,
+  `🌿 … · séchage`), parce que « Cellule 1 » et « Cellule 2 » ne disent pas
+  d'eux-mêmes ce qu'on y met ;
+- la tuile **« Grain stocké »** de l'onglet Bâtiments ne compte que les
+  cellules à grain ; le foin séché en grange va dans « Fourrage », avec les
+  bottes converties en tonnes.
+
+La collection s'appelle toujours `lgs_cellules_grain` : la renommer aurait
+coupé l'historique des mouvements déjà enregistrés.
 
 ### Héritage
 

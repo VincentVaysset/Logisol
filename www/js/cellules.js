@@ -40,6 +40,12 @@ export function contenuDe(c) { return (c && c.contenu) || 'GRAIN'; }
 export function estCelluleGrain(c) { return contenuDe(c) === 'GRAIN'; }
 export function estCelluleFourrage(c) { return contenuDe(c) === 'FOURRAGE'; }
 
+// Mot court accolé au nom d'une cellule partout où les deux sortes
+// apparaissent dans la même liste. Sans lui, « Cellule 1 » et « Cellule 2 »
+// ne disent pas si on y met de l'orge ou du foin.
+export function motContenu(c) { return estCelluleFourrage(c) ? 'séchage' : 'grain'; }
+export function iconeContenu(c) { return estCelluleFourrage(c) ? '🌿' : '🌾'; }
+
 let courantes = [];
 const listeners = new Set();
 

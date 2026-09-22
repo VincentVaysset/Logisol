@@ -19,6 +19,7 @@ import {
   createMouvement, updateMouvement, deleteMouvement
 } from './mouvements.js';
 import { getLots } from './lots.js';
+import { openEditLot } from './ui-alimentation.js';
 import { getStadeById } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
@@ -142,13 +143,19 @@ function renderContenantsDuBatiment(b) {
   });
   lots.forEach((l) => {
     const st = getStadeById(l.stadeId);
-    blocs.push(ligneContenant('🐑', l.nom, `${l.nbBrebis} brebis · ${st ? st.nom : 'stade non défini'}`, null, null, null));
+    // Un lot se touche comme une cellule : c'est le seul endroit où on le
+    // voit depuis la bergerie, et il n'y avait aucun moyen de l'ouvrir — donc
+    // aucun moyen de le modifier ni de le supprimer depuis ici.
+    blocs.push(ligneContenant('🐑', l.nom, `${l.nbBrebis} brebis · ${st ? st.nom : 'stade non défini'}`, 'lot', l.id, null));
   });
   bat.contenants.innerHTML = blocs.length ? blocs.join('') : '<p class="list-empty">Aucun contenu pour l\'instant.</p>';
   bat.contenants.querySelectorAll('[data-kind]').forEach((el) => {
     el.addEventListener('click', () => {
       if (el.dataset.kind === 'cellule') openEditCellule(getCelluleById(el.dataset.id));
-      else openEditEmplacement(getEmplacementById(el.dataset.id));
+      else if (el.dataset.kind === 'lot') {
+        const lot = getLots().find((l) => l.id === el.dataset.id);
+        if (lot) { bat.panel.hidden = true; openEditLot(lot); }
+      } else openEditEmplacement(getEmplacementById(el.dataset.id));
     });
   });
 }

@@ -37,9 +37,15 @@ export const TYPES_BATIMENT = [
   { value: 'MIXTE',              label: 'Mixte',               icone: '🏚️', couleur: '#79765f' }
 ];
 
+// Grains réellement rentrés en cellule sur l'exploitation. Le blé manquait,
+// alors que c'est une des céréales de l'assolement.
 export const TYPES_GRAIN = [
+  { value: 'BLE',             label: 'Blé' },
   { value: 'ORGE',            label: 'Orge' },
   { value: 'TRITICALE',       label: 'Triticale' },
+  { value: 'AVOINE',          label: 'Avoine' },
+  { value: 'SEIGLE',          label: 'Seigle' },
+  { value: 'METEIL',          label: 'Méteil' },
   { value: 'MAIS',            label: 'Maïs' },
   { value: 'ALIMENT_COMPLET', label: 'Aliment complet' },
   { value: 'AUTRE',           label: 'Autre' }

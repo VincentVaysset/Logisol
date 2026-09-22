@@ -8,13 +8,17 @@ import {
   TYPES_GRAIN, TYPES_FOURRAGE, typeBatiment, labelGrain, labelFourrage,
   getBatiments, getBatimentById
 } from './batiments.js';
-import { getCellules, getCelluleById, cellulesDuBatiment, tauxRemplissage, contenuDe } from './cellules.js';
+import {
+  getCellules, getCelluleById, cellulesDuBatiment, tauxRemplissage,
+  contenuDe, motContenu, iconeContenu
+} from './cellules.js';
 import { getEmplacements, getEmplacementById, emplacementsDuBatiment } from './emplacements.js';
 import {
   TYPES_MOUVEMENT, typeMouvement, getMouvements, niveauContenant,
   createMouvement, updateMouvement, deleteMouvement
 } from './mouvements.js';
 import { getLots } from './lots.js';
+import { openEditLot } from './ui-alimentation.js';
 import { getStadeById } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
@@ -28,7 +32,7 @@ const form = document.getElementById('mvt-form');
 const el = {};
 [ 'title','date','type','champ-source','source-type','source-id','source-libre',
   'champ-destination','dest-type','dest-id','dest-libre','quantite','quantite-label',
-  'champ-poids','poids','aide','champ-grain','grain','libelle','intervenant',
+  'champ-poids','poids','aide','champ-grain','grain','grain-label','libelle','intervenant',
   'save','cancel','delete','error-banner','error-text','error-close'
 ].forEach((k) => { el[k] = document.getElementById('mvt-' + k); });
 
@@ -36,15 +40,18 @@ const listeEl = document.getElementById('batiments-liste');
 const totauxEl = document.getElementById('batiments-totaux');
 const mouvementsEl = document.getElementById('mouvements-liste');
 
+// Une cellule se compte en tonnes : silo à grain OU cellule de séchage en
+// grange. Le libellé ne peut donc plus dire « à grain » ; c'est le nom de
+// chaque cellule, dans la liste, qui précise laquelle des deux.
 const SOURCES = [
   { value: 'PARCELLE',             label: 'Parcelle' },
   { value: 'FOURNISSEUR',          label: 'Fournisseur' },
-  { value: 'CELLULE',              label: 'Cellule à grain' },
-  { value: 'EMPLACEMENT_FOURRAGE', label: 'Emplacement fourrage' }
+  { value: 'CELLULE',              label: 'Cellule (grain ou séchage)' },
+  { value: 'EMPLACEMENT_FOURRAGE', label: 'Emplacement fourrage (bottes)' }
 ];
 const DESTINATIONS = [
-  { value: 'CELLULE',              label: 'Cellule à grain' },
-  { value: 'EMPLACEMENT_FOURRAGE', label: 'Emplacement fourrage' },
+  { value: 'CELLULE',              label: 'Cellule (grain ou séchage)' },
+  { value: 'EMPLACEMENT_FOURRAGE', label: 'Emplacement fourrage (bottes)' },
   { value: 'LOT_BERGERIE',         label: 'Lot de bergerie' },
   { value: 'AUTRE',                label: 'Autre' }
 ];
@@ -67,7 +74,19 @@ function labelContenuCellule(c) {
   return contenuDe(c) === 'FOURRAGE' ? labelFourrage(c.typeGrainActuel) : labelGrain(c.typeGrainActuel);
 }
 
-el.grain.innerHTML = TYPES_GRAIN.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
+// Proposer « Orge, Blé, Triticale » pour une cellule de séchage en grange
+// serait absurde : la liste suit le contenu déclaré de la cellule visée.
+function majListeContenu(valeur) {
+  const cible = cibleContenant();
+  const c = cible && cible.type === 'CELLULE' ? getCelluleById(cible.id) : null;
+  const fourrage = c ? contenuDe(c) === 'FOURRAGE' : false;
+  const liste = fourrage ? TYPES_FOURRAGE : TYPES_GRAIN;
+  el['grain-label'].textContent = fourrage ? 'Type de fourrage' : 'Type de grain';
+  el.grain.innerHTML = liste.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
+  const v = valeur || (c ? c.typeGrainActuel : '');
+  if (v && liste.some((t) => t.value === v)) el.grain.value = v;
+}
+majListeContenu('');
 el['error-close'].addEventListener('click', hideError);
 
 export function setParcellesMouvements(list) { parcelles = list; }
@@ -95,7 +114,8 @@ function optionsPour(type) {
     return getCellules().map((c) => {
       const b = getBatimentById(c.batimentId);
       const n = niveauContenant('CELLULE', c.id).quantite;
-      return { value: c.id, label: `${b ? b.nom + ' — ' : ''}${c.nom} (${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t)` };
+      return { value: c.id,
+               label: `${iconeContenu(c)} ${b ? b.nom + ' — ' : ''}${c.nom} · ${motContenu(c)} (${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t)` };
     });
   }
   if (type === 'EMPLACEMENT_FOURRAGE') {
@@ -145,6 +165,7 @@ function majUnite() {
   // sert à convertir le stock en tonnes, et il change à chaque récolte.
   el['champ-poids'].hidden = !(fourrage && t.sens >= 0);
   el['champ-grain'].hidden = !(grain && t.sens >= 0);
+  if (!el['champ-grain'].hidden) majListeContenu(el.grain.value);
 
   const cible = cibleContenant();
   if (cible && cible.type === 'CELLULE') {
@@ -349,10 +370,14 @@ export function renderVue() {
   const cellules = getCellules();
   const emplacements = getEmplacements();
 
-  const tGrain = cellules.reduce((n, c) => n + niveauContenant('CELLULE', c.id).quantite, 0);
-  const capaciteGrain = cellules.reduce((n, c) => n + (Number(c.capaciteMaxTonnes) || 0), 0);
+  // Une cellule de séchage en grange contient du FOIN : la compter dans le
+  // « grain stocké » gonflerait un chiffre de céréales avec du fourrage.
+  const cellulesGrain = cellules.filter((c) => contenuDe(c) === 'GRAIN');
+  const cellulesSechage = cellules.filter((c) => contenuDe(c) === 'FOURRAGE');
+  const tGrain = cellulesGrain.reduce((n, c) => n + niveauContenant('CELLULE', c.id).quantite, 0);
+  const capaciteGrain = cellulesGrain.reduce((n, c) => n + (Number(c.capaciteMaxTonnes) || 0), 0);
   let bottes = 0;
-  let tFourrage = 0;
+  let tFourrage = cellulesSechage.reduce((n, c) => n + niveauContenant('CELLULE', c.id).quantite, 0);
   emplacements.forEach((e) => {
     const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id);
     bottes += n.quantite;
@@ -363,7 +388,7 @@ export function renderVue() {
   totauxEl.innerHTML = [
     tuile('Bâtiments', batiments.length, '', ''),
     tuile('Grain stocké', formatTonnes(tGrain), ' t', 'cereale'),
-    tuile('Remplissage', capaciteGrain ? Math.round((tGrain / capaciteGrain) * 100) : 0, ' %', 'tire'),
+    tuile('Remplissage silos', capaciteGrain ? Math.round((tGrain / capaciteGrain) * 100) : 0, ' %', 'tire'),
     tuile('Bottes', Math.round(bottes), '', 'paille'),
     tuile('Fourrage', formatTonnes(tFourrage), ' t', ''),
     tuile('Brebis', brebis, '', 'brebis')
@@ -372,9 +397,16 @@ export function renderVue() {
   listeEl.innerHTML = batiments.length
     ? batiments.map((b) => carteBatiment(b, cellules, emplacements)).join('')
     : '<p class="list-empty">Aucun bâtiment. Utilise « ➕ Bâtiment » pour commencer.</p>';
+  listeEl.querySelectorAll('[data-lot]').forEach((node) => {
+    node.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const lot = getLots().find((l) => l.id === node.dataset.lot);
+      if (lot) openEditLot(lot);
+    });
+  });
   listeEl.querySelectorAll('.bat-card').forEach((card) => {
     card.addEventListener('click', (ev) => {
-      if (ev.target.closest('[data-contenant]')) return;
+      if (ev.target.closest('[data-contenant]') || ev.target.closest('[data-lot]')) return;
       const b = getBatimentById(card.dataset.id);
       if (b) openEditBatiment(b);
     });
@@ -413,7 +445,7 @@ function carteBatiment(b, cellules, emplacements) {
     const n = niveauContenant('CELLULE', c.id).quantite;
     const taux = tauxRemplissage(c, n);
     contenus.push(`<div class="contenant-ligne" data-contenant="CELLULE" data-id="${esc(c.id)}">
-      <span class="contenant-icone">${contenuDe(c) === 'FOURRAGE' ? '🌿' : '🌾'}</span>
+      <span class="contenant-icone">${iconeContenu(c)}</span>
       <div class="contenant-body">
         <div class="contenant-nom">${esc(c.nom)}</div>
         <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelContenuCellule(c))}</div>
@@ -435,7 +467,9 @@ function carteBatiment(b, cellules, emplacements) {
   });
   lots.forEach((l) => {
     const st = getStadeById(l.stadeId);
-    contenus.push(`<div class="contenant-ligne">
+    // Cliquable : depuis la vue Bâtiments, un lot ne s'ouvrait pas, donc ne
+    // se modifiait ni ne se supprimait.
+    contenus.push(`<div class="contenant-ligne" data-lot="${esc(l.id)}" style="cursor:pointer">
       <span class="contenant-icone">🐑</span>
       <div class="contenant-body">
         <div class="contenant-nom">${esc(l.nom)}</div>
