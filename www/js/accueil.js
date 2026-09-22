@@ -82,8 +82,10 @@ function carteIntervention(itv) {
         (itv.quantite != null ? ` ${itv.quantite}${itv.unite ? ' ' + escapeHtml(itv.unite) : ''}` : '')
     );
   }
+  resumeSaisie(itv).forEach((d) => details.push(escapeHtml(d)));
   if (itv.materielNom) details.push('🛠️ ' + escapeHtml(itv.materielNom));
   if (itv.materiel) details.push(escapeHtml(itv.materiel));
+  if (itv.chauffeur) details.push('👤 ' + escapeHtml(itv.chauffeur));
   if (itv.dureeHeures != null) details.push(itv.dureeHeures + ' h');
   const meteo = resumeMeteo(itv.meteo);
   if (meteo) details.push(escapeHtml(meteo));
@@ -184,3 +186,39 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 function escapeAttr(s) { return escapeHtml(s); }
+
+
+// Ce qui a été compté au champ, remis en une ligne lisible dans le fil.
+// Chaque groupe d'activité a ses propres unités : des bottes pour un
+// pressage, des bennes pour une moisson — les afficher toutes sous un même
+// « quantité » rendrait le fil illisible.
+function resumeSaisie(itv) {
+  const s = itv && itv.saisie;
+  if (!s) return [];
+  const out = [];
+  if (s.semence) out.push('🌱 ' + s.semence);
+  if (Array.isArray(s.melange) && s.melange.length) {
+    out.push(s.melange.map((m) => `${m.nom}${m.pourcentage ? ' ' + m.pourcentage + ' %' : ''}`).join(' / '));
+  }
+  if (s.doseKgHa != null) out.push(s.doseKgHa + ' kg/ha');
+  if (s.doseTonnesHa != null) out.push(s.doseTonnesHa + ' t/ha');
+  if (s.surfaceHa != null) out.push(s.surfaceHa + ' ha travaillés');
+  if (s.nbBottes != null) {
+    out.push(s.nbBottes + ' botte' + (s.nbBottes > 1 ? 's' : '') +
+      (s.poidsBotteKg != null ? ` × ${s.poidsBotteKg} kg` : ''));
+  }
+  if (s.nbRemorques != null) {
+    out.push(s.nbRemorques + ' remorque' + (s.nbRemorques > 1 ? 's' : '') +
+      (s.tonnesParRemorque != null ? ` × ${s.tonnesParRemorque} t` : ''));
+  }
+  if (s.nbBennes != null) {
+    out.push(s.nbBennes + ' benne' + (s.nbBennes > 1 ? 's' : '') +
+      (s.tonnageBenne != null ? ` × ${s.tonnageBenne} t` : ''));
+  }
+  if (s.poidsSpecifique != null) out.push('PS ' + s.poidsSpecifique);
+  if (s.nbEpandeurs != null) {
+    out.push(s.nbEpandeurs + ' épandeur' + (s.nbEpandeurs > 1 ? 's' : '') +
+      (s.tonnageEpandeur != null ? ` × ${s.tonnageEpandeur} t` : ''));
+  }
+  return out;
+}

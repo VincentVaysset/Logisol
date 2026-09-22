@@ -7,7 +7,8 @@ import {
 } from './batiments.js';
 import {
   getCellules, getCelluleById, cellulesDuBatiment, tauxRemplissage,
-  createCellule, updateCellule, deleteCellule
+  createCellule, updateCellule, deleteCellule,
+  CONTENUS_CELLULE, contenuDe
 } from './cellules.js';
 import {
   getEmplacements, getEmplacementById, emplacementsDuBatiment, tonnes as tonnesFourrage,
@@ -118,7 +119,9 @@ function renderContenantsDuBatiment(b) {
   const blocs = [];
   cels.forEach((c) => {
     const n = niveauContenant('CELLULE', c.id).quantite;
-    blocs.push(ligneContenant('🌾', c.nom, `${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${labelGrain(c.typeGrainActuel)}`, 'cellule', c.id, tauxRemplissage(c, n)));
+    const fourrage = contenuDe(c) === 'FOURRAGE';
+    const label = fourrage ? labelFourrage(c.typeGrainActuel) : labelGrain(c.typeGrainActuel);
+    blocs.push(ligneContenant(fourrage ? '🌿' : '🌾', c.nom, `${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${label}`, 'cellule', c.id, tauxRemplissage(c, n)));
   });
   emps.forEach((e) => {
     const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id);
@@ -261,14 +264,27 @@ bat.delete.addEventListener('click', async () => {
 const cel = {
   panel: document.getElementById('cellule-panel'),
   form: document.getElementById('cel-form'),
-  ...panneau('cel', ['title', 'nom', 'capacite', 'grain', 'etat', 'niveau',
+  ...panneau('cel', ['title', 'nom', 'capacite', 'contenu', 'grain', 'grain-label', 'etat', 'niveau',
                      'save', 'cancel', 'delete', 'error-banner', 'error-text', 'error-close'])
 };
 let celEditId = null;
 let celBatimentId = null;
 
-cel.grain.innerHTML = '<option value="">— Vide —</option>' +
-  TYPES_GRAIN.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
+cel.contenu.innerHTML = CONTENUS_CELLULE
+  .map((c) => `<option value="${c.value}">${c.label}</option>`).join('');
+cel.contenu.addEventListener('change', () => majOptionsContenu(cel.grain.value));
+
+// Une cellule se compte en tonnes, qu'elle contienne du grain ou du foin
+// séché en grange : seul le vocabulaire du contenu change.
+function majOptionsContenu(valeur) {
+  const fourrage = cel.contenu.value === 'FOURRAGE';
+  const liste = fourrage ? TYPES_FOURRAGE : TYPES_GRAIN;
+  cel['grain-label'].textContent = fourrage ? 'Fourrage actuellement stocké' : 'Grain actuellement stocké';
+  cel.grain.innerHTML = '<option value="">— Vide —</option>' +
+    liste.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
+  if (valeur && liste.some((t) => t.value === valeur)) cel.grain.value = valeur;
+}
+majOptionsContenu('');
 cel['error-close'].addEventListener('click', () => { cel['error-banner'].hidden = true; });
 cel.cancel.addEventListener('click', () => { cel.panel.hidden = true; });
 
@@ -278,7 +294,9 @@ export function openCreateCellule(batimentId) {
   cel['error-banner'].hidden = true;
   cel.title.textContent = 'Nouvelle cellule';
   cel.delete.hidden = true;
-  cel.nom.value = ''; cel.capacite.value = ''; cel.grain.value = '';
+  cel.nom.value = ''; cel.capacite.value = '';
+  cel.contenu.value = 'GRAIN';
+  majOptionsContenu('');
   cel.etat.hidden = true;
 }
 
@@ -291,7 +309,8 @@ export function openEditCellule(c) {
   cel.delete.hidden = false;
   cel.nom.value = c.nom || '';
   cel.capacite.value = c.capaciteMaxTonnes != null ? c.capaciteMaxTonnes : '';
-  cel.grain.value = c.typeGrainActuel || '';
+  cel.contenu.value = contenuDe(c);
+  majOptionsContenu(c.typeGrainActuel || '');
   const n = niveauContenant('CELLULE', c.id);
   cel.niveau.textContent = formatTonnes(n.quantite) + ' t';
   cel.etat.hidden = false;
@@ -304,7 +323,9 @@ cel.form.addEventListener('submit', async (e) => {
   try {
     const data = {
       batimentId: celBatimentId, nom: cel.nom.value,
-      capaciteMaxTonnes: cel.capacite.value, typeGrainActuel: cel.grain.value || null
+      capaciteMaxTonnes: cel.capacite.value,
+      contenu: cel.contenu.value,
+      typeGrainActuel: cel.grain.value || null
     };
     if (celEditId) await updateCellule(celEditId, data);
     else await createCellule(data);

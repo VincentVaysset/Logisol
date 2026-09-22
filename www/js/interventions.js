@@ -72,9 +72,60 @@ function nettoyer(data) {
     dureeHeures: data.dureeHeures === '' || data.dureeHeures == null ? null : Number(data.dureeHeures),
     meteo: data.meteo || null,                         // objet plat, cf. meteo.js
     photo: data.photo || null,                         // data URL JPEG compressée
+    // Étiquette de semence : photo distincte de la photo de chantier, gardée
+    // comme pièce justificative en cas de contrôle Bio.
+    photoEtiquette: data.photoEtiquette || null,
+    // En-tête commun à toutes les interventions.
+    campagneId: data.campagneId ? String(data.campagneId) : null,
+    chauffeur: String(data.chauffeur || '').trim(),
+    // Saisie propre au groupe d'activité (bottes, bennes, remorques, dose...).
+    // Un sous-objet plutôt qu'une douzaine de champs à plat : les clés
+    // dépendent du type, et les étaler rendrait chaque document illisible.
+    saisie: nettoyerSaisie(data.saisie),
     notes: data.notes || ''
   };
 }
+
+// Firestore refuse `undefined` et les tableaux imbriqués : on ne garde que
+// des nombres, des chaînes, et un tableau d'objets plats pour le mélange.
+function nettoyerSaisie(s) {
+  if (!s || typeof s !== 'object') return null;
+  const out = {};
+  const nombre = (k) => {
+    const v = s[k];
+    if (v === '' || v == null) return;
+    const n = Number(v);
+    if (isFinite(n)) out[k] = n;
+  };
+  const texte = (k) => {
+    const v = String(s[k] == null ? '' : s[k]).trim();
+    if (v) out[k] = v;
+  };
+  ['doseKgHa', 'surfaceHa', 'nbBottes', 'poidsBotteKg', 'nbRemorques',
+   'tonnesParRemorque', 'nbBennes', 'tonnageBenne', 'poidsSpecifique',
+   'nbEpandeurs', 'tonnageEpandeur', 'doseTonnesHa'].forEach(nombre);
+  ['semence'].forEach(texte);
+  if (Array.isArray(s.melange)) {
+    const m = s.melange
+      .map((x) => ({ nom: String((x && x.nom) || '').trim(), pourcentage: Number((x && x.pourcentage) || 0) }))
+      .filter((x) => x.nom || x.pourcentage > 0);
+    if (m.length) out.melange = m;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** Total calculé d'une saisie de récolte, dans l'unité du contenant visé. */
+export function quantiteDeSaisie(formulaire, s) {
+  if (!s) return null;
+  const n = (v) => (v == null || v === '' ? 0 : Number(v) || 0);
+  if (formulaire === 'PRESSAGE') return n(s.nbBottes) || null;
+  if (formulaire === 'SECHAGE')  return arrondi3(n(s.nbRemorques) * n(s.tonnesParRemorque)) || null;
+  if (formulaire === 'MOISSON')  return arrondi3(n(s.nbBennes) * n(s.tonnageBenne)) || null;
+  if (formulaire === 'FUMIER')   return arrondi3(n(s.nbEpandeurs) * n(s.tonnageEpandeur)) || null;
+  return null;
+}
+
+function arrondi3(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
 
 export async function createIntervention(data) {
   if (!data.date) throw new Error('La date est obligatoire.');

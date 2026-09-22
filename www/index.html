@@ -311,8 +311,15 @@
         <label for="mat-marque">Marque</label>
         <input type="text" id="mat-marque" placeholder="ex: Kuhn, Amazone">
 
+        <label for="mat-categorie">Catégorie</label>
+        <select id="mat-categorie"></select>
+
         <label for="mat-largeur">Largeur de travail (m)</label>
         <input type="number" id="mat-largeur" step="0.1" min="0" inputmode="decimal">
+
+        <label for="mat-actions">Conseillé pour</label>
+        <select id="mat-actions" multiple size="6"></select>
+        <p class="champ-aide">Ces activités proposeront ce matériel en tête de liste. Rien n'est jamais filtré : tout le parc reste sélectionnable.</p>
 
         <label for="mat-graissage">Dernier graissage</label>
         <input type="date" id="mat-graissage">
@@ -363,7 +370,7 @@
           <h3 class="apercu-sous-titre">Contenu</h3>
           <div id="bat-contenants"></div>
           <div class="parcelles-pick">
-            <button type="button" id="bat-add-cellule" class="btn btn-secondary btn-mini">➕ Cellule à grain</button>
+            <button type="button" id="bat-add-cellule" class="btn btn-secondary btn-mini">➕ Cellule</button>
             <button type="button" id="bat-add-emplacement" class="btn btn-secondary btn-mini">➕ Emplacement fourrage</button>
           </div>
         </div>
@@ -390,7 +397,9 @@
         <input type="text" id="cel-nom" required placeholder="ex: Silo 1">
         <label for="cel-capacite">Capacité maximale (t)</label>
         <input type="number" id="cel-capacite" step="0.1" min="0" inputmode="decimal" required>
-        <label for="cel-grain">Grain actuellement stocké</label>
+        <label for="cel-contenu">Contenu</label>
+        <select id="cel-contenu"></select>
+        <label for="cel-grain" id="cel-grain-label">Grain actuellement stocké</label>
         <select id="cel-grain"></select>
         <p class="champ-aide">Le niveau se calcule depuis les mouvements : il ne se saisit pas ici.</p>
         <div id="cel-etat" class="tonnage-calcule" hidden>
@@ -674,7 +683,12 @@
         <button type="button" id="itv-error-close" aria-label="Fermer">✕</button>
       </div>
 
-      <form id="itv-form">
+      <!-- novalidate : le tunnel valide lui-même, étape par étape, avec des
+           messages en français. La validation native du navigateur, elle,
+           refuse le submit SANS RIEN DIRE quand le champ fautif appartient à
+           une étape masquée (il n'est pas focusable) — un enregistrement qui
+           échoue en silence est le pire des comportements au champ. -->
+      <form id="itv-form" novalidate>
         <!-- ÉTAPE 1 : cible + activité -->
         <section id="itv-etape-1" class="tunnel-etape">
           <label>Sur quoi ?</label>
@@ -710,8 +724,37 @@
 
         <!-- ÉTAPE 2 : quand, statut, note -->
         <section id="itv-etape-2" class="tunnel-etape" hidden>
-          <label for="itv-date">Date</label>
-          <input type="date" id="itv-date" required>
+          <!-- En-tête commun à toutes les activités : ce qui se note pour
+               n'importe quel chantier, visible sans avoir à déplier quoi que
+               ce soit. -->
+          <div class="row">
+            <div style="flex:2">
+              <label for="itv-date">Date</label>
+              <input type="date" id="itv-date" required>
+            </div>
+            <div style="flex:1">
+              <label for="itv-campagne">Campagne</label>
+              <input type="number" id="itv-campagne" step="1" min="2000" max="2100" inputmode="numeric">
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1" id="itv-champ-duree">
+              <label for="itv-duree">Nombre d'heures</label>
+              <input type="number" id="itv-duree" step="any" min="0" inputmode="decimal" placeholder="facultatif">
+            </div>
+            <div style="flex:1">
+              <label for="itv-chauffeur">Chauffeur</label>
+              <input type="text" id="itv-chauffeur" list="itv-chauffeurs" placeholder="facultatif" autocomplete="off">
+              <datalist id="itv-chauffeurs"></datalist>
+            </div>
+          </div>
+
+          <div id="itv-champ-materiel">
+            <label for="itv-materiel-id">Matériel utilisé</label>
+            <select id="itv-materiel-id"></select>
+            <input type="text" id="itv-materiel" placeholder="Précision libre (tracteur, réglage...)">
+          </div>
 
           <label>Statut</label>
           <div class="choix-row" id="itv-statut">
@@ -719,10 +762,117 @@
             <button type="button" class="choix-btn" data-statut="A_FAIRE">🕑 À faire</button>
           </div>
 
+          <!-- Bloc propre au groupe d'activité. Un seul sous-bloc est visible
+               à la fois, celui que le type choisi désigne (champ formulaire). -->
+          <div id="itv-groupe" class="groupe-saisie" hidden>
+            <div class="groupe-titre" id="itv-groupe-titre"></div>
+
+            <!-- 🌱 Semis -->
+            <div id="itv-g-semis" hidden>
+              <label for="itv-semence">Semence / mélange</label>
+              <input type="text" id="itv-semence" placeholder="ex: RGI + TV, Luzerne + Dactyle, Triticale Ramdam">
+              <button type="button" id="itv-melange-toggle" class="lien-section">＋ Détailler un mélange (%)</button>
+              <div id="itv-melange" hidden>
+                <div id="itv-melange-rows"></div>
+                <div class="melange-pied">
+                  <button type="button" id="itv-melange-add" class="btn btn-secondary btn-mini">➕ Composant</button>
+                  <span id="itv-melange-total" class="champ-aide"></span>
+                </div>
+              </div>
+              <label for="itv-dose-semis">Dose (kg/ha)</label>
+              <input type="number" id="itv-dose-semis" step="any" min="0" inputmode="decimal">
+              <label>Étiquette de semence</label>
+              <p class="champ-aide">Conservée comme pièce justificative en cas de contrôle.</p>
+              <div class="photo-box">
+                <button type="button" id="itv-etiq-btn" class="btn btn-secondary btn-mini">📷 Photographier l'étiquette</button>
+                <button type="button" id="itv-etiq-clear" class="btn btn-secondary btn-mini" hidden>🗑 Retirer</button>
+                <span id="itv-etiq-info" class="photo-info"></span>
+              </div>
+              <img id="itv-etiq-preview" class="photo-preview" alt="" hidden>
+              <input type="file" id="itv-etiq-input" accept="image/*" capture="environment" hidden>
+            </div>
+
+            <!-- 🌾 Fourrages : surface travaillée, éventuellement partielle -->
+            <div id="itv-g-surface" hidden>
+              <label for="itv-surface">Surface travaillée (ha)</label>
+              <input type="number" id="itv-surface" step="any" min="0" inputmode="decimal">
+              <div class="melange-pied">
+                <button type="button" id="itv-surface-tout" class="btn btn-secondary btn-mini">Toute la surface</button>
+                <span id="itv-surface-aide" class="champ-aide"></span>
+              </div>
+            </div>
+
+            <!-- 📦 Pressage -->
+            <div id="itv-g-pressage" hidden>
+              <div class="row">
+                <div style="flex:1">
+                  <label for="itv-nb-bottes">Nombre de bottes</label>
+                  <input type="number" id="itv-nb-bottes" step="1" min="0" inputmode="numeric">
+                </div>
+                <div style="flex:1">
+                  <label for="itv-poids-botte">Poids estimé / botte (kg)</label>
+                  <input type="number" id="itv-poids-botte" step="1" min="0" inputmode="decimal">
+                </div>
+              </div>
+            </div>
+
+            <!-- 📦 Séchage en grange -->
+            <div id="itv-g-sechage" hidden>
+              <div class="row">
+                <div style="flex:1">
+                  <label for="itv-nb-remorques">Nombre de remorques</label>
+                  <input type="number" id="itv-nb-remorques" step="1" min="0" inputmode="numeric">
+                </div>
+                <div style="flex:1">
+                  <label for="itv-t-remorque">Poids / remorque (t)</label>
+                  <input type="number" id="itv-t-remorque" step="any" min="0" inputmode="decimal">
+                </div>
+              </div>
+            </div>
+
+            <!-- 🌽 Moisson -->
+            <div id="itv-g-moisson" hidden>
+              <div class="row">
+                <div style="flex:1">
+                  <label for="itv-nb-bennes">Nombre de bennes</label>
+                  <input type="number" id="itv-nb-bennes" step="1" min="0" inputmode="numeric">
+                </div>
+                <div style="flex:1">
+                  <label for="itv-t-benne">Tonnage / benne (t)</label>
+                  <input type="number" id="itv-t-benne" step="any" min="0" inputmode="decimal">
+                </div>
+              </div>
+              <label for="itv-ps">PS — poids spécifique (kg/hl)</label>
+              <input type="number" id="itv-ps" step="any" min="0" inputmode="decimal" placeholder="facultatif">
+            </div>
+
+            <!-- 💩 Épandage fumier -->
+            <div id="itv-g-fumier" hidden>
+              <div class="row">
+                <div style="flex:1">
+                  <label for="itv-nb-epandeurs">Nombre d'épandeurs</label>
+                  <input type="number" id="itv-nb-epandeurs" step="1" min="0" inputmode="numeric">
+                </div>
+                <div style="flex:1">
+                  <label for="itv-t-epandeur">Tonnage / épandeur (t)</label>
+                  <input type="number" id="itv-t-epandeur" step="any" min="0" inputmode="decimal">
+                </div>
+              </div>
+            </div>
+
+            <!-- ⚙️ Chaulage -->
+            <div id="itv-g-chaulage" hidden>
+              <label for="itv-dose-chaux">Dose (t/ha)</label>
+              <input type="number" id="itv-dose-chaux" step="any" min="0" inputmode="decimal">
+            </div>
+
+            <p id="itv-groupe-total" class="groupe-total" hidden></p>
+          </div>
+
           <label for="itv-notes">Note (facultative)</label>
           <textarea id="itv-notes" rows="3" placeholder="Observations, remarques..."></textarea>
 
-          <button type="button" id="itv-details-toggle" class="lien-section">＋ Détails (produit, matériel, temps, météo, photo)</button>
+          <button type="button" id="itv-details-toggle" class="lien-section">＋ Détails (météo, photo)</button>
           <div id="itv-details" hidden>
             <div id="itv-champ-produit">
               <label for="itv-produit">Produit</label>
@@ -730,7 +880,7 @@
               <div class="row">
                 <div style="flex:2">
                   <label for="itv-quantite">Quantité</label>
-                  <input type="number" id="itv-quantite" step="0.01" min="0" inputmode="decimal">
+                  <input type="number" id="itv-quantite" step="any" min="0" inputmode="decimal">
                 </div>
                 <div style="flex:1">
                   <label for="itv-unite">Unité</label>
@@ -746,15 +896,6 @@
                   </select>
                 </div>
               </div>
-            </div>
-            <div id="itv-champ-materiel">
-              <label for="itv-materiel-id">Matériel utilisé</label>
-              <select id="itv-materiel-id"></select>
-              <input type="text" id="itv-materiel" placeholder="Précision libre (tracteur, réglage...)">
-            </div>
-            <div id="itv-champ-duree">
-              <label for="itv-duree">Temps passé (heures)</label>
-              <input type="number" id="itv-duree" step="0.25" min="0" inputmode="decimal" placeholder="ex: 2.5">
             </div>
             <div id="itv-champ-meteo">
               <label>Météo (relevée automatiquement)</label>
@@ -789,17 +930,19 @@
             <select id="itv-flux-dest-id"></select>
           </div>
 
-          <div class="row">
+          <p id="itv-flux-calcul" class="groupe-total" hidden></p>
+
+          <div class="row" id="itv-flux-champ-quantite">
             <div style="flex:2">
               <label for="itv-flux-quantite" id="itv-flux-quantite-label">Quantité</label>
-              <input type="number" id="itv-flux-quantite" step="0.01" min="0" inputmode="decimal">
+              <input type="number" id="itv-flux-quantite" step="any" min="0" inputmode="decimal">
             </div>
             <div style="flex:1" id="itv-flux-champ-poids" hidden>
               <label for="itv-flux-poids">Poids / botte (kg)</label>
               <input type="number" id="itv-flux-poids" step="1" min="0" inputmode="decimal">
             </div>
             <div style="flex:1" id="itv-flux-champ-grain" hidden>
-              <label for="itv-flux-grain">Grain</label>
+              <label for="itv-flux-grain" id="itv-flux-grain-label">Grain</label>
               <select id="itv-flux-grain"></select>
             </div>
           </div>

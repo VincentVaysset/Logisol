@@ -26,7 +26,7 @@ import {
 } from './draw.js';
 import { initImport } from './import-geojson.js';
 import { openCreate, openEdit } from './ui.js';
-import { setParcellesDisponibles } from './ui-intervention.js';
+import { setParcellesDisponibles, setChauffeursConnus } from './ui-intervention.js';
 import { initAccueil, majEtat, renderFeed, ouvrirApercu, fermerApercu } from './accueil.js';
 import { watchStocks, onStocksChange, agregerParCategorie } from './stocks.js';
 import { ensureSeeded as ensureStadesSeeded, watchStades, onStadesChange } from './stades.js';
@@ -48,7 +48,7 @@ import {
   ouvrirApercuBatiment, renderStockageParBatiment
 } from './ui-mouvements.js';
 import { verifierRegles } from './diagnostic-regles.js';
-import { watchMateriels, onMaterielsChange } from './materiel.js';
+import { watchMateriels, onMaterielsChange, ensureSeeded as ensureMaterielSeeded } from './materiel.js';
 import { initMateriel, renderMateriels } from './ui-materiel.js';
 
 let booted = false;
@@ -491,7 +491,11 @@ async function boot() {
     onTypesChange((types) => { latestTypes = types; recomputeAndRender(); });
     watchTypes();
 
-    watchInterventions((list) => { latestInterventions = list; recomputeAndRender(); });
+    watchInterventions((list) => {
+      latestInterventions = list;
+      setChauffeursConnus(list);
+      recomputeAndRender();
+    });
     watchParcelles((list) => { latestParcelles = list; recomputeAndRender(); });
 
     onStocksChange((list) => { latestStocks = list; setStocks(list); recomputeStocksEtTroupeau(); });
@@ -518,6 +522,7 @@ async function boot() {
     await ensureCulturesSeeded();
     await ensureTypesSeeded();
     await ensureStadesSeeded();
+    await ensureMaterielSeeded();
 
     const reprises = await migrerAnciensAssolements();
     if (reprises) log(reprises + ' ancien(s) assolement(s) repris en implantations');

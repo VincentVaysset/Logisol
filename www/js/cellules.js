@@ -21,9 +21,24 @@ const COL = collection(db, 'lgs_cellules_grain');
  * @property {string} batimentId
  * @property {string} nom                       ex: "Silo 1"
  * @property {number} capaciteMaxTonnes
- * @property {import('./batiments.js').TypeGrain} [typeGrainActuel]
+ * @property {'GRAIN'|'FOURRAGE'} [contenu]     grain, ou fourrage séché en grange
+ * @property {import('./batiments.js').TypeGrain|import('./batiments.js').TypeFourrage} [typeGrainActuel]
  * @property {number} quantiteActuelleTonnes    dérivée des mouvements
  */
+
+// Une cellule est un contenant qui se compte EN TONNES. Deux usages réels sur
+// l'exploitation : le silo à grain, et la cellule de séchage en grange où le
+// foin rentre en vrac à la remorque. Même mécanique de niveau, seul le
+// contenu diffère — d'où ce champ plutôt qu'un second type de contenant, qui
+// aurait dupliqué tout le journal des mouvements.
+export const CONTENUS_CELLULE = [
+  { value: 'GRAIN',    label: 'Grain (silo)' },
+  { value: 'FOURRAGE', label: 'Fourrage (séchage en grange)' }
+];
+
+export function contenuDe(c) { return (c && c.contenu) || 'GRAIN'; }
+export function estCelluleGrain(c) { return contenuDe(c) === 'GRAIN'; }
+export function estCelluleFourrage(c) { return contenuDe(c) === 'FOURRAGE'; }
 
 let courantes = [];
 const listeners = new Set();
@@ -61,6 +76,7 @@ function nettoyer(data) {
     batimentId: data.batimentId || null,
     nom: String(data.nom || '').trim(),
     capaciteMaxTonnes: isFinite(max) && max > 0 ? max : 0,
+    contenu: data.contenu === 'FOURRAGE' ? 'FOURRAGE' : 'GRAIN',
     typeGrainActuel: data.typeGrainActuel || null
   };
 }

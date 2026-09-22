@@ -13,34 +13,63 @@
 // d'en oublier un.
 import {
   CATEGORIES, getTypes, getTypeById, onTypesChange, typeAffiche,
-  typesPourCible, categorieDe, fluxDe, addType, TYPE_NOTE
+  typesPourCible, categorieDe, fluxDe, formulaireDe, fluxObligatoire,
+  addType, TYPE_NOTE
 } from './interventions-types.js';
-import { getMateriels, getMaterielById, onMaterielsChange } from './materiel.js';
-import { createIntervention, updateIntervention, deleteIntervention } from './interventions.js';
+import { getMaterielById, onMaterielsChange, materielsPourAction } from './materiel.js';
+import {
+  createIntervention, updateIntervention, deleteIntervention, quantiteDeSaisie
+} from './interventions.js';
 import { releverMeteo, resumeMeteo } from './meteo.js';
 import { compresserPhoto, tailleLisible } from './photo.js';
 import { aujourdhui } from './implantations.js';
 import {
   TYPES_GRAIN, getBatiments, getBatimentById, accepteLots, labelGrain, labelFourrage
 } from './batiments.js';
-import { getCellules, getCelluleById } from './cellules.js';
+import { getCellules, getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getLots } from './lots.js';
 import { niveauContenant, createMouvement, updateMouvement, deleteMouvement, getMouvements } from './mouvements.js';
+import { implantationEnCours } from './implantations.js';
+import { getCultureById } from './cultures-config.js';
 
 const panel = document.getElementById('intervention-panel');
 const form = document.getElementById('itv-form');
 const el = {};
 [ 'title','back','steps','etape-1','etape-2','etape-3','cible','parcelles','pick-all',
-  'pick-none','pick-count','activites','date','statut','notes','details','details-toggle',
+  'pick-none','pick-count','activites','date','campagne','chauffeur','chauffeurs','statut',
+  'notes','details','details-toggle',
   'champ-produit','produit','quantite','unite','champ-materiel','materiel','materiel-id','champ-duree',
   'newtype','newtype-toggle','newtype-nom','newtype-icone','newtype-cat','newtype-add',
   'duree','champ-meteo','meteo-text','meteo-refresh','photo-btn','photo-clear','photo-input',
-  'photo-preview','photo-info','flux-intro','flux-source','flux-source-id','flux-dest',
-  'flux-dest-id','flux-quantite','flux-quantite-label','flux-champ-poids','flux-poids',
-  'flux-champ-grain','flux-grain',
+  'photo-preview','photo-info',
+  'groupe','groupe-titre','groupe-total',
+  'g-semis','semence','melange','melange-toggle','melange-rows','melange-add','melange-total',
+  'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
+  'g-surface','surface','surface-tout','surface-aide',
+  'g-pressage','nb-bottes','poids-botte',
+  'g-sechage','nb-remorques','t-remorque',
+  'g-moisson','nb-bennes','t-benne','ps',
+  'g-fumier','nb-epandeurs','t-epandeur',
+  'g-chaulage','dose-chaux',
+  'flux-intro','flux-calcul','flux-source','flux-source-id','flux-dest',
+  'flux-dest-id','flux-champ-quantite','flux-quantite','flux-quantite-label',
+  'flux-champ-poids','flux-poids','flux-champ-grain','flux-grain','flux-grain-label',
   'flux-aide','next','save','cancel','delete','error-banner','error-text','error-close'
 ].forEach((k) => { el[k] = document.getElementById('itv-' + k); });
+
+// Bloc de saisie propre à chaque groupe d'activité. La clé est la valeur du
+// champ « formulaire » du type ; l'entrée porte le sous-bloc à montrer et son
+// titre. Tout le reste du tunnel est commun.
+const GROUPES = {
+  SEMIS:    { bloc: 'g-semis',    titre: '🌱 Semis' },
+  SURFACE:  { bloc: 'g-surface',  titre: '🌾 Surface travaillée' },
+  PRESSAGE: { bloc: 'g-pressage', titre: '📦 Pressage' },
+  SECHAGE:  { bloc: 'g-sechage',  titre: '📦 Séchage en grange' },
+  MOISSON:  { bloc: 'g-moisson',  titre: '🌽 Moisson' },
+  FUMIER:   { bloc: 'g-fumier',   titre: '💩 Épandage fumier' },
+  CHAULAGE: { bloc: 'g-chaulage', titre: '⚙️ Chaulage' }
+};
 
 class ErreurDeSaisie extends Error {}
 
@@ -52,6 +81,7 @@ let typeChoisiId = null;
 let statut = 'TERMINE';
 let meteoCourante = null;
 let photoCourante = null;
+let etiquetteCourante = null;
 let selection = new Set();
 let saveToken = 0;
 let parcelles = [];
@@ -74,12 +104,24 @@ onTypesChange(() => { if (!panel.hidden) renderActivites(); });
 // Bâtiments doit être proposé sans avoir à rouvrir le formulaire.
 onMaterielsChange(() => peuplerMateriels(el['materiel-id'].value));
 
+// L'outil qui va avec l'action est remonté en tête : à l'ouverture d'un
+// fanage, la pirouette est le premier choix. Rien n'est filtré pour autant —
+// un chantier sort souvent de l'usage prévu, et masquer le reste du parc
+// obligerait à ressortir du formulaire pour saisir la réalité.
 function peuplerMateriels(valeur) {
-  const liste = getMateriels();
-  el['materiel-id'].innerHTML =
-    '<option value="">— Aucun —</option>' +
-    liste.map((m) => `<option value="${escapeAttr(m.id)}">${escapeHtml(m.nom)}${m.largeurTravailMetres ? ' (' + m.largeurTravailMetres + ' m)' : ''}</option>`).join('');
-  if (valeur && liste.some((m) => m.id === valeur)) el['materiel-id'].value = valeur;
+  const t = typeCourant();
+  const { conseilles, autres } = materielsPourAction(t ? t.nom : '');
+  const opt = (m) => `<option value="${escapeAttr(m.id)}">${escapeHtml(m.nom)}${m.largeurTravailMetres ? ' (' + m.largeurTravailMetres + ' m)' : ''}</option>`;
+  let html = '<option value="">— Aucun —</option>';
+  if (conseilles.length) {
+    html += `<optgroup label="Conseillé pour « ${escapeAttr(t.nom)} »">${conseilles.map(opt).join('')}</optgroup>`;
+    html += `<optgroup label="Tout le parc">${autres.map(opt).join('')}</optgroup>`;
+  } else {
+    html += autres.map(opt).join('');
+  }
+  el['materiel-id'].innerHTML = html;
+  const tous = conseilles.concat(autres);
+  if (valeur && tous.some((m) => m.id === valeur)) el['materiel-id'].value = valeur;
 }
 
 // --- Action sur mesure ----------------------------------------------------
@@ -168,7 +210,43 @@ function validerEtape(n) {
     }
     if (!typeChoisiId) throw new ErreurDeSaisie('Choisis une activité.');
   }
-  if (n === 2 && !el.date.value) throw new ErreurDeSaisie('La date est obligatoire.');
+  if (n === 2) {
+    if (!el.date.value) throw new ErreurDeSaisie('La date est obligatoire.');
+    exigerQuantiteRecolte();
+  }
+  if (n === 3) exigerDestinationRecolte();
+}
+
+// Règle métier : une récolte TERMINÉE doit rentrer son produit quelque part.
+// C'est ce qui garantit que les tonnages saisis au champ arrivent bien dans
+// l'onglet Stocks, puis dans les rations. Une activité « à faire » y échappe :
+// on ne connaît ni le tonnage ni la cellule avant d'avoir récolté.
+function exigerQuantiteRecolte() {
+  const t = typeCourant();
+  if (!fluxObligatoire(t) || statut !== 'TERMINE') return;
+  const f = formulaireDe(t);
+  // Une activité saisie avant l'existence du comptage (bottes, bennes,
+  // remorques) porte déjà une quantité à l'étape 3 : la refuser bloquerait
+  // le passage « à faire » → « terminé » d'une récolte pourtant chiffrée.
+  if (Number(el['flux-quantite'].value) > 0) return;
+  const q = quantiteDeSaisie(f, lireSaisie());
+  if (!(q > 0)) {
+    throw new ErreurDeSaisie(f === 'PRESSAGE'
+      ? 'Indique le nombre de bottes : une récolte doit rentrer en stock.'
+      : f === 'SECHAGE'
+        ? 'Indique le nombre de remorques et leur poids : une récolte doit rentrer en stock.'
+        : 'Indique le nombre de bennes et leur tonnage : une récolte doit rentrer en stock.');
+  }
+}
+
+function exigerDestinationRecolte() {
+  const t = typeCourant();
+  if (!fluxObligatoire(t) || statut !== 'TERMINE') return;
+  if (!el['flux-dest-id'].value) {
+    throw new ErreurDeSaisie(formulaireDe(t) === 'MOISSON'
+      ? 'Choisis la cellule à grain où la récolte est rentrée.'
+      : "Choisis le bâtiment et l'emplacement où la récolte est rentrée.");
+  }
 }
 
 // --- Étape 1 : cible et activité ------------------------------------------
@@ -225,6 +303,7 @@ function renderCibles() {
       if (cb.checked) selection.add(cb.dataset.id); else selection.delete(cb.dataset.id);
       cb.closest('.parcelle-pick').classList.toggle('is-picked', cb.checked);
       majCompteur();
+      if (groupeCourant()) appliquerGroupe();
     });
   });
   majCompteur();
@@ -283,12 +362,186 @@ function appliquerType() {
   if (meteoEtaitMasquee && !el['champ-meteo'].hidden && !meteoCourante && mode === 'create') {
     relever(true);
   }
+  peuplerMateriels(el['materiel-id'].value);
+  appliquerGroupe();
+}
+
+// --- Bloc de saisie propre au groupe --------------------------------------
+function groupeCourant() { return GROUPES[formulaireDe(typeCourant())] || null; }
+
+function appliquerGroupe() {
+  const g = groupeCourant();
+  Object.values(GROUPES).forEach((x) => { el[x.bloc].hidden = true; });
+  el.groupe.hidden = !g;
+  if (!g) { el['groupe-total'].hidden = true; return; }
+  el[g.bloc].hidden = false;
+  el['groupe-titre'].textContent = g.titre;
+  if (formulaireDe(typeCourant()) === 'SURFACE') majAideSurface();
+  majTotalGroupe();
+}
+
+// Surface par défaut : celle des parcelles cochées. Une fauche partielle se
+// corrige d'un chiffre, mais le cas courant — on a fauché la parcelle
+// entière — ne demande alors aucune saisie.
+function surfaceSelectionnee() {
+  return arrondi(Array.from(selection).reduce((somme, id) => {
+    const p = parcelles.find((x) => x.id === id);
+    return somme + (Number(p && p.surfaceHa) || 0);
+  }, 0));
+}
+
+function majAideSurface() {
+  const totale = surfaceSelectionnee();
+  el['surface-aide'].textContent = totale > 0
+    ? `Surface des parcelles cochées : ${totale} ha`
+    : 'Surface des parcelles inconnue.';
+  el['surface-tout'].hidden = !(totale > 0);
+}
+el['surface-tout'].addEventListener('click', () => {
+  el.surface.value = surfaceSelectionnee() || '';
+  majTotalGroupe();
+});
+
+// Total calculé, affiché en clair sous le bloc : c'est lui qui partira en
+// stock, il ne doit pas être une surprise découverte à l'étape 3.
+function majTotalGroupe() {
+  const f = formulaireDe(typeCourant());
+  const s = lireSaisie();
+  const q = quantiteDeSaisie(f, s);
+  let texte = '';
+  if (f === 'PRESSAGE' && q) {
+    const kg = Number(s.poidsBotteKg) || 0;
+    texte = `${q} botte${q > 1 ? 's' : ''}` + (kg ? ` · ${arrondi(q * kg / 1000)} t estimées` : '');
+  } else if (f === 'SECHAGE' && q) {
+    texte = `${q} t (${s.nbRemorques || 0} remorque${(s.nbRemorques || 0) > 1 ? 's' : ''})`;
+  } else if (f === 'MOISSON' && q) {
+    texte = `${q} t (${s.nbBennes || 0} benne${(s.nbBennes || 0) > 1 ? 's' : ''})`;
+  } else if (f === 'FUMIER' && q) {
+    const ha = surfaceSelectionnee();
+    texte = `${q} t épandues` + (ha ? ` · ${arrondi(q / ha)} t/ha` : '');
+  } else if (f === 'CHAULAGE' && s && s.doseTonnesHa) {
+    const ha = surfaceSelectionnee();
+    texte = ha ? `${s.doseTonnesHa} t/ha · ${arrondi(s.doseTonnesHa * ha)} t au total` : `${s.doseTonnesHa} t/ha`;
+  } else if (f === 'SEMIS' && s && s.doseKgHa) {
+    const ha = surfaceSelectionnee();
+    texte = ha ? `${s.doseKgHa} kg/ha · ${arrondi(s.doseKgHa * ha)} kg au total` : `${s.doseKgHa} kg/ha`;
+  }
+  el['groupe-total'].textContent = texte;
+  el['groupe-total'].hidden = !texte;
+  if (etape === 3) majCalculFlux();
+}
+
+['nb-bottes','poids-botte','nb-remorques','t-remorque','nb-bennes','t-benne',
+ 'nb-epandeurs','t-epandeur','dose-chaux','dose-semis','surface']
+  .forEach((k) => el[k].addEventListener('input', majTotalGroupe));
+
+/** Lit le bloc de groupe. Toujours appelé AVANT le premier await. */
+function lireSaisie() {
+  const f = formulaireDe(typeCourant());
+  if (!f) return null;
+  const n = (k) => (el[k].value === '' ? null : Number(el[k].value));
+  if (f === 'SEMIS') {
+    return { semence: el.semence.value.trim(), melange: lireMelange(), doseKgHa: n('dose-semis') };
+  }
+  if (f === 'SURFACE')  return { surfaceHa: n('surface') };
+  if (f === 'PRESSAGE') return { nbBottes: n('nb-bottes'), poidsBotteKg: n('poids-botte') };
+  if (f === 'SECHAGE')  return { nbRemorques: n('nb-remorques'), tonnesParRemorque: n('t-remorque') };
+  if (f === 'MOISSON')  return { nbBennes: n('nb-bennes'), tonnageBenne: n('t-benne'), poidsSpecifique: n('ps') };
+  if (f === 'FUMIER')   return { nbEpandeurs: n('nb-epandeurs'), tonnageEpandeur: n('t-epandeur') };
+  if (f === 'CHAULAGE') return { doseTonnesHa: n('dose-chaux') };
+  return null;
+}
+
+function ecrireSaisie(s) {
+  s = s || {};
+  const v = (k, val) => { el[k].value = val == null ? '' : val; };
+  v('semence', s.semence);
+  v('dose-semis', s.doseKgHa);
+  v('surface', s.surfaceHa);
+  v('nb-bottes', s.nbBottes);
+  v('poids-botte', s.poidsBotteKg);
+  v('nb-remorques', s.nbRemorques);
+  v('t-remorque', s.tonnesParRemorque);
+  v('nb-bennes', s.nbBennes);
+  v('t-benne', s.tonnageBenne);
+  v('ps', s.poidsSpecifique);
+  v('nb-epandeurs', s.nbEpandeurs);
+  v('t-epandeur', s.tonnageEpandeur);
+  v('dose-chaux', s.doseTonnesHa);
+  ecrireMelange(Array.isArray(s.melange) ? s.melange : []);
+}
+
+// --- Mélange de semences ---------------------------------------------------
+// Un mélange prairial se note « RGI 60 % / TV 40 % ». Le pourcentage n'est
+// pas imposé : un semis pur se saisit en une ligne de texte sans jamais
+// ouvrir ce bloc.
+el['melange-toggle'].addEventListener('click', () => {
+  el.melange.hidden = !el.melange.hidden;
+  el['melange-toggle'].textContent = el.melange.hidden ? '＋ Détailler un mélange (%)' : '− Masquer le détail';
+  if (!el.melange.hidden && !el['melange-rows'].children.length) ajouterLigneMelange();
+});
+el['melange-add'].addEventListener('click', () => ajouterLigneMelange());
+
+function ajouterLigneMelange(nom = '', pourcentage = '') {
+  const ligne = document.createElement('div');
+  ligne.className = 'melange-ligne';
+  ligne.innerHTML = `
+    <input type="text" class="melange-nom" placeholder="Espèce / variété" value="${escapeAttr(nom)}">
+    <input type="number" class="melange-pct" step="1" min="0" max="100" inputmode="numeric" placeholder="%" value="${escapeAttr(pourcentage)}">
+    <button type="button" class="btn btn-secondary btn-mini melange-del" aria-label="Retirer">✕</button>`;
+  ligne.querySelector('.melange-del').addEventListener('click', () => { ligne.remove(); majTotalMelange(); });
+  ligne.querySelectorAll('input').forEach((i) => i.addEventListener('input', majTotalMelange));
+  el['melange-rows'].appendChild(ligne);
+  majTotalMelange();
+}
+
+function lireMelange() {
+  return Array.from(el['melange-rows'].querySelectorAll('.melange-ligne')).map((l) => ({
+    nom: l.querySelector('.melange-nom').value.trim(),
+    pourcentage: Number(l.querySelector('.melange-pct').value) || 0
+  })).filter((x) => x.nom || x.pourcentage);
+}
+
+function ecrireMelange(liste) {
+  el['melange-rows'].innerHTML = '';
+  liste.forEach((x) => ajouterLigneMelange(x.nom || '', x.pourcentage != null ? x.pourcentage : ''));
+  const ouvert = liste.length > 0;
+  el.melange.hidden = !ouvert;
+  el['melange-toggle'].textContent = ouvert ? '− Masquer le détail' : '＋ Détailler un mélange (%)';
+  majTotalMelange();
+}
+
+// Le total est affiché, jamais corrigé d'office : un mélange se sème parfois
+// à 105 % de dose et forcer la somme à 100 effacerait une saisie voulue.
+function majTotalMelange() {
+  const total = lireMelange().reduce((n, x) => n + (Number(x.pourcentage) || 0), 0);
+  el['melange-total'].textContent = total ? `Total : ${arrondi(total)} %` : '';
+}
+
+// --- Photo d'étiquette de semence -----------------------------------------
+el['etiq-btn'].addEventListener('click', () => el['etiq-input'].click());
+el['etiq-clear'].addEventListener('click', () => setEtiquette(null));
+el['etiq-input'].addEventListener('change', async () => {
+  const f = el['etiq-input'].files[0];
+  el['etiq-input'].value = '';
+  if (!f) return;
+  el['etiq-info'].textContent = 'Compression...';
+  try { setEtiquette(await compresserPhoto(f)); }
+  catch (err) { setEtiquette(null); showError('Étiquette : ' + ((err && err.message) || err)); }
+});
+function setEtiquette(dataUrl) {
+  etiquetteCourante = dataUrl;
+  el['etiq-preview'].hidden = !dataUrl;
+  el['etiq-clear'].hidden = !dataUrl;
+  el['etiq-preview'].src = dataUrl || '';
+  el['etiq-info'].textContent = dataUrl ? tailleLisible(dataUrl) : '';
 }
 
 // --- Étape 2 : statut et détails ------------------------------------------
 el.statut.querySelectorAll('[data-statut]').forEach((b) => {
-  b.addEventListener('click', () => { statut = b.dataset.statut; majStatutBoutons(); });
+  b.addEventListener('click', () => { statut = b.dataset.statut; majStatutBoutons(); preparerFluxSiVisible(); });
 });
+function preparerFluxSiVisible() { if (etape === 3) preparerFlux(); }
 function majStatutBoutons() {
   el.statut.querySelectorAll('[data-statut]').forEach((b) => {
     b.classList.toggle('is-active', b.dataset.statut === statut);
@@ -297,7 +550,7 @@ function majStatutBoutons() {
 el['details-toggle'].addEventListener('click', () => {
   el.details.hidden = !el.details.hidden;
   el['details-toggle'].textContent = el.details.hidden
-    ? '＋ Détails (produit, matériel, temps, météo, photo)'
+    ? '＋ Détails (météo, photo)'
     : '− Masquer les détails';
 });
 
@@ -316,7 +569,11 @@ async function relever(automatique) {
   }
 }
 el['meteo-refresh'].addEventListener('click', () => relever(false));
+el.campagne.addEventListener('input', () => { el.campagne.dataset.auto = 'non'; });
 el.date.addEventListener('change', () => {
+  // La campagne suit la date tant que l'exploitant ne l'a pas corrigée
+  // lui-même : on ne réécrit que si elle correspondait encore à l'ancienne.
+  if (!el.campagne.value || el.campagne.dataset.auto !== 'non') el.campagne.value = campagneDeLaDate();
   if (meteoCourante && meteoCourante.date === el.date.value) return;
   meteoCourante = null;
   afficherMeteo();
@@ -343,14 +600,26 @@ function setPhoto(dataUrl) {
 }
 
 // --- Étape 3 : mouvement de stock -----------------------------------------
-function contenantsOptions() {
-  const cels = getCellules().map((c) => {
+// Destinations proposées à l'étape 3. Elles dépendent du chantier : une
+// moisson rentre en cellule à grain, un séchage en grange dans une cellule à
+// fourrage, un pressage sur un emplacement où les bottes se comptent. Proposer
+// les trois à chaque fois, c'est proposer trois occasions de se tromper.
+function contenantsPour(formulaire) {
+  if (formulaire === 'MOISSON')  return contenantsOptions({ cellules: 'GRAIN', emplacements: false });
+  if (formulaire === 'SECHAGE')  return contenantsOptions({ cellules: 'FOURRAGE', emplacements: false });
+  if (formulaire === 'PRESSAGE') return contenantsOptions({ cellules: null, emplacements: true });
+  return contenantsOptions();
+}
+
+function contenantsOptions({ cellules = 'TOUS', emplacements = true } = {}) {
+  const cels = (cellules === null ? [] : getCellules()
+    .filter((c) => cellules === 'TOUS' || contenuDe(c) === cellules)).map((c) => {
     const b = getBatimentById(c.batimentId);
     const n = niveauContenant('CELLULE', c.id).quantite;
     return { value: 'CELLULE:' + c.id,
              label: `${b ? b.nom + ' — ' : ''}${c.nom} (${arrondi(n)} / ${arrondi(c.capaciteMaxTonnes)} t)` };
   });
-  const emps = getEmplacements().map((e) => {
+  const emps = (emplacements ? getEmplacements() : []).map((e) => {
     const b = getBatimentById(e.batimentId);
     const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id).quantite;
     return { value: 'EMPLACEMENT_FOURRAGE:' + e.id,
@@ -378,10 +647,23 @@ function preparerFlux(prefill = {}) {
   if (!prefill.source && el['flux-source-id'].value) prefill.source = el['flux-source-id'].value;
   const t = typeCourant();
   if (flux === 'ENTREE_STOCK') {
-    el['flux-intro'].textContent = `Où est rentré le produit de « ${t ? t.nom : 'cette activité'} » ? L'entrée de stock sera enregistrée en même temps que l'activité.`;
+    const obligatoire = fluxObligatoire(t) && statut === 'TERMINE';
+    el['flux-intro'].textContent = obligatoire
+      ? `Où est rentrée la récolte de « ${t ? t.nom : 'cette activité'} » ? L'entrée de stock est obligatoire : c'est elle qui alimente les stocks puis les rations.`
+      : `Où sera rentrée la récolte de « ${t ? t.nom : 'cette activité'} » ? Rien ne bougera tant que l'activité est « à faire ».`;
     el['flux-source'].hidden = true;
     el['flux-dest'].hidden = false;
-    remplirSelect(el['flux-dest-id'], contenantsOptions(), prefill.dest);
+    const options = contenantsPour(formulaireDe(t));
+    remplirSelect(el['flux-dest-id'], options, prefill.dest);
+    if (!options.length) {
+      // Sans contenant du bon type, l'entrée obligatoire est impossible : on
+      // dit quoi créer plutôt que de laisser buter sur un select vide.
+      el['flux-intro'].textContent = formulaireDe(t) === 'MOISSON'
+        ? "Aucune cellule à grain n'est enregistrée. Crée-la dans l'onglet Bâtiments (Contenu : Grain) avant de saisir la moisson."
+        : formulaireDe(t) === 'SECHAGE'
+          ? "Aucune cellule de séchage en grange n'est enregistrée. Crée-la dans l'onglet Bâtiments (Contenu : Fourrage) avant de saisir la récolte."
+          : "Aucun emplacement de fourrage n'est enregistré. Crée-le dans l'onglet Bâtiments avant de saisir le pressage.";
+    }
   } else if (flux === 'DISTRIBUTION') {
     el['flux-intro'].textContent = 'Quel stock a été distribué, et à quel lot ? La sortie de stock sera enregistrée en même temps.';
     el['flux-source'].hidden = false;
@@ -390,6 +672,42 @@ function preparerFlux(prefill = {}) {
     remplirSelect(el['flux-dest-id'], lotsOptions(), prefill.dest);
   }
   majUniteFlux();
+  majCalculFlux();
+}
+
+// Quand le tonnage se déduit de l'étape 2 (bennes × tonnage, remorques ×
+// poids, nombre de bottes), le champ libre disparaît : deux endroits où
+// saisir la même quantité, c'est deux valeurs qui finissent par diverger.
+function majCalculFlux() {
+  const f = formulaireDe(typeCourant());
+  const q = quantiteDeSaisie(f, lireSaisie());
+  const calcule = q != null && (f === 'PRESSAGE' || f === 'SECHAGE' || f === 'MOISSON');
+  el['flux-champ-quantite'].hidden = calcule;
+  el['flux-calcul'].hidden = !calcule;
+  if (calcule) {
+    el['flux-calcul'].textContent = f === 'PRESSAGE'
+      ? `${q} botte${q > 1 ? 's' : ''} à rentrer (saisi à l'étape précédente).`
+      : `${q} t à rentrer (saisi à l'étape précédente).`;
+    el['flux-quantite'].value = q;
+  }
+  if (formulaireDe(typeCourant()) === 'MOISSON') majUniteFlux();
+}
+
+// Espèce moissonnée : déduite de l'implantation en cours sur la parcelle
+// plutôt que redemandée. Elle sert à étiqueter la cellule ; si la parcelle
+// n'a pas d'implantation renseignée, la cellule garde ce qu'elle avait.
+function especeDeduite() {
+  if (formulaireDe(typeCourant()) !== 'MOISSON') return null;
+  for (const id of selection) {
+    const impl = implantationEnCours(id, el.date.value || aujourdhui());
+    const culture = impl ? getCultureById(impl.cultureId) : null;
+    if (culture) {
+      const nom = String(culture.nom || '').toUpperCase();
+      const connu = TYPES_GRAIN.find((g) => nom.indexOf(g.label.toUpperCase()) !== -1);
+      return { label: culture.nom, valeur: connu ? connu.value : 'AUTRE' };
+    }
+  }
+  return null;
 }
 
 function contenantVise() {
@@ -407,15 +725,30 @@ function majUniteFlux() {
   const fourrage = c && c.type === 'EMPLACEMENT_FOURRAGE';
   el['flux-quantite-label'].textContent = fourrage ? 'Nombre de bottes' : 'Quantité (tonnes)';
   el['flux-quantite'].step = fourrage ? '1' : '0.01';
-  el['flux-champ-poids'].hidden = !(fourrage && fluxCourant() === 'ENTREE_STOCK');
+  // Le poids de botte est saisi à l'étape 2 pour un pressage : le redemander
+  // ici ouvrirait la porte à deux valeurs différentes pour la même récolte.
+  el['flux-champ-poids'].hidden =
+    !(fourrage && fluxCourant() === 'ENTREE_STOCK') || formulaireDe(typeCourant()) === 'PRESSAGE';
   // Grain entrant : sans lui, un silo rempli par une moisson resterait
   // affiché « — » alors qu'on vient justement d'y mettre quelque chose.
+  // Sur une moisson, l'espèce n'est plus demandée dès lors qu'on peut la
+  // déduire de l'implantation de la parcelle. On ne la masque QUE dans ce
+  // cas : sans implantation renseignée, la cellule resterait étiquetée « — »
+  // et plus rien n'indiquerait ce qu'elle contient.
   const cellule = c && c.type === 'CELLULE' && fluxCourant() === 'ENTREE_STOCK';
-  el['flux-champ-grain'].hidden = !cellule;
+  const f = formulaireDe(typeCourant());
+  const deduite = f === 'MOISSON' ? especeDeduite() : null;
+  el['flux-champ-grain'].hidden = !cellule || f === 'SECHAGE' || (f === 'MOISSON' && !!deduite);
+  el['flux-grain-label'].textContent = f === 'MOISSON'
+    ? "Espèce récoltée (la parcelle n'a pas d'implantation renseignée)"
+    : 'Grain';
   if (cellule) {
     const cel = getCelluleById(c.id);
     if (cel && cel.typeGrainActuel) el['flux-grain'].value = cel.typeGrainActuel;
+    // Le séchage en grange rentre du foin : le contenu de la cellule est
+    // connu d'avance, il n'y a rien à demander (cf. construireMouvement).
   }
+  if (deduite) el['flux-grain'].value = deduite.valeur;
 
   if (c && c.type === 'CELLULE' && fluxCourant() === 'ENTREE_STOCK') {
     const cel = getCelluleById(c.id);
@@ -437,7 +770,11 @@ function majUniteFlux() {
   }
   el['flux-aide'].hidden = true;
 }
-el['flux-grain'].innerHTML = TYPES_GRAIN.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
+// Première option vide : quand l'espèce n'a pas pu être déduite, le champ
+// réapparaît et ne doit rien préjuger — étiqueter un silo « Orge » parce que
+// c'est la première ligne de la liste serait pire que de le laisser vide.
+el['flux-grain'].innerHTML = '<option value="">— Non précisé —</option>' +
+  TYPES_GRAIN.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
 el['flux-source-id'].addEventListener('change', majUniteFlux);
 el['flux-dest-id'].addEventListener('change', majUniteFlux);
 
@@ -448,22 +785,45 @@ function reinitialiser() {
   el.save.disabled = false; el.save.textContent = 'Enregistrer';
   meteoCourante = null;
   setPhoto(null);
+  setEtiquette(null);
   selection = new Set();
   typeChoisiId = null;
   statut = 'TERMINE';
   mouvementLie = null;
   fluxEnregistre = null;
-  ['produit', 'quantite', 'materiel', 'duree', 'notes', 'flux-quantite', 'flux-poids', 'newtype-nom']
+  ['produit', 'quantite', 'materiel', 'duree', 'chauffeur', 'notes',
+   'flux-quantite', 'flux-poids', 'newtype-nom']
     .forEach((k) => { el[k].value = ''; });
+  ecrireSaisie(null);
+  delete el.campagne.dataset.auto;
+  appliquerGroupe();
   peuplerMateriels('');
   el.newtype.hidden = true;
   el['newtype-toggle'].textContent = '＋ Action sur mesure';
   el.unite.value = '';
   el.details.hidden = true;
-  el['details-toggle'].textContent = '＋ Détails (produit, matériel, temps, météo, photo)';
+  el['details-toggle'].textContent = '＋ Détails (météo, photo)';
   afficherMeteo();
   majStatutBoutons();
   majCibleBoutons();
+}
+
+// Campagne agricole : l'année de la date saisie, proposée d'office. Une
+// récolte de juillet appartient à la campagne en cours, et corriger l'année à
+// la main reste possible pour un semis d'automne rattaché à la suivante.
+function campagneDeLaDate() {
+  const d = el.date.value || aujourdhui();
+  return d.slice(0, 4);
+}
+
+// Liste des chauffeurs déjà saisis, construite depuis le journal : aucune
+// table à tenir à jour, et le nom proposé est forcément un nom déjà utilisé
+// sur l'exploitation.
+export function setChauffeursConnus(interventions) {
+  const noms = Array.from(new Set(
+    (interventions || []).map((i) => String(i.chauffeur || '').trim()).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, 'fr'));
+  el.chauffeurs.innerHTML = noms.map((n) => `<option value="${escapeAttr(n)}"></option>`).join('');
 }
 
 export function openCreateIntervention(opts = {}) {
@@ -476,6 +836,7 @@ export function openCreateIntervention(opts = {}) {
     el.title.textContent = opts.note ? 'Nouvelle note' : 'Nouvelle activité';
     el.delete.hidden = true;
     el.date.value = aujourdhui();
+    el.campagne.value = campagneDeLaDate();
     cible = opts.cible || 'PARCELLE';
     majCibleBoutons();
     (opts.parcelleIds || []).forEach((id) => selection.add(id));
@@ -501,6 +862,7 @@ export function openEditIntervention(itv) {
     el.title.textContent = itv.typeNom ? 'Modifier — ' + itv.typeNom : "Modifier l'activité";
     el.delete.hidden = false;
     el.date.value = itv.date || aujourdhui();
+    el.campagne.value = itv.campagneId || campagneDeLaDate();
     cible = itv.cibleType || 'PARCELLE';
     majCibleBoutons();
     (itv.parcelleIds || []).forEach((id) => selection.add(id));
@@ -509,7 +871,9 @@ export function openEditIntervention(itv) {
     majStatutBoutons();
     renderCibles();
     renderActivites();
+    ecrireSaisie(itv.saisie);
     appliquerType();
+    el.chauffeur.value = itv.chauffeur || '';
     el.produit.value = itv.produit || '';
     el.quantite.value = itv.quantite != null ? itv.quantite : '';
     el.unite.value = itv.unite || '';
@@ -520,6 +884,7 @@ export function openEditIntervention(itv) {
     meteoCourante = itv.meteo || null;
     afficherMeteo();
     setPhoto(itv.photo || null);
+    setEtiquette(itv.photoEtiquette || null);
     // Mouvement déjà créé par cette activité : on le retrouve pour le mettre à
     // jour plutôt que d'en créer un second à chaque modification.
     mouvementLie = itv.mouvementId
@@ -574,18 +939,24 @@ form.addEventListener('submit', async (e) => {
   try {
     validerEtape(1);
     validerEtape(2);
+    if (fluxCourant()) validerEtape(3);
 
     // Tout est lu AVANT le premier await : écrire déclenche des snapshots
     // Firestore qui repeuplent les listes et réinitialiseraient les champs.
     const t = typeCourant();
     const flux = fluxCourant();
+    const formulaire = formulaireDe(t);
+    const saisie = lireSaisie();
     const data = {
       date: el.date.value,
+      campagneId: el.campagne.value || campagneDeLaDate(),
       typeId: typeChoisiId,
       typeNom: t ? t.nom : '',
       cibleType: cible,
       parcelleIds: Array.from(selection),
       statut,
+      saisie,
+      chauffeur: el.chauffeur.value,
       produit: el['champ-produit'].hidden ? '' : el.produit.value.trim(),
       quantite: el['champ-produit'].hidden ? null : el.quantite.value,
       unite: el['champ-produit'].hidden ? '' : el.unite.value,
@@ -597,19 +968,30 @@ form.addEventListener('submit', async (e) => {
       dureeHeures: el['champ-duree'].hidden ? null : el.duree.value,
       meteo: el['champ-meteo'].hidden ? null : meteoCourante,
       photo: photoCourante,
+      photoEtiquette: formulaire === 'SEMIS' ? etiquetteCourante : null,
       notes: el.notes.value
     };
 
     let fluxSaisi = null;
     if (flux) {
-      const q = Number(el['flux-quantite'].value);
+      // Pour une récolte, la quantité vient du comptage de l'étape 2 (bottes,
+      // remorques, bennes) : c'est le chiffre réellement relevé au champ.
+      const calculee = quantiteDeSaisie(formulaire, saisie);
+      const q = calculee != null ? calculee : Number(el['flux-quantite'].value);
       const brutDest = el['flux-dest-id'].value;
       const brutSource = el['flux-source-id'].value;
       if (q > 0) {
         fluxSaisi = {
           flux, quantite: q,
-          poids: el['flux-poids'].value === '' ? null : Number(el['flux-poids'].value),
-          grain: el['flux-champ-grain'].hidden ? null : el['flux-grain'].value,
+          poids: formulaire === 'PRESSAGE'
+            ? (saisie && saisie.poidsBotteKg != null ? saisie.poidsBotteKg : null)
+            : (el['flux-poids'].value === '' ? null : Number(el['flux-poids'].value)),
+          // Séchage en grange : c'est du foin, rien à demander. Moisson :
+          // l'espèce est déduite de l'implantation de la parcelle.
+          grain: formulaire === 'SECHAGE' ? 'FOIN'
+            : formulaire === 'MOISSON'
+              ? ((especeDeduite() || {}).valeur || el['flux-grain'].value || null)
+              : (el['flux-champ-grain'].hidden ? null : el['flux-grain'].value),
           brutDest: brutDest || null,
           brutSource: brutSource || null
         };

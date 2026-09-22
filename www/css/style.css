@@ -950,6 +950,43 @@ header button {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .mat-graisser { flex: 0 0 auto; white-space: nowrap; }
+.mat-actions { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-style: italic; }
+.mat-groupe-titre {
+  font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-muted); margin: 14px 0 6px;
+}
+.mat-groupe-titre:first-child { margin-top: 2px; }
+#mat-actions { min-height: 130px; }
+
+/* ------------------------------------------------------------------------
+   Bloc de saisie propre au groupe d'activité (tunnel, étape 2)
+   ------------------------------------------------------------------------ */
+.groupe-saisie {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: rgba(60,122,78,0.05);
+  padding: 12px 13px 4px; margin: 4px 0 16px;
+}
+.groupe-saisie[hidden] { display: none; }
+.groupe-titre {
+  font-size: 12px; font-weight: 800; letter-spacing: .04em;
+  color: var(--primary); margin-bottom: 10px;
+}
+.groupe-total {
+  margin: 2px 0 12px; padding: 8px 10px; border-radius: var(--radius);
+  background: var(--primary); color: #fff; font-size: 13px; font-weight: 700;
+}
+.groupe-total[hidden] { display: none; }
+
+.melange-ligne { display: flex; gap: 7px; align-items: center; margin-bottom: 7px; }
+.melange-ligne .melange-nom { flex: 3; margin: 0; }
+.melange-ligne .melange-pct { flex: 1; min-width: 64px; margin: 0; }
+.melange-ligne .melange-del { flex: 0 0 auto; }
+.melange-pied {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin: 0 0 12px;
+}
+.melange-pied .champ-aide { margin: 0; }
+#itv-melange[hidden], #itv-flux-champ-quantite[hidden] { display: none; }
 
 .graissage-box {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

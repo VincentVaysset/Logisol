@@ -424,11 +424,14 @@ Trois étapes, dont la troisième n'apparaît que si l'activité déplace du sto
 1. **Cible** (parcelle ou bergerie) puis **activité**, en grands boutons
    tactiles regroupés par catégorie. Choisir l'activité fait passer
    directement à l'étape 2.
-2. **Date** (aujourd'hui par défaut), **statut** (Terminé / À faire) et note
-   facultative. Produit, matériel, temps, météo et photo sont repliés derrière
+2. **En-tête commun** — date (aujourd'hui par défaut), campagne, nombre
+   d'heures, matériel, chauffeur — puis le **statut** (Terminé / À faire), le
+   **bloc propre au groupe d'activité** (bottes, bennes, remorques, dose,
+   surface…) et une note facultative. Météo et photo restent repliées derrière
    « ＋ Détails ». Aucune heure de début ou de fin n'est demandée.
 3. **Mouvement de stock**, pour les seules activités concernées :
-   - *Fauche / Enrubannage, Moisson, Pressage* → où est rentré le produit ;
+   - *Pressage, Séchage en grange, Moisson* → où est rentrée la récolte
+     (**obligatoire** quand l'activité est terminée) ;
    - *Distribution alimentation* → depuis quel stock, vers quel lot.
 
 L'activité crée alors le mouvement correspondant — les saisir séparément
@@ -439,9 +442,41 @@ elle-même et le mouvement n'est créé qu'au passage à « Terminé ».
 
 ## Parc matériel (`lgs_materiel`)
 
-Suivi volontairement minimal — nom, marque, largeur de travail, dernier
-graissage, note d'entretien — parce que c'est ce qui se tient à jour. Heures
-moteur, factures et pièces seraient de la saisie que personne ne maintient.
+Suivi volontairement minimal — nom, marque, catégorie, largeur de travail,
+dernier graissage, note d'entretien — parce que c'est ce qui se tient à jour.
+Heures moteur, factures et pièces seraient de la saisie que personne ne
+maintient.
+
+### Parc amorcé au premier lancement
+
+Le parc réel de l'exploitation est créé automatiquement, rangé par catégorie :
+
+| Catégorie | Matériels |
+|---|---|
+| Manutention | Télescopique Agri JCB |
+| Tracteurs | Case Puma 165, Case Maxxum 130 |
+| Travail du sol / Semis | Charrue Kubota 5 socs réversibles, Déchaumeur 3 m, Vibroculteur Kubota 7 m, Tasse avant 3 m, Semoir Kubota soufflerie 3 m, Broyeuse de pierres Bugnot (CUMA), Aligneuse de pierres, Rouleau 6 m 30 |
+| Fourrage / Récolte | Pirouette Pottinger 10 m, Andaineur Pottinger, Autochargeuse Pottinger, Presse (Entreprise), Moisson (Entreprise) |
+| Épandage | Épandeur Deguillaume (2006) |
+
+**Tout reste modifiable, supprimable et complétable depuis l'onglet
+Bâtiments.** L'amorçage est idempotent et non destructif :
+
+- un matériel déjà présent (même nom) n'est jamais réécrit — seules sa
+  catégorie et ses actions conseillées sont complétées si elles manquent ;
+- un matériel du parc par défaut **supprimé par l'exploitant ne revient
+  pas**. Un document marqueur (`lgs_materiel/_seed`, filtré de toutes les
+  listes) retient ce qui a déjà été semé une fois ; sans lui, chaque
+  lancement rendrait la suppression impossible.
+
+### Matériel conseillé par action
+
+Chaque matériel porte une liste **« Conseillé pour »** (éditable dans sa
+fiche, alimentée par les types d'activité réels). Dans le tunnel de saisie, le
+sélecteur remonte ces outils dans un groupe en tête — la pirouette pour un
+fanage, la charrue pour un labour, l'épandeur pour le fumier. **Rien n'est
+filtré** : tout le parc reste sélectionnable dans un second groupe, parce
+qu'un chantier sort souvent de l'usage prévu. Le matériel reste facultatif.
 
 Chaque fiche et chaque carte portent un bouton **« 🛢️ Graissé »** qui inscrit
 la date du jour en un geste. Le délai écoulé est affiché en clair (« il y a
@@ -453,31 +488,89 @@ Le matériel s'associe à une intervention par un sélecteur, dans les détails 
 tunnel de saisie. Son nom est figé sur l'intervention : le fil reste lisible
 même si l'outil est renommé ou sorti du parc.
 
-## Vocabulaire des activités
+## Vocabulaire des activités — exploitation Bio
 
-Les actions reprennent les termes exacts de l'exploitation :
+Les actions reprennent les termes exacts de l'exploitation, regroupées par
+chantier :
 
-| Groupe | Actions |
-|---|---|
-| Sol & semis | Épandage fumier, Déchaumage, Alignement pierres, Broyage pierres (casseuse), Labour, Vibroculteur, Semis (semoir + tasse-avant), Roulage |
-| Fourrages | Fauche, Pirouette / Fanage, Andainage, **Pressage (bottes)**, **Ramassage vrac (séchage en grange)** |
-| Céréales | **Moisson** |
-| Troupeau | Pâturage, Distribution alimentation, Allotement, Soin, Traitement sanitaire |
+| Groupe | Actions | Saisie propre au groupe |
+|---|---|---|
+| 🌱 Semis | Semis (semoir + tasse-avant) | semence ou mélange avec %, dose kg/ha, **photo de l'étiquette de semence** |
+| 🌾 Fourrages | Fauche, Pirouette / Fanage, Andainage | surface travaillée (ha), **partielle possible** |
+| 📦 Récolte fourrages | **Pressage (bottes)**, **Séchage en grange** | bottes + poids estimé · remorques + poids (t) |
+| 🌽 Moisson | **Moisson** | bennes × tonnage benne, PS facultatif |
+| 💩 Épandage | Épandage fumier | épandeurs × tonnage épandeur |
+| ⚙️ Travail du sol & entretien | Déchaumage, Alignement pierres, Broyage pierres (casseuse), Labour, Vibroculteur, Roulage, Chaulage | Chaulage : dose t/ha |
+| 🐑 Troupeau | Pâturage, Distribution alimentation, Allotement, Soin, Traitement sanitaire | — |
 
-Les trois actions en gras sont les seules à faire **entrer du stock** : la
-fauche, le fanage et l'andainage préparent l'andain mais ne rentrent rien.
+**Aucun groupe Protection / Phyto** : l'exploitation est en Bio. Les anciens
+types de traitement des cultures (Désherbage, Traitement) sont **masqués du
+choix, pas supprimés** — des interventions y sont peut-être rattachées, et
+effacer un type rendrait leur historique incohérent. « Traitement sanitaire »,
+qui concerne le troupeau, reste proposé.
+
+### En-tête commun à toutes les activités
+
+Parcelles (multi-sélection, étape 1), puis à l'étape 2 : **date** (jour même
+par défaut), **campagne** (année de la date, corrigeable — un semis d'automne
+peut être rattaché à la campagne suivante), **nombre d'heures** (facultatif),
+**matériel** (facultatif, conseillé en tête), **chauffeur** (facultatif, avec
+la liste de ceux déjà saisis — aucune table à tenir à jour).
+
+### Règle : une récolte rentre obligatoirement en stock
+
+Pressage, Séchage en grange et Moisson **ne peuvent pas être enregistrés en
+« Terminé » sans quantité ni destination**. C'est ce qui garantit que les
+tonnages relevés au champ alimentent l'onglet Stocks, puis les rations. Une
+activité laissée **« À faire »** y échappe : on ne connaît ni le tonnage ni la
+cellule avant d'avoir récolté — l'intention est conservée et le mouvement est
+créé le jour où elle passe à « Terminé ».
+
+La quantité envoyée en stock est **calculée** depuis le comptage de l'étape 2
+(bottes, remorques × t, bennes × t) et affichée en clair. Le champ de saisie
+libre disparaît alors : deux endroits où saisir la même quantité, ce sont deux
+valeurs qui finissent par diverger.
+
+La destination proposée dépend du chantier — cellule à grain pour une moisson,
+cellule de séchage pour un séchage en grange, emplacement (en bottes) pour un
+pressage. Si aucun contenant du bon type n'existe, le message dit lequel créer
+plutôt que de laisser buter sur un sélecteur vide.
+
+Fauche, fanage et andainage **ne rentrent rien** : ils préparent l'andain.
 Rattacher un stock à la fauche ferait compter le fourrage deux fois.
 
+### Ce qui a été retiré des formulaires
+
+- **Semis** : plus de champ engrais / amendement (sans objet en Bio ; le
+  chaulage a sa propre dose).
+- **Moisson** : plus d'Espèce, de Variété ni d'Humidité. L'espèce est
+  **déduite de l'implantation en cours de la parcelle** pour étiqueter la
+  cellule. Elle n'est redemandée que si la parcelle n'a aucune implantation
+  renseignée — sinon le silo resterait marqué « — » sans que rien n'indique ce
+  qu'il contient.
+- **Pressage** : le poids de botte n'est plus redemandé à l'étape 3, il vient
+  du comptage.
+
+### Cellules : grain ou fourrage
+
+Une cellule se compte **en tonnes**, qu'elle contienne du grain (silo) ou du
+foin rentré en vrac (séchage en grange). Un champ **Contenu** (`contenu`,
+`GRAIN` par défaut) distingue les deux ; c'est lui qui filtre les destinations
+du tunnel et choisit le vocabulaire affiché. Un second type de contenant
+aurait dupliqué tout le journal des mouvements pour rien.
+
+### Héritage
+
 Les anciens types génériques (Travail du sol, Épierrage, Irrigation,
-Fertilisation, Désherbage, Traitement) sont **conservés** et rangés en fin de
-liste dans « Divers » : des interventions y sont rattachées, et les supprimer
-rendrait leur historique incohérent. Six libellés ont été précisés sur place,
-sans changer de document : Récolte → Moisson, Fauche / Enrubannage → Fauche,
-Épandage → Épandage fumier, Fanage → Pirouette / Fanage, Pressage → Pressage
-(bottes), Semis → Semis (semoir + tasse-avant).
+Fertilisation) sont **conservés** et rangés en fin de liste dans « Divers ».
+Sept libellés ont été précisés sur place, sans changer de document : Récolte →
+Moisson, Fauche / Enrubannage → Fauche, Épandage → Épandage fumier, Fanage →
+Pirouette / Fanage, Pressage → Pressage (bottes), Semis → Semis (semoir +
+tasse-avant), Ramassage vrac (séchage en grange) → Séchage en grange.
 
 Une **action sur mesure** peut être créée depuis l'étape 1 du tunnel (nom,
-icône, groupe) : elle est aussitôt sélectionnée et réutilisable.
+icône, groupe) : elle est aussitôt sélectionnée, réutilisable, et devient
+rattachable à un matériel dans le champ « Conseillé pour ».
 
 ## Placement d'un bâtiment
 

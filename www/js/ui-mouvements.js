@@ -8,7 +8,7 @@ import {
   TYPES_GRAIN, TYPES_FOURRAGE, typeBatiment, labelGrain, labelFourrage,
   getBatiments, getBatimentById
 } from './batiments.js';
-import { getCellules, getCelluleById, cellulesDuBatiment, tauxRemplissage } from './cellules.js';
+import { getCellules, getCelluleById, cellulesDuBatiment, tauxRemplissage, contenuDe } from './cellules.js';
 import { getEmplacements, getEmplacementById, emplacementsDuBatiment } from './emplacements.js';
 import {
   TYPES_MOUVEMENT, typeMouvement, getMouvements, niveauContenant,
@@ -61,6 +61,12 @@ function hideError() { el['error-banner'].hidden = true; }
 el.type.innerHTML = TYPES_MOUVEMENT.map((t) => `<option value="${t.value}">${t.icone} ${t.label}</option>`).join('');
 el['source-type'].innerHTML = SOURCES.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
 el['dest-type'].innerHTML = DESTINATIONS.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
+// Une cellule peut contenir du grain (silo) ou du fourrage (séchage en
+// grange) : le libellé du contenu suit le type de la cellule.
+function labelContenuCellule(c) {
+  return contenuDe(c) === 'FOURRAGE' ? labelFourrage(c.typeGrainActuel) : labelGrain(c.typeGrainActuel);
+}
+
 el.grain.innerHTML = TYPES_GRAIN.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
 el['error-close'].addEventListener('click', hideError);
 
@@ -410,7 +416,7 @@ function carteBatiment(b, cellules, emplacements) {
       <span class="contenant-icone">🌾</span>
       <div class="contenant-body">
         <div class="contenant-nom">${esc(c.nom)}</div>
-        <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelGrain(c.typeGrainActuel))}</div>
+        <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelContenuCellule(c))}</div>
         <div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux || 0)}%"></div></div>
       </div>
       <div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux != null ? taux + '%' : ''}</div>
@@ -531,7 +537,7 @@ function contenuBatiment(b) {
       <span class="contenant-icone">🌾</span>
       <div class="contenant-body">
         <div class="contenant-nom">${esc(c.nom)}</div>
-        <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelGrain(c.typeGrainActuel))}</div>
+        <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelContenuCellule(c))}</div>
         <div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux || 0)}%"></div></div>
       </div>
       <div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux != null ? taux + '%' : ''}</div>
