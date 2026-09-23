@@ -769,6 +769,13 @@
 
             <!-- 🌱 Semis -->
             <div id="itv-g-semis" hidden>
+              <label for="itv-culture">Culture implantée</label>
+              <select id="itv-culture"></select>
+              <button type="button" id="itv-culture-toggle" class="lien-section">＋ Nouvelle culture</button>
+              <div id="itv-culture-new" class="melange-pied" hidden>
+                <input type="text" id="itv-culture-nom" placeholder="Nom de la culture">
+                <button type="button" id="itv-culture-add" class="btn btn-secondary btn-mini">Créer</button>
+              </div>
               <label for="itv-semence">Semence / mélange</label>
               <input type="text" id="itv-semence" placeholder="ex: RGI + TV, Luzerne + Dactyle, Triticale Ramdam">
               <button type="button" id="itv-melange-toggle" class="lien-section">＋ Détailler un mélange (%)</button>
@@ -800,6 +807,25 @@
                 <button type="button" id="itv-surface-tout" class="btn btn-secondary btn-mini">Toute la surface</button>
                 <span id="itv-surface-aide" class="champ-aide"></span>
               </div>
+            </div>
+
+            <!-- Identité du fourrage récolté : commune au pressage et au
+                 séchage en grange, c'est elle qui suit le fourrage jusqu'aux
+                 rations. -->
+            <div id="itv-g-fourrage" hidden>
+              <div class="row">
+                <div style="flex:1">
+                  <label for="itv-coupe">Numéro de coupe</label>
+                  <select id="itv-coupe"></select>
+                </div>
+                <div style="flex:2">
+                  <label for="itv-fourrage">Type de fourrage</label>
+                  <input type="text" id="itv-fourrage" list="itv-fourrages" autocomplete="off"
+                         placeholder="ex: Luzerne, Prairie permanente">
+                  <datalist id="itv-fourrages"></datalist>
+                </div>
+              </div>
+              <p id="itv-fourrage-aide" class="champ-aide" hidden></p>
             </div>
 
             <!-- 📦 Pressage -->
@@ -868,6 +894,10 @@
 
             <p id="itv-groupe-total" class="groupe-total" hidden></p>
           </div>
+
+          <!-- Effet sur la culture en place : annoncé AVANT d'enregistrer.
+               Clôturer un assolement en silence serait irrattrapable. -->
+          <p id="itv-effet-culture" class="effet-culture" hidden></p>
 
           <label for="itv-notes">Note (facultative)</label>
           <textarea id="itv-notes" rows="3" placeholder="Observations, remarques..."></textarea>

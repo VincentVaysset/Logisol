@@ -215,6 +215,22 @@ function nettoyer(data) {
   const p = Number(data.poidsBotteKg);
   m.poidsBotteKg = isFinite(p) && p > 0 ? p : null;
   m.typeGrain = data.typeGrain || null;
+
+  // --- Traçabilité du fourrage -------------------------------------------
+  // Ce qui fait qu'un fourrage est « le même » au moment de le donner aux
+  // brebis : son type, sa coupe, son mode de conservation. Écrit sur le
+  // mouvement, pas recalculé à l'affichage : une cellule qui changerait de
+  // nature plus tard réécrirait sinon tout l'historique qui l'a traversée.
+  m.typeFourrage = String(data.typeFourrage || '').trim() || null;
+  const coupe = Number(data.numeroCoupe);
+  m.numeroCoupe = isFinite(coupe) && coupe > 0 ? coupe : null;
+  m.conservation = data.conservation || null;
+  // Copies figées de l'identité de catégorie, dans le même espace de clés que
+  // les récoltes saisies à la main (stocks.js) : c'est ce qui permet à une
+  // 1ʳᵉ coupe de luzerne de tomber dans la même colonne et la même ration,
+  // qu'elle vienne du tunnel d'activité ou de l'onglet Stocks.
+  m.categorieCle = data.categorieCle || null;
+  m.categorieLabel = data.categorieLabel || null;
   return m;
 }
 

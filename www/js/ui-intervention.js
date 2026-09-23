@@ -14,7 +14,7 @@
 import {
   CATEGORIES, getTypes, getTypeById, onTypesChange, typeAffiche,
   typesPourCible, categorieDe, fluxDe, formulaireDe, fluxObligatoire,
-  addType, TYPE_NOTE
+  effetCultureDe, addType, TYPE_NOTE
 } from './interventions-types.js';
 import { getMaterielById, onMaterielsChange, materielsPourAction } from './materiel.js';
 import {
@@ -37,8 +37,12 @@ import { getCellules, getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getLots } from './lots.js';
 import { niveauContenant, createMouvement, updateMouvement, deleteMouvement, getMouvements } from './mouvements.js';
-import { implantationEnCours } from './implantations.js';
-import { getCultureById } from './cultures-config.js';
+import {
+  implantationEnCours, setImplantation, cloturerImplantation, deleteImplantation
+} from './implantations.js';
+import { getCultureById, getCultures, onCulturesChange, addCulture } from './cultures-config.js';
+import { COUPES, FOURRAGES, cleFoin, labelFoin, cleCereale, labelCereale } from './stocks.js';
+import { conservationDuContenant } from './fourrages.js';
 
 const panel = document.getElementById('intervention-panel');
 const form = document.getElementById('itv-form');
@@ -51,9 +55,11 @@ const el = {};
   'duree','champ-meteo','meteo-text','meteo-refresh','photo-btn','photo-clear','photo-input',
   'photo-preview','photo-info',
   'groupe','groupe-titre','groupe-total',
-  'g-semis','semence','melange','melange-toggle','melange-rows','melange-add','melange-total',
+  'g-semis','culture','culture-toggle','culture-new','culture-nom','culture-add',
+  'semence','melange','melange-toggle','melange-rows','melange-add','melange-total',
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
   'g-surface','surface','surface-tout','surface-aide',
+  'g-fourrage','coupe','fourrage','fourrages','fourrage-aide',
   'g-pressage','nb-bottes','poids-botte',
   'g-sechage','nb-remorques','t-remorque',
   'g-moisson','nb-bennes','t-benne','ps',
@@ -62,7 +68,7 @@ const el = {};
   'flux-intro','flux-calcul','flux-source','flux-source-id','flux-dest',
   'flux-dest-id','flux-champ-quantite','flux-quantite','flux-quantite-label',
   'flux-champ-poids','flux-poids','flux-champ-grain','flux-grain','flux-grain-label',
-  'flux-aide','flux-creer-toggle','flux-creer-wrap','flux-creer-titre','flux-creer-aide',
+  'effet-culture','flux-aide','flux-creer-toggle','flux-creer-wrap','flux-creer-titre','flux-creer-aide',
   'flux-creer-bat-wrap','flux-creer-bat','flux-creer',
   'next','save','cancel','delete','error-banner','error-text','error-close'
 ].forEach((k) => { el[k] = document.getElementById('itv-' + k); });
@@ -96,6 +102,7 @@ let saveToken = 0;
 let parcelles = [];
 let mouvementLie = null;    // mouvement déjà créé par cette activité, en édition
 let fluxEnregistre = null;  // intention de mouvement portée par l'activité
+let effetPrecedent = null;  // ce que cette activité avait déjà fait à la culture
 
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
 function showError(m) { el['error-text'].textContent = m; el['error-banner'].hidden = false; }
@@ -221,6 +228,9 @@ function validerEtape(n) {
   }
   if (n === 2) {
     if (!el.date.value) throw new ErreurDeSaisie('La date est obligatoire.');
+    if (effetCultureDe(typeCourant()) === 'IMPLANTE' && statut === 'TERMINE' && !el.culture.value) {
+      throw new ErreurDeSaisie("Choisis la culture implantée : c'est elle qui remplace la précédente sur la parcelle.");
+    }
     exigerQuantiteRecolte();
   }
   if (n === 3) exigerDestinationRecolte();
@@ -234,6 +244,13 @@ function exigerQuantiteRecolte() {
   const t = typeCourant();
   if (!fluxObligatoire(t) || statut !== 'TERMINE') return;
   const f = formulaireDe(t);
+  // Sans coupe ni type, le fourrage entre en stock sans identité : il
+  // n'apparaîtrait ni dans le croisement coupe × type, ni dans le choix des
+  // rations. C'est précisément ce qu'on cherche à tracer.
+  if (f === 'PRESSAGE' || f === 'SECHAGE') {
+    if (!el.coupe.value) throw new ErreurDeSaisie('Indique le numéro de coupe : c\'est lui qui identifie le fourrage jusqu\'à la ration.');
+    if (!el.fourrage.value.trim()) throw new ErreurDeSaisie('Indique le type de fourrage (luzerne, prairie, RGA...) : sans lui, le stock ne peut pas être rattaché à une ration.');
+  }
   // Une activité saisie avant l'existence du comptage (bottes, bennes,
   // remorques) porte déjà une quantité à l'étape 3 : la refuser bloquerait
   // le passage « à faire » → « terminé » d'une récolte pourtant chiffrée.
@@ -313,6 +330,7 @@ function renderCibles() {
       cb.closest('.parcelle-pick').classList.toggle('is-picked', cb.checked);
       majCompteur();
       if (groupeCourant()) appliquerGroupe();
+      majEffetCulture();
     });
   });
   majCompteur();
@@ -373,6 +391,7 @@ function appliquerType() {
   }
   peuplerMateriels(el['materiel-id'].value);
   appliquerGroupe();
+  majEffetCulture();
 }
 
 // --- Bloc de saisie propre au groupe --------------------------------------
@@ -382,6 +401,10 @@ function appliquerGroupe() {
   const g = groupeCourant();
   Object.values(GROUPES).forEach((x) => { el[x.bloc].hidden = true; });
   el.groupe.hidden = !g;
+  const f = formulaireDe(typeCourant());
+  const fourrage = f === 'PRESSAGE' || f === 'SECHAGE';
+  el['g-fourrage'].hidden = !fourrage;
+  if (fourrage) injecterFourrageDeLaParcelle();
   if (!g) { el['groupe-total'].hidden = true; return; }
   el[g.bloc].hidden = false;
   el['groupe-titre'].textContent = g.titre;
@@ -450,11 +473,20 @@ function lireSaisie() {
   if (!f) return null;
   const n = (k) => (el[k].value === '' ? null : Number(el[k].value));
   if (f === 'SEMIS') {
-    return { semence: el.semence.value.trim(), melange: lireMelange(), doseKgHa: n('dose-semis') };
+    return { semence: el.semence.value.trim(), melange: lireMelange(),
+             doseKgHa: n('dose-semis'), cultureId: el.culture.value || null };
+  }
+  // Coupe et type de fourrage accompagnent les deux récoltes de fourrage :
+  // ce sont eux qui suivent le fourrage jusqu'à la ration.
+  if (f === 'PRESSAGE') {
+    return { nbBottes: n('nb-bottes'), poidsBotteKg: n('poids-botte'),
+             numeroCoupe: n('coupe'), typeFourrage: el.fourrage.value.trim() };
+  }
+  if (f === 'SECHAGE') {
+    return { nbRemorques: n('nb-remorques'), tonnesParRemorque: n('t-remorque'),
+             numeroCoupe: n('coupe'), typeFourrage: el.fourrage.value.trim() };
   }
   if (f === 'SURFACE')  return { surfaceHa: n('surface') };
-  if (f === 'PRESSAGE') return { nbBottes: n('nb-bottes'), poidsBotteKg: n('poids-botte') };
-  if (f === 'SECHAGE')  return { nbRemorques: n('nb-remorques'), tonnesParRemorque: n('t-remorque') };
   if (f === 'MOISSON')  return { nbBennes: n('nb-bennes'), tonnageBenne: n('t-benne'), poidsSpecifique: n('ps') };
   if (f === 'FUMIER')   return { nbEpandeurs: n('nb-epandeurs'), tonnageEpandeur: n('t-epandeur') };
   if (f === 'CHAULAGE') return { doseTonnesHa: n('dose-chaux') };
@@ -465,6 +497,7 @@ function ecrireSaisie(s) {
   s = s || {};
   const v = (k, val) => { el[k].value = val == null ? '' : val; };
   v('semence', s.semence);
+  peuplerCultures(s.cultureId || '');
   v('dose-semis', s.doseKgHa);
   v('surface', s.surfaceHa);
   v('nb-bottes', s.nbBottes);
@@ -477,7 +510,123 @@ function ecrireSaisie(s) {
   v('nb-epandeurs', s.nbEpandeurs);
   v('t-epandeur', s.tonnageEpandeur);
   v('dose-chaux', s.doseTonnesHa);
+  v('coupe', s.numeroCoupe);
+  el.fourrage.value = s.typeFourrage || '';
+  delete el.fourrage.dataset.saisi;
+  if (s.typeFourrage) el.fourrage.dataset.saisi = '1';
   ecrireMelange(Array.isArray(s.melange) ? s.melange : []);
+}
+
+// --- Effet sur la culture en place ----------------------------------------
+// Un déchaumage, un labour ou un vibroculteur retournent le sol : la culture
+// qui était là n'y est plus. Un semis fait la même chose ET démarre la
+// suivante. C'est annoncé AVANT d'enregistrer : clôturer un assolement en
+// silence serait irrattrapable, et l'exploitant doit pouvoir corriger la
+// date ou la sélection s'il ne l'avait pas prévu.
+onCulturesChange(() => peuplerCultures(el.culture.value));
+
+function peuplerCultures(valeur) {
+  const liste = getCultures();
+  el.culture.innerHTML = '<option value="">— Choisir la culture —</option>' +
+    liste.map((c) => `<option value="${escapeAttr(c.id)}">${escapeHtml(c.nom)}</option>`).join('');
+  if (valeur && liste.some((c) => c.id === valeur)) el.culture.value = valeur;
+}
+
+el['culture-toggle'].addEventListener('click', () => {
+  el['culture-new'].hidden = !el['culture-new'].hidden;
+  el['culture-toggle'].textContent = el['culture-new'].hidden ? '＋ Nouvelle culture' : '− Annuler';
+});
+el['culture-add'].addEventListener('click', async () => {
+  const nom = el['culture-nom'].value.trim();
+  if (!nom) { showError('Donne un nom à la culture.'); return; }
+  el['culture-add'].disabled = true;
+  try {
+    const id = await addCulture(nom, '#5b8c5a', '');
+    peuplerCultures(id);
+    el['culture-nom'].value = '';
+    el['culture-new'].hidden = true;
+    el['culture-toggle'].textContent = '＋ Nouvelle culture';
+    hideError();
+  } catch (err) {
+    showError('Culture non créée : ' + ((err && err.message) || err));
+  } finally { el['culture-add'].disabled = false; }
+});
+
+/** Implantations ouvertes que cette activité va clôturer. */
+function implantationsTouchees() {
+  const effet = effetCultureDe(typeCourant());
+  if (!effet || cible !== 'PARCELLE') return [];
+  const d = el.date.value || aujourdhui();
+  const out = [];
+  selection.forEach((id) => {
+    const impl = implantationEnCours(id, d);
+    if (!impl) return;
+    const p = parcelles.find((x) => x.id === id);
+    const culture = getCultureById(impl.cultureId);
+    out.push({ implantation: impl, parcelleId: id,
+               parcelleNom: p ? p.nom : 'parcelle',
+               cultureNom: culture ? culture.nom : 'culture' });
+  });
+  return out;
+}
+
+function majEffetCulture() {
+  const effet = effetCultureDe(typeCourant());
+  if (!effet || statut !== 'TERMINE') { el['effet-culture'].hidden = true; return; }
+  const touchees = implantationsTouchees();
+  const suite = effet === 'IMPLANTE' ? ' La nouvelle culture démarre à cette date.' : '';
+  el['effet-culture'].textContent = touchees.length
+    ? `🌱 Cette activité met fin à la culture en place : ` +
+      touchees.map((t) => `${t.cultureNom} sur ${t.parcelleNom}`).join(', ') + '.' + suite
+    : (effet === 'IMPLANTE'
+        ? '🌱 Aucune culture en place sur la sélection : le semis démarre la première.'
+        : '🌱 Aucune culture en place sur la sélection — rien à clôturer.');
+  el['effet-culture'].hidden = false;
+}
+
+// --- Identité du fourrage récolté -----------------------------------------
+el.coupe.innerHTML = '<option value="">— Choisir —</option>' +
+  COUPES.map((c) => `<option value="${c.value}">${c.label}</option>`).join('');
+
+// La culture en place sur la parcelle est PROPOSÉE, jamais imposée : le RPG
+// dit « Prairie temporaire » là où l'exploitant récolte un RGA/trèfle, et
+// c'est lui qui sait ce qu'il vient de presser.
+function injecterFourrageDeLaParcelle() {
+  majListeFourrages();
+  const culture = cultureDeLaSelection();
+  if (culture && !el.fourrage.value.trim() && !el.fourrage.dataset.saisi) {
+    el.fourrage.value = culture.nom;
+  }
+  el['fourrage-aide'].textContent = culture
+    ? `Proposé d'après la culture en place sur ${culture.parcelleNom} : ${culture.nom}. Modifiable.`
+    : "Aucune culture renseignée sur la parcelle — saisis le type de fourrage.";
+  el['fourrage-aide'].hidden = false;
+}
+
+el.fourrage.addEventListener('input', () => { el.fourrage.dataset.saisi = '1'; });
+
+// Les types déjà rencontrés s'ajoutent aux libellés de référence : après une
+// saison, la liste est celle de l'exploitation.
+function majListeFourrages() {
+  const dejaVus = getMouvements()
+    .map((m) => String(m.typeFourrage || '').trim())
+    .filter(Boolean);
+  const noms = Array.from(new Set(FOURRAGES.concat(getCultures().map((c) => c.nom)).concat(dejaVus)))
+    .sort((a, b) => a.localeCompare(b, 'fr'));
+  el.fourrages.innerHTML = noms.map((n) => `<option value="${escapeAttr(n)}"></option>`).join('');
+}
+
+/** Culture en place sur la première parcelle cochée qui en porte une. */
+function cultureDeLaSelection() {
+  for (const id of selection) {
+    const impl = implantationEnCours(id, el.date.value || aujourdhui());
+    const culture = impl ? getCultureById(impl.cultureId) : null;
+    if (culture) {
+      const p = parcelles.find((x) => x.id === id);
+      return { nom: culture.nom, parcelleNom: p ? p.nom : 'la parcelle' };
+    }
+  }
+  return null;
 }
 
 // --- Mélange de semences ---------------------------------------------------
@@ -548,7 +697,9 @@ function setEtiquette(dataUrl) {
 
 // --- Étape 2 : statut et détails ------------------------------------------
 el.statut.querySelectorAll('[data-statut]').forEach((b) => {
-  b.addEventListener('click', () => { statut = b.dataset.statut; majStatutBoutons(); preparerFluxSiVisible(); });
+  b.addEventListener('click', () => {
+    statut = b.dataset.statut; majStatutBoutons(); preparerFluxSiVisible(); majEffetCulture();
+  });
 });
 function preparerFluxSiVisible() { if (etape === 3) preparerFlux(); }
 function majStatutBoutons() {
@@ -583,6 +734,7 @@ el.date.addEventListener('change', () => {
   // La campagne suit la date tant que l'exploitant ne l'a pas corrigée
   // lui-même : on ne réécrit que si elle correspondait encore à l'ancienne.
   if (!el.campagne.value || el.campagne.dataset.auto !== 'non') el.campagne.value = campagneDeLaDate();
+  majEffetCulture();
   if (meteoCourante && meteoCourante.date === el.date.value) return;
   meteoCourante = null;
   afficherMeteo();
@@ -902,6 +1054,12 @@ function reinitialiser() {
   statut = 'TERMINE';
   mouvementLie = null;
   fluxEnregistre = null;
+  effetPrecedent = null;
+  el['effet-culture'].hidden = true;
+  el['culture-new'].hidden = true;
+  el['culture-toggle'].textContent = '＋ Nouvelle culture';
+  el['culture-nom'].value = '';
+  peuplerCultures('');
   ['produit', 'quantite', 'materiel', 'duree', 'chauffeur', 'notes',
    'flux-quantite', 'flux-poids', 'newtype-nom']
     .forEach((k) => { el[k].value = ''; });
@@ -998,6 +1156,7 @@ export function openEditIntervention(itv) {
     setEtiquette(itv.photoEtiquette || null);
     // Mouvement déjà créé par cette activité : on le retrouve pour le mettre à
     // jour plutôt que d'en créer un second à chaque modification.
+    effetPrecedent = itv.effetCulture || null;
     mouvementLie = itv.mouvementId
       ? getMouvements().find((m) => m.id === itv.mouvementId) || null
       : null;
@@ -1026,6 +1185,61 @@ export function openEditIntervention(itv) {
     }
   } catch (err) {
     showError('Impossible de charger cette activité : ' + ((err && err.message) || err));
+  }
+}
+
+/**
+ * Applique l'effet sur la culture en place et retourne la trace de ce qui a
+ * été fait, pour pouvoir le défaire.
+ *
+ * Une activité « à faire » ne touche à rien : prévoir un labour ne détruit
+ * pas la luzerne qui pousse encore. Repasser une activité de « terminé » à
+ * « à faire » annule donc l'effet, comme pour le mouvement de stock.
+ */
+async function appliquerEffetCulture(data, precedent) {
+  const effet = effetCultureDe(typeCourant());
+  const actif = effet && data.statut === 'TERMINE' && data.cibleType === 'PARCELLE';
+
+  // On défait d'abord ce que cette activité avait fait : sans ça, corriger la
+  // date d'un labour laisserait la première clôture en place.
+  if (precedent) await defaireEffetCulture(precedent);
+  if (!actif) return null;
+
+  const trace = { cloturees: [], creees: [] };
+  const cultureId = (data.saisie && data.saisie.cultureId) || null;
+
+  for (const parcelleId of data.parcelleIds) {
+    if (effet === 'IMPLANTE' && cultureId) {
+      const precedente = implantationEnCours(parcelleId, data.date);
+      if (precedente && precedente.dateSemis !== data.date) {
+        trace.cloturees.push({ id: precedente.id, finPrecedente: precedente.dateFin || null });
+      }
+      // setImplantation clôture la précédente la veille et ouvre la nouvelle.
+      const id = await setImplantation(
+        { parcelleId, cultureId, dateSemis: data.date, notes: '' },
+        { cloturerPrecedente: true }
+      );
+      trace.creees.push(id);
+    } else if (effet === 'DETRUIT') {
+      const impl = implantationEnCours(parcelleId, data.date);
+      if (!impl) continue;
+      trace.cloturees.push({ id: impl.id, finPrecedente: impl.dateFin || null });
+      await cloturerImplantation(impl.id, data.date);
+    }
+  }
+  return trace.cloturees.length || trace.creees.length ? trace : null;
+}
+
+/** Remet l'assolement dans l'état où il était avant cette activité. */
+async function defaireEffetCulture(trace) {
+  if (!trace) return;
+  for (const id of trace.creees || []) {
+    await deleteImplantation(id);
+  }
+  for (const c of trace.cloturees || []) {
+    // finPrecedente vaut null quand l'implantation était ouverte : la
+    // rouvrir, c'est lui remettre exactement cette valeur.
+    await cloturerImplantation(c.id, c.finPrecedente || null);
   }
 }
 
@@ -1128,6 +1342,11 @@ form.addEventListener('submit', async (e) => {
     }
     data.mouvementId = mouvementId;
 
+    // L'effet sur la culture est appliqué AVANT l'écriture de l'activité, et
+    // la trace de ce qu'il a fait part avec elle : c'est ce qui permet de
+    // revenir en arrière si l'activité est supprimée.
+    data.effetCulture = await appliquerEffetCulture(data, effetPrecedent);
+
     if (mode === 'create') await createIntervention(data);
     else if (editingId) await updateIntervention(editingId, data);
 
@@ -1164,7 +1383,7 @@ function construireMouvement(data, f) {
 
   if (f.flux === 'ENTREE_STOCK') {
     if (!destId) throw new ErreurDeSaisie('Choisis où le produit est rentré.');
-    return {
+    const mvt = {
       date: data.date,
       typeMouvement: 'ENTREE_RECOLTE',
       sourceType: 'PARCELLE',
@@ -1179,6 +1398,27 @@ function construireMouvement(data, f) {
       unite: destType === 'EMPLACEMENT_FOURRAGE' ? 'bottes' : 't',
       libelle: `${data.typeNom}${premiereParcelle ? ' — ' + premiereParcelle.nom : ''}`
     };
+    // Identité du lot, figée sur le mouvement : c'est elle qui le fait
+    // apparaître dans le croisement coupe × type, dans le détail du
+    // contenant, et dans le choix de ration.
+    const s = data.saisie || {};
+    if (s.numeroCoupe || s.typeFourrage) {
+      const conservation = conservationDuContenant(destType, destId)
+        || (destType === 'EMPLACEMENT_FOURRAGE' ? 'botte' : 'grange');
+      mvt.typeFourrage = s.typeFourrage || null;
+      mvt.numeroCoupe = s.numeroCoupe || null;
+      mvt.conservation = conservation;
+      mvt.categorieCle = cleFoin(conservation, s.numeroCoupe, s.typeFourrage);
+      mvt.categorieLabel = labelFoin(conservation, s.numeroCoupe, s.typeFourrage);
+    } else if (destType === 'CELLULE' && f.grain) {
+      // Le libellé plutôt que le code : « Blé » et non « BLE », pour que la
+      // colonne de ration se lise comme le reste de l'application.
+      const espece = labelGrain(f.grain);
+      mvt.typeFourrage = espece;
+      mvt.categorieCle = cleCereale(espece);
+      mvt.categorieLabel = labelCereale(espece);
+    }
+    return mvt;
   }
   if (!srcId) throw new ErreurDeSaisie('Choisis le stock distribué.');
   return {
@@ -1205,6 +1445,9 @@ el.delete.addEventListener('click', async () => {
     // Le mouvement créé par l'activité part avec elle : le laisser
     // continuerait à amputer un stock au nom d'un travail effacé.
     if (mouvementLie) await deleteMouvement(mouvementLie.id);
+    // La culture détruite par cette activité est remise en place : effacer un
+    // labour saisi par erreur ne doit pas laisser l'assolement amputé.
+    await defaireEffetCulture(effetPrecedent);
     await deleteIntervention(editingId);
     fermer();
   } catch (err) {

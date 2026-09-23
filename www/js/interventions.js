@@ -78,6 +78,10 @@ function nettoyer(data) {
     // En-tête commun à toutes les interventions.
     campagneId: data.campagneId ? String(data.campagneId) : null,
     chauffeur: String(data.chauffeur || '').trim(),
+    // Ce que l'activité a fait à la culture en place, et de quoi le défaire
+    // si elle est supprimée : sans cette trace, effacer un labour saisi par
+    // erreur laisserait l'assolement détruit pour toujours.
+    effetCulture: nettoyerEffetCulture(data.effetCulture),
     // Saisie propre au groupe d'activité (bottes, bennes, remorques, dose...).
     // Un sous-objet plutôt qu'une douzaine de champs à plat : les clés
     // dépendent du type, et les étaler rendrait chaque document illisible.
@@ -103,8 +107,8 @@ function nettoyerSaisie(s) {
   };
   ['doseKgHa', 'surfaceHa', 'nbBottes', 'poidsBotteKg', 'nbRemorques',
    'tonnesParRemorque', 'nbBennes', 'tonnageBenne', 'poidsSpecifique',
-   'nbEpandeurs', 'tonnageEpandeur', 'doseTonnesHa'].forEach(nombre);
-  ['semence'].forEach(texte);
+   'nbEpandeurs', 'tonnageEpandeur', 'doseTonnesHa', 'numeroCoupe'].forEach(nombre);
+  ['semence', 'typeFourrage', 'cultureId'].forEach(texte);
   if (Array.isArray(s.melange)) {
     const m = s.melange
       .map((x) => ({ nom: String((x && x.nom) || '').trim(), pourcentage: Number((x && x.pourcentage) || 0) }))
@@ -112,6 +116,18 @@ function nettoyerSaisie(s) {
     if (m.length) out.melange = m;
   }
   return Object.keys(out).length ? out : null;
+}
+
+function nettoyerEffetCulture(e) {
+  if (!e || typeof e !== 'object') return null;
+  const cloturees = Array.isArray(e.cloturees)
+    ? e.cloturees
+        .map((c) => ({ id: String((c && c.id) || ''), finPrecedente: (c && c.finPrecedente) || null }))
+        .filter((c) => c.id)
+    : [];
+  const creees = Array.isArray(e.creees) ? e.creees.map(String).filter(Boolean) : [];
+  if (!cloturees.length && !creees.length) return null;
+  return { cloturees, creees };
 }
 
 /** Total calculé d'une saisie de récolte, dans l'unité du contenant visé. */

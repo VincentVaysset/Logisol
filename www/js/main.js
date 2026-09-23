@@ -35,7 +35,7 @@ import { ensureSeeded as ensureStadesSeeded, watchStades, onStadesChange } from 
 import { watchLots, watchPrelevements, onLotsChange, onPrelevementsChange } from './lots.js';
 import {
   initStocks, setParcelles as setParcellesStocks, setStocks,
-  renderVue as renderStocks
+  setCategories as setCategoriesStocks, renderVue as renderStocks
 } from './ui-stocks.js';
 import {
   initAlimentation, setCategories, renderVue as renderTroupeau
@@ -43,7 +43,8 @@ import {
 import { watchBatiments, onBatimentsChange, typeBatiment } from './batiments.js';
 import { watchCellules, onCellulesChange } from './cellules.js';
 import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
-import { watchMouvements, onMouvementsChange } from './mouvements.js';
+import { watchMouvements, onMouvementsChange, getMouvements } from './mouvements.js';
+import { agregerMouvements, fusionnerCategories } from './fourrages.js';
 import {
   setParcellesBatiments, openEditBatiment, setOnDemanderPlacement,
   openCreateBatiment, openCreateCellule, openCreateEmplacement
@@ -138,8 +139,22 @@ function recomputeAndRender() {
 // Stocks et troupeau partagent la même agrégation par catégorie : c'est elle
 // qui relie une récolte (« 2ᵉ coupe de luzerne en botte ») au stock sur lequel
 // un lot d'animaux prélève. La calculer une fois évite qu'elles divergent.
+// Les fourrages ont DEUX portes d'entrée : la récolte saisie à la main dans
+// l'onglet Stocks, et l'entrée de stock créée par le tunnel d'activité. Une
+// 1ʳᵉ coupe de luzerne est la même chose des deux côtés : on fond les deux
+// sources dans un seul jeu de catégories, sinon il faudrait choisir laquelle
+// regarder pour décider d'une ration.
+function categoriesFusionnees() {
+  return fusionnerCategories(
+    agregerParCategorie(latestStocks),
+    agregerMouvements(getMouvements())
+  );
+}
+
 function recomputeStocksEtTroupeau() {
-  setCategories(agregerParCategorie(latestStocks));
+  const cats = categoriesFusionnees();
+  setCategories(cats);
+  setCategoriesStocks(cats);
   if (currentView === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (currentView === 'troupeau') renderTroupeau();
 }
@@ -528,7 +543,7 @@ async function boot() {
     watchCellules();
     onEmplacementsChange(() => recomputeBatiments());
     watchEmplacements();
-    onMouvementsChange(() => recomputeBatiments());
+    onMouvementsChange(() => { recomputeBatiments(); recomputeStocksEtTroupeau(); });
     watchMouvements();
     onMaterielsChange(() => { if (currentView === 'batiments') renderMateriels(); });
     watchMateriels();

@@ -19,6 +19,7 @@ import {
 } from './mouvements.js';
 import { getLots } from './lots.js';
 import { openEditLot } from './ui-alimentation.js';
+import { ventilationContenant, resumeLot } from './fourrages.js';
 import { getStadeById } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
@@ -434,6 +435,16 @@ export function renderVue() {
   });
 }
 
+// « dont 15 t 1ʳᵉ coupe Luzerne, 10 t 2ᵉ coupe RGA » : ce que contient
+// réellement le contenant, reconstruit depuis les entrées du journal.
+function detailLots(type, id, niveau) {
+  const v = ventilationContenant(type, id, getMouvements(), niveau);
+  const tracables = v.lots.filter((l) => l.typeFourrage);
+  if (!tracables.length) return '';
+  return `<div class="contenant-lots">dont ${esc(tracables.map((l) => resumeLot(l, v.unite)).join(', '))}` +
+    `${v.prorata ? ' <span class="contenant-prorata">(au prorata des entrées)</span>' : ''}</div>`;
+}
+
 function carteBatiment(b, cellules, emplacements) {
   const t = typeBatiment(b.type);
   const cels = cellules.filter((c) => c.batimentId === b.id);
@@ -449,6 +460,7 @@ function carteBatiment(b, cellules, emplacements) {
       <div class="contenant-body">
         <div class="contenant-nom">${esc(c.nom)}</div>
         <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelContenuCellule(c))}</div>
+        ${detailLots('CELLULE', c.id, n)}
         <div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux || 0)}%"></div></div>
       </div>
       <div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux != null ? taux + '%' : ''}</div>
@@ -461,6 +473,7 @@ function carteBatiment(b, cellules, emplacements) {
       <div class="contenant-body">
         <div class="contenant-nom">${esc(e.nom)}</div>
         <div class="contenant-detail">${n.quantite} botte${n.quantite > 1 ? 's' : ''} · ${esc(labelFourrage(e.typeFourrage))}${n.poidsMoyenBotteKg ? ' · ~' + n.poidsMoyenBotteKg + ' kg' : ''}</div>
+        ${detailLots('EMPLACEMENT_FOURRAGE', e.id, n.quantite)}
       </div>
       <div class="contenant-taux">${n.poidsMoyenBotteKg ? formatTonnes((n.quantite * n.poidsMoyenBotteKg) / 1000) + ' t' : ''}</div>
     </div>`);
@@ -568,10 +581,11 @@ function contenuBatiment(b) {
     const n = niveauContenant('CELLULE', c.id).quantite;
     const taux = tauxRemplissage(c, n);
     blocs.push(`<div class="contenant-ligne">
-      <span class="contenant-icone">🌾</span>
+      <span class="contenant-icone">${iconeContenu(c)}</span>
       <div class="contenant-body">
         <div class="contenant-nom">${esc(c.nom)}</div>
         <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelContenuCellule(c))}</div>
+        ${detailLots('CELLULE', c.id, n)}
         <div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux || 0)}%"></div></div>
       </div>
       <div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux != null ? taux + '%' : ''}</div>
@@ -584,6 +598,7 @@ function contenuBatiment(b) {
       <div class="contenant-body">
         <div class="contenant-nom">${esc(e.nom)}</div>
         <div class="contenant-detail">${n.quantite} botte${n.quantite > 1 ? 's' : ''} · ${esc(labelFourrage(e.typeFourrage))}${n.poidsMoyenBotteKg ? ' · ~' + n.poidsMoyenBotteKg + ' kg/botte' : ''}</div>
+        ${detailLots('EMPLACEMENT_FOURRAGE', e.id, n.quantite)}
       </div>
       <div class="contenant-taux">${n.poidsMoyenBotteKg ? formatTonnes((n.quantite * n.poidsMoyenBotteKg) / 1000) + ' t' : ''}</div>
     </div>`);

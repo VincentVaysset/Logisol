@@ -8,7 +8,11 @@
 //   flux       — ce que l'étape 3 doit demander : rien, une entrée en stock
 //                (récolte), ou une distribution (source + destination) ;
 //   formulaire — le bloc de saisie propre au groupe, à l'étape 2 (bottes,
-//                bennes, remorques, dose...). null = rien de spécifique.
+//                bennes, remorques, dose...). null = rien de spécifique ;
+//   effetCulture — ce que le passage fait à la culture en place :
+//                'DETRUIT' (le sol est retourné ou travaillé : ce qui poussait
+//                n'y est plus) ou 'IMPLANTE' (un semis clôture la précédente
+//                et en démarre une nouvelle). null = sans effet.
 //
 // EXPLOITATION BIO : il n'y a volontairement AUCUN groupe « Protection /
 // Phyto ». Les anciens types de traitement des cultures sont masqués (voir
@@ -44,13 +48,14 @@ export const CATEGORIES = [
 /** @typedef {'ENTREE_STOCK'|'DISTRIBUTION'|null} FluxType */
 /** @typedef {'PARCELLE'|'BERGERIE'|'LES_DEUX'} CibleType */
 /** @typedef {'SEMIS'|'SURFACE'|'PRESSAGE'|'SECHAGE'|'MOISSON'|'FUMIER'|'CHAULAGE'|null} FormulaireType */
+/** @typedef {'DETRUIT'|'IMPLANTE'|null} EffetCulture */
 
 // Liste de référence. Les types déjà présents en base sont mis à jour sur
 // place (mêmes documents, donc les interventions existantes gardent leur
 // rattachement) ; les manquants sont ajoutés. Rien n'est jamais supprimé.
 const TYPES_PAR_DEFAUT = [
   // --- 🌱 Semis ---
-  { nom: 'Semis (semoir + tasse-avant)', icone: '🌱', couleur: '#5b8c5a', categorie: 'SEMIS', cible: 'PARCELLE', flux: null, formulaire: 'SEMIS', champs: TRAVAIL },
+  { nom: 'Semis (semoir + tasse-avant)', icone: '🌱', couleur: '#5b8c5a', categorie: 'SEMIS', cible: 'PARCELLE', flux: null, formulaire: 'SEMIS', effetCulture: 'IMPLANTE', champs: TRAVAIL },
 
   // --- 🌾 Fourrages : préparation de l'andain, aucune entrée en stock ---
   // Rattacher un stock à la fauche ferait compter le fourrage deux fois :
@@ -70,11 +75,11 @@ const TYPES_PAR_DEFAUT = [
   { nom: 'Épandage fumier',              icone: '💩', couleur: '#8a6d5c', categorie: 'EPANDAGE', cible: 'PARCELLE', flux: null, formulaire: 'FUMIER', champs: TRAVAIL },
 
   // --- ⚙️ Travail du sol & entretien ---
-  { nom: 'Déchaumage',                   icone: '🌾', couleur: '#a08a5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, champs: TRAVAIL },
+  { nom: 'Déchaumage',                   icone: '🌾', couleur: '#a08a5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, effetCulture: 'DETRUIT',  champs: TRAVAIL },
   { nom: 'Alignement pierres',           icone: '🪨', couleur: '#8d8878', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, champs: TRAVAIL },
   { nom: 'Broyage pierres (casseuse)',   icone: '🧱', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, champs: TRAVAIL },
-  { nom: 'Labour',                       icone: '🔵', couleur: '#6b5344', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, champs: TRAVAIL },
-  { nom: 'Vibroculteur',                 icone: '〰️', couleur: '#8a7c5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, champs: TRAVAIL },
+  { nom: 'Labour',                       icone: '🔵', couleur: '#6b5344', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, effetCulture: 'DETRUIT',  champs: TRAVAIL },
+  { nom: 'Vibroculteur',                 icone: '〰️', couleur: '#8a7c5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, effetCulture: 'DETRUIT',  champs: TRAVAIL },
   { nom: 'Roulage',                      icone: '🛞', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, champs: TRAVAIL },
   { nom: 'Chaulage',                     icone: '🤍', couleur: '#b9b4a4', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: 'CHAULAGE', champs: TRAVAIL },
 
@@ -151,6 +156,15 @@ export function formulaireDe(type) {
   return (type && type.formulaire) || null;
 }
 
+// Un déchaumage, un labour ou un coup de vibroculteur retournent le sol : ce
+// qui poussait là n'y est plus. Un semis fait la même chose ET démarre la
+// culture suivante. Laisser l'ancienne culture ouverte ferait dire à la carte
+// et au croisement coupe × fourrage qu'une luzerne pousse encore sur une
+// parcelle labourée il y a trois mois.
+export function effetCultureDe(type) {
+  return (type && type.effetCulture) || null;
+}
+
 // Une récolte DOIT rentrer son produit quelque part : c'est ce qui garantit
 // que les tonnages saisis au champ alimentent bien l'onglet Stocks, puis les
 // rations. Sans cette obligation, un pressage saisi sans destination
@@ -211,6 +225,7 @@ export async function ensureSeeded() {
       if (existant.cible !== t.cible) maj.cible = t.cible;
       if ((existant.flux || null) !== (t.flux || null)) maj.flux = t.flux;
       if ((existant.formulaire || null) !== (t.formulaire || null)) maj.formulaire = t.formulaire;
+      if ((existant.effetCulture || null) !== (t.effetCulture || null)) maj.effetCulture = t.effetCulture || null;
       if (!memesChamps(existant.champs, t.champs)) maj.champs = t.champs;
       if (existant.masque) maj.masque = false;
       if (existant.heritage) maj.heritage = false;
@@ -251,6 +266,10 @@ export async function addType(nom, icone, couleur, extra = {}) {
     cible: extra.cible || 'LES_DEUX',
     flux: extra.flux || null,
     formulaire: null,
+    // Une action inventée ne touche pas à la culture en place sans que
+    // l'exploitant l'ait demandé : détruire un assolement par surprise serait
+    // la pire des initiatives.
+    effetCulture: null,
     champs: TRAVAIL
   });
   return ref.id;

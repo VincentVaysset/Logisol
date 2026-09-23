@@ -29,10 +29,24 @@ export const CONSERVATIONS = [
 export const COUPES = [
   { value: 1, label: '1ʳᵉ coupe' },
   { value: 2, label: '2ᵉ coupe' },
-  { value: 3, label: '3ᵉ coupe' }
+  { value: 3, label: '3ᵉ coupe' },
+  { value: 4, label: '4ᵉ coupe' }
 ];
 
-export const FOURRAGES = ['Ray-grass', 'Luzerne', 'Prairie naturelle'];
+export function labelCoupe(n) {
+  const c = COUPES.find((x) => x.value === Number(n));
+  return c ? c.label : 'coupe ?';
+}
+
+// Libellés alignés sur le vocabulaire des cultures du RPG TelePAC, pour que
+// le type de fourrage déduit d'une parcelle importée tombe sur un nom déjà
+// proposé ici plutôt que d'en créer un double à l'orthographe près.
+// La liste n'est qu'une aide à la saisie : le champ reste libre.
+export const FOURRAGES = [
+  'Prairie permanente', 'Prairie temporaire', 'Luzerne', 'Trèfle violet',
+  'Ray-grass anglais (RGA)', 'Ray-grass italien (RGI)', 'Dactyle', 'Fétuque',
+  'Sainfoin', 'Mélange prairial', 'Prairie naturelle'
+];
 
 let courants = [];
 const listeners = new Set();
@@ -85,23 +99,35 @@ function arrondi3(v) {
 // sur UNE catégorie précise (« 1ʳᵉ coupe de luzerne séchée en grange »), pas
 // sur « du foin » en général.
 export function categorieCle(s) {
-  if (s.categorie === 'foin') {
-    return ['foin', s.conservation || 'botte', 'c' + (s.coupe || 0), slug(s.fourrage || '')].join('|');
-  }
-  if (s.categorie === 'cereale') {
-    return ['cereale', slug(s.espece || '')].join('|');
-  }
+  if (s.categorie === 'foin') return cleFoin(s.conservation, s.coupe, s.fourrage);
+  if (s.categorie === 'cereale') return cleCereale(s.espece);
   return 'paille|botte';
 }
 
 export function categorieLabel(s) {
-  if (s.categorie === 'foin') {
-    const coupe = (COUPES.find((c) => c.value === Number(s.coupe)) || {}).label || '';
-    const cons = (CONSERVATIONS.find((c) => c.value === s.conservation) || {}).label || '';
-    return `Foin ${s.fourrage || '?'} — ${coupe} — ${cons.toLowerCase()}`;
-  }
-  if (s.categorie === 'cereale') return `Céréale — ${s.espece || '?'}`;
+  if (s.categorie === 'foin') return labelFoin(s.conservation, s.coupe, s.fourrage);
+  if (s.categorie === 'cereale') return labelCereale(s.espece);
   return 'Paille';
+}
+
+// --- Identité d'un lot de fourrage, PARTAGÉE -------------------------------
+// Ces quatre fonctions sont le seul endroit où se décide ce qui fait qu'un
+// fourrage est « le même ». Elles servent aux récoltes saisies à la main dans
+// cet onglet ET aux entrées de stock créées par le tunnel d'activité : une
+// 1ʳᵉ coupe de luzerne en botte est la même chose quelle que soit la porte
+// d'entrée, et doit donc tomber dans la même colonne et la même ration.
+export function cleFoin(conservation, coupe, fourrage) {
+  return ['foin', conservation || 'botte', 'c' + (Number(coupe) || 0), slug(fourrage || '')].join('|');
+}
+export function labelFoin(conservation, coupe, fourrage) {
+  const cons = (CONSERVATIONS.find((c) => c.value === conservation) || {}).label || '';
+  return `Foin ${fourrage || '?'} — ${labelCoupe(coupe)} — ${cons.toLowerCase()}`;
+}
+export function cleCereale(espece) {
+  return ['cereale', slug(espece || '')].join('|');
+}
+export function labelCereale(espece) {
+  return `Céréale — ${espece || '?'}`;
 }
 
 function slug(s) {

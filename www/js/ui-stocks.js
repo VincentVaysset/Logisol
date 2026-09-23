@@ -1,9 +1,9 @@
 // Vue Stocks : synthèse d'exploitation + saisie d'une récolte.
 import {
-  CATEGORIES, CONSERVATIONS, COUPES, FOURRAGES,
-  createStock, updateStock, deleteStock, calculerTonnes,
-  agregerParCategorie, totauxParFamille, croiseCoupeFourrage
+  CATEGORIES, CONSERVATIONS, COUPES, FOURRAGES, labelCoupe,
+  createStock, updateStock, deleteStock, calculerTonnes, totauxParFamille
 } from './stocks.js';
+import { croiseCoupeFourrage } from './fourrages.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 
@@ -48,6 +48,12 @@ let editingId = null;
 let saveToken = 0;
 let parcelles = [];
 let stocks = [];
+// Catégories fusionnées (récoltes saisies + entrées du journal), fournies par
+// main.js : le tableau croisé et la synthèse doivent montrer TOUT le fourrage,
+// quelle que soit la porte par laquelle il est entré.
+let categories = [];
+
+export function setCategories(list) { categories = list || []; }
 let onChangeExterne = () => {};
 
 class ErreurDeSaisie extends Error {}
@@ -293,28 +299,42 @@ async function supprimer() {
 
 // --- Vue ------------------------------------------------------------------
 export function renderVue() {
+  // Les totaux de familles se recomposent depuis les catégories fusionnées :
+  // totauxParFamille ne voit que la collection « stocks », donc pas les
+  // récoltes entrées par le tunnel d'activité.
   const t = totauxParFamille(stocks);
+  const tf = { foin: 0, cereale: 0, paille: 0 };
+  categories.forEach((c) => {
+    const fam = c.categorie || 'foin';
+    tf[fam] = Math.round(((tf[fam] || 0) + (Number(c.tonnes) || 0)) * 1000) / 1000;
+  });
+  if (categories.length) { t.foin = tf.foin; t.cereale = tf.cereale; t.paille = tf.paille; }
   totauxEl.innerHTML = [
     tuile('Foin', t.foin, 'foin'),
     tuile('Céréales', t.cereale, 'cereale'),
     tuile('Paille', t.paille, 'paille')
   ].join('');
 
-  const { fourrages, valeur } = croiseCoupeFourrage(stocks);
+  // Le croisement se construit sur les catégories FUSIONNÉES : un pressage
+  // saisi dans le tunnel d'activité y apparaît au même titre qu'une récolte
+  // saisie ici. Seules les coupes réellement rencontrées sont affichées, pour
+  // ne pas montrer quatre lignes vides sur une exploitation qui en fait deux.
+  const { fourrages, coupes, valeur } = croiseCoupeFourrage(categories);
   if (!fourrages.length) {
-    croiseEl.innerHTML = '<p class="list-empty">Aucune récolte de foin saisie.</p>';
+    croiseEl.innerHTML = '<p class="list-empty">Aucune récolte de foin enregistrée. Une récolte saisie dans une activité (pressage, séchage en grange) apparaît ici automatiquement.</p>';
   } else {
+    const lignesCoupes = coupes.length ? coupes : COUPES.map((c) => c.value);
     const totalLigne = (c) => fourrages.reduce((n, f) => n + valeur(c, f), 0);
-    const totalCol = (f) => COUPES.reduce((n, c) => n + valeur(c.value, f), 0);
+    const totalCol = (f) => lignesCoupes.reduce((n, c) => n + valeur(c, f), 0);
     croiseEl.innerHTML = `
       <table class="tableau">
         <thead><tr><th></th>${fourrages.map((f) => `<th>${escapeHtml(f)}</th>`).join('')}<th class="total">Total</th></tr></thead>
         <tbody>
-          ${COUPES.map((c) => `
+          ${lignesCoupes.map((c) => `
             <tr>
-              <th>${c.label}</th>
-              ${fourrages.map((f) => cellule(valeur(c.value, f))).join('')}
-              <td class="total">${formatTonnes(totalLigne(c.value))}</td>
+              <th>${escapeHtml(c ? labelCoupe(c) : 'coupe non précisée')}</th>
+              ${fourrages.map((f) => cellule(valeur(c, f))).join('')}
+              <td class="total">${formatTonnes(totalLigne(c))}</td>
             </tr>`).join('')}
         </tbody>
         <tfoot><tr><th>Total</th>${fourrages.map((f) => `<td class="total">${formatTonnes(totalCol(f))}</td>`).join('')}
@@ -322,7 +342,7 @@ export function renderVue() {
       </table>`;
   }
 
-  const cats = agregerParCategorie(stocks);
+  const cats = categories;
   categoriesEl.innerHTML = cats.length
     ? cats.map((c) => `
       <div class="cat-card">
@@ -352,9 +372,13 @@ export function renderVue() {
 
 function detailCategorie(c) {
   const bouts = [`${c.nbRecoltes} récolte${c.nbRecoltes > 1 ? 's' : ''}`];
-  if (c.nbBottes) bouts.push(`${c.nbBottes} bottes`);
+  if (c.nbBottes) bouts.push(`${Math.round(c.nbBottes)} bottes`);
   if (c.nbRemorques) bouts.push(`${c.nbRemorques} remorques`);
   if (c.surfaceHa) bouts.push(`${c.surfaceHa} ha`);
+  // D'où vient le chiffre : saisi ici, remonté du journal des activités, ou
+  // les deux. Sans ça, un total qui bouge tout seul serait inexplicable.
+  if (c.origine === 'journal') bouts.push('depuis les activités');
+  else if (c.origine === 'mixte') bouts.push('saisies + activités');
   return escapeHtml(bouts.join(' · '));
 }
 

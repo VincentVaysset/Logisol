@@ -615,6 +615,96 @@ Une **action sur mesure** peut être créée depuis l'étape 1 du tunnel (nom,
 icône, groupe) : elle est aussitôt sélectionnée, réutilisable, et devient
 rattachable à un matériel dans le champ « Conseillé pour ».
 
+## Traçabilité des fourrages : de la récolte à la ration
+
+### Ce qui identifie un lot de fourrage
+
+Trois critères font qu'un fourrage est « le même » au moment de le donner aux
+brebis : son **type** (luzerne, prairie permanente, RGA…), son **numéro de
+coupe** (1ʳᵉ à 4ᵉ) et sa **conservation** (botte ou séché en grange).
+
+Au pressage et au séchage en grange, le tunnel demande :
+
+- **Numéro de coupe** — obligatoire ;
+- **Type de fourrage** — obligatoire, **pré-rempli d'après la culture en
+  place** sur la parcelle (l'implantation en cours) et librement modifiable :
+  le RPG dit « Prairie temporaire » là où l'exploitant récolte un RGA/trèfle,
+  et c'est lui qui sait ce qu'il vient de presser. La liste de suggestions
+  reprend les libellés de cultures TelePAC, les cultures de l'exploitation, et
+  tous les types déjà saisis.
+
+La conservation se déduit du contenant d'arrivée (emplacement → botte,
+cellule de séchage → grange).
+
+### Où c'est enregistré
+
+Sur **chaque entrée de stock** (`lgs_mouvements_stock`) : `typeFourrage`,
+`numeroCoupe`, `conservation`, tonnage (`quantite` × `poidsBotteKg` pour les
+bottes), date de récolte (`date`), parcelle d'origine (`sourceId` /
+`sourceNom`), plus une copie figée de la clé et du libellé de catégorie
+(`categorieCle`, `categorieLabel`). Figée, parce qu'une cellule qui changerait
+de nature plus tard ne doit pas réécrire l'historique qui l'a traversée.
+
+Aucun agrégat n'est stocké à côté : `fourrages.js` relit le journal à chaque
+affichage. Un second registre tenu en parallèle finirait par diverger.
+
+### Une seule identité, deux portes d'entrée
+
+La clé de catégorie est **la même** pour une récolte saisie à la main dans
+l'onglet Stocks et pour une entrée créée par le tunnel. Une 1ʳᵉ coupe de
+luzerne en botte tombe donc dans la même colonne et la même ration, quelle que
+soit la façon dont elle a été saisie. La carte de catégorie indique l'origine
+(« depuis les activités », « saisies + activités »).
+
+⚠️ Conséquence : saisir **la même récolte deux fois** — une fois par le
+tunnel, une fois dans l'onglet Stocks — la compterait deux fois. Le tunnel
+étant désormais le chemin normal (entrée en stock obligatoire), le formulaire
+« récolte » de l'onglet Stocks ne sert plus qu'aux reprises d'historique.
+
+### Où ça se voit
+
+- **Onglet Stocks** : le tableau *Foin — coupe × type de fourrage* se remplit
+  tout seul, en n'affichant que les coupes réellement rencontrées.
+- **Bâtiments / cellules / emplacements** : chaque contenant détaille ce qu'il
+  contient — « Séchoir 1 : 20 t dont 12 t 1ʳᵉ coupe Luzerne, 8 t 2ᵉ coupe
+  RGA ». Les sorties ne disent pas de quel lot elles proviennent (on ne le
+  demande pas au champ) : dès qu'il est sorti quelque chose, la répartition est
+  **au prorata des entrées**, et l'écran l'indique.
+- **Troupeau** : chaque lot de fourrage identifié est sélectionnable comme
+  stock d'un lot de brebis, avec son tonnage.
+
+Seules les **entrées** alimentent le tonnage côté rations : la consommation
+du troupeau est déjà calculée à partir des périodes de prélèvement, la déduire
+une seconde fois la compterait deux fois.
+
+## Effet des travaux sur la culture en place
+
+| Activité | Effet sur la parcelle |
+|---|---|
+| Déchaumage, Labour, Vibroculteur | **clôturent** la culture en place à la date de l'activité |
+| Semis | clôture la culture en place la veille, et **démarre** la culture implantée |
+
+Le semis demande désormais la **culture implantée** (liste des cultures, avec
+création à la volée) — c'est elle qui remplace la précédente. Le champ
+« semence / mélange » reste le détail (variété, pourcentages).
+
+L'effet est **annoncé avant d'enregistrer** (« Cette activité met fin à la
+culture en place : Luzerne sur Grand Pré »), parce que clôturer un assolement
+en silence serait irrattrapable.
+
+Une activité **« À faire » ne touche à rien** : prévoir un labour ne détruit
+pas la luzerne qui pousse encore.
+
+**Réversible** : l'activité garde la trace de ce qu'elle a fait
+(`effetCulture` : implantations clôturées avec leur fin précédente,
+implantations créées). La supprimer, la repasser en « à faire » ou en changer
+la date remet l'assolement exactement dans l'état antérieur avant d'appliquer
+le nouvel effet. Sans ça, effacer un labour saisi par erreur laisserait la
+culture détruite pour toujours.
+
+Une action sur mesure n'a **aucun** effet sur la culture : détruire un
+assolement par surprise serait la pire des initiatives.
+
 ## Placement d'un bâtiment
 
 Deux voies, au choix :

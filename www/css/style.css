@@ -977,6 +977,23 @@ header button {
 }
 .groupe-total[hidden] { display: none; }
 
+/* Annonce de l'effet d'une activité sur la culture en place */
+.effet-culture {
+  margin: -4px 0 14px; padding: 9px 11px; border-radius: var(--radius);
+  background: rgba(224,163,38,0.13); border-left: 3px solid #e0a326;
+  font-size: 13px; font-weight: 600; line-height: 1.4;
+}
+.effet-culture[hidden] { display: none; }
+#itv-culture-new[hidden] { display: none; }
+#itv-culture-new input { flex: 1; margin: 0; }
+
+/* Détail des lots de fourrage sous un contenant */
+.contenant-lots {
+  font-size: 11px; color: var(--primary); font-weight: 600;
+  margin-top: 3px; line-height: 1.4;
+}
+.contenant-prorata { color: var(--text-muted); font-weight: 500; font-style: italic; }
+
 .melange-ligne { display: flex; gap: 7px; align-items: center; margin-bottom: 7px; }
 .melange-ligne .melange-nom { flex: 3; margin: 0; }
 .melange-ligne .melange-pct { flex: 1; min-width: 64px; margin: 0; }

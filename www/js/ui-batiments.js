@@ -28,6 +28,7 @@ import {
   centrerSurMaPosition, getMap, demarrerPlacement, arreterPlacement, positionPlacement
 } from './map.js';
 import { messagePermission } from './diagnostic-regles.js';
+import { ventilationContenant, resumeLot } from './fourrages.js';
 
 class ErreurDeSaisie extends Error {}
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
@@ -135,11 +136,13 @@ function renderContenantsDuBatiment(b) {
     const n = niveauContenant('CELLULE', c.id).quantite;
     const fourrage = contenuDe(c) === 'FOURRAGE';
     const label = fourrage ? labelFourrage(c.typeGrainActuel) : labelGrain(c.typeGrainActuel);
-    blocs.push(ligneContenant(fourrage ? '🌿' : '🌾', c.nom, `${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${label}`, 'cellule', c.id, tauxRemplissage(c, n)));
+    blocs.push(ligneContenant(fourrage ? '🌿' : '🌾', c.nom, `${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${label}`, 'cellule', c.id, tauxRemplissage(c, n),
+      detailLots('CELLULE', c.id, n)));
   });
   emps.forEach((e) => {
     const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id);
-    blocs.push(ligneContenant('🧻', e.nom, `${n.quantite} bottes · ${labelFourrage(e.typeFourrage)}${n.poidsMoyenBotteKg ? ' · ~' + n.poidsMoyenBotteKg + ' kg/botte' : ''}`, 'emplacement', e.id, null));
+    blocs.push(ligneContenant('🧻', e.nom, `${n.quantite} bottes · ${labelFourrage(e.typeFourrage)}${n.poidsMoyenBotteKg ? ' · ~' + n.poidsMoyenBotteKg + ' kg/botte' : ''}`, 'emplacement', e.id, null,
+      detailLots('EMPLACEMENT_FOURRAGE', e.id, n.quantite)));
   });
   lots.forEach((l) => {
     const st = getStadeById(l.stadeId);
@@ -160,7 +163,7 @@ function renderContenantsDuBatiment(b) {
   });
 }
 
-function ligneContenant(icone, nom, detail, kind, id, taux) {
+function ligneContenant(icone, nom, detail, kind, id, taux, lots) {
   const attrs = kind ? ` data-kind="${kind}" data-id="${esc(id)}" style="cursor:pointer"` : '';
   const jauge = taux != null
     ? `<div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux)}%"></div></div>`
@@ -170,10 +173,24 @@ function ligneContenant(icone, nom, detail, kind, id, taux) {
     <div class="contenant-body">
       <div class="contenant-nom">${esc(nom)}</div>
       <div class="contenant-detail">${esc(detail)}</div>
+      ${lots || ''}
       ${jauge}
     </div>
     ${taux != null ? `<div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux}%</div>` : ''}
   </div>`;
+}
+
+// « dont 15 t 1ʳᵉ coupe Luzerne, 10 t 2ᵉ coupe RGA ». Ce que contient
+// réellement un contenant, lot par lot, reconstruit depuis les entrées du
+// journal. Les sorties ne disent pas de quel lot elles proviennent : quand il
+// en est sorti, la répartition est au prorata et l'écran le dit.
+export function detailLots(type, id, niveau) {
+  const v = ventilationContenant(type, id, getMouvements(), niveau);
+  if (!v.lots.length) return '';
+  const tracables = v.lots.filter((l) => l.typeFourrage || l.cle !== 'inconnu');
+  if (!tracables.length) return '';
+  return `<div class="contenant-lots">dont ${esc(tracables.map((l) => resumeLot(l, v.unite)).join(', '))}` +
+    `${v.prorata ? ' <span class="contenant-prorata">(au prorata des entrées)</span>' : ''}</div>`;
 }
 
 bat.locate.addEventListener('click', () => {
