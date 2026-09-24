@@ -57,6 +57,7 @@ Firebase SDK v10, Leaflet 1.9.4 + Leaflet.draw, **vendorisés dans
 
 ## Tests
 
+Interdiction stricte d'utiliser le navigateur ou de prendre des captures d'écran (économie de tokens vision).
 Pas de suite automatisée committée. Vérification manuelle par scripts
 Playwright jetables (harness dans `/tmp/.../scratchpad/harness.js`, stubs
 Firebase inclus) : serveur HTTP local sur `www/`, scénarios end-to-end,
