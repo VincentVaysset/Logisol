@@ -1,16 +1,30 @@
+/* Palette alignée sur mockups/maquette ferme appli.html (et les quatre
+   autres maquettes qui partagent le même en-tête/bas de page : parcelles,
+   stocks, bâtiments — carte et troupeau y dérogent volontairement pour leurs
+   propres besoins, cf. commentaires sur header/.tabs plus bas). Reprend les
+   teintes Tailwind « emerald » et « slate » utilisées dans ces fichiers —
+   sans Tailwind lui-même : pas de CDN, l'appli doit démarrer hors ligne. */
 :root {
-  --primary: #3c7a4e;
-  --primary-light: #5a9968;
-  --bg: #fbf8f1;
+  --primary: #059669;        /* emerald-600 */
+  --primary-light: #10b981;  /* emerald-500 */
+  --bg: #f1f5f9;              /* slate-100 */
   --card: #ffffff;
-  --border: #e6ddc9;
-  --text: #2b2a22;
-  --text-muted: #79765f;
+  --border: #e2e8f0;          /* slate-200 */
+  --text: #1e293b;            /* slate-800 */
+  --text-muted: #64748b;      /* slate-500 */
   --accent: #e3812f;
   --danger: #d1584f;
   --success: #4f9c5f;
   --warning: #e0a326;
-  --radius: 14px;
+  --radius: 16px;             /* rounded-2xl, l'échelle dominante des cartes */
+  /* En-tête et barre de navigation basse : gabarit sombre commun aux cinq
+     maquettes qui en partagent un (cf. header, .tabs). Ce sont les seules
+     zones sombres d'un système par ailleurs clair — fond et cartes restent
+     clairs partout ailleurs. */
+  --chrome-bg: #0f172a;        /* slate-900 */
+  --chrome-border: #1e293b;    /* slate-800 */
+  --chrome-text-muted: #94a3b8;/* slate-400 */
+  --chrome-active: #34d399;    /* emerald-400 */
   /* Hauteur de la barre de navigation basse, icône + libellé + confort
      tactile. Toute vue qui défile jusqu'à cette hauteur doit reprendre cette
      même variable dans son padding-bottom (cf. .tabs). */
@@ -138,24 +152,44 @@ label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom
   position: relative;
 }
 .screen-app[hidden] { display: none; }
+/* En-tête : fond sombre (--chrome-bg), seule zone du haut d'écran qui déroge
+   au fond clair — gabarit repris tel quel de la maquette Ferme (identique
+   sur Parcelles, Stocks, Bâtiments). La vue Carte pose son propre bandeau
+   flottant par-dessus la carte plein écran (hors sujet ici, plus léger) ; la
+   vue Troupeau explore une variante claire dans sa maquette — aucune des
+   deux n'est traitée dans cette passe, réservée au gabarit commun. */
 header {
-  background: var(--primary);
+  background: var(--chrome-bg);
   color: white;
-  padding: 14px 16px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   z-index: 1100;
 }
-header h1 { font-size: 18px; margin: 0; font-weight: 600; flex: 1; }
-.user-email { font-size: 12px; opacity: 0.85; }
+.header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.header-logo {
+  flex: 0 0 34px;
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.header-titre { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.header-nom { font-weight: 800; font-size: 15px; letter-spacing: 0.02em; }
+.header-sous-titre { font-size: 10px; color: var(--chrome-text-muted); font-weight: 500; }
+.header-compte { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.user-email { font-size: 11px; color: var(--chrome-text-muted); }
 header button {
-  background: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.12);
   border: none;
   color: white;
   padding: 8px 12px;
-  border-radius: var(--radius);
-  font-size: 13px;
+  border-radius: 10px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -400,6 +434,10 @@ header button {
    .scroll-view, .list-view) réserve sa hauteur exacte en padding-bottom via
    --bottomnav-h, sinon son dernier élément se retrouverait caché dessous.
    ======================================================================== */
+/* Fond sombre (--chrome-bg) comme l'en-tête, dans le même esprit que la
+   barre basse des maquettes Ferme/Parcelles/Stocks/Bâtiments — icône +
+   libellé, gris pour l'onglet inactif, vert pour l'actif, sans fond ni
+   pastille derrière le bouton. */
 .tabs {
   position: fixed;
   left: 0;
@@ -407,9 +445,8 @@ header button {
   bottom: 0;
   flex: 0 0 auto;
   display: flex;
-  background: var(--card);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+  background: var(--chrome-bg);
+  border-top: 1px solid var(--chrome-border);
   z-index: 1100;
   /* Le contenu tient sur --bottomnav-h ; l'appareil peut ajouter en dessous
      sa propre zone de gestes (barre Android, encoche iOS) sans jamais
@@ -423,21 +460,21 @@ header button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--chrome-text-muted);
   cursor: pointer;
 }
-.tab-icone { font-size: 20px; line-height: 1; }
+.tab-icone { font-size: 19px; line-height: 1; }
 .tab-label {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   white-space: nowrap;
 }
-.tab.is-active { color: var(--primary); }
-.tab.is-active .tab-icone { transform: scale(1.08); }
+.tab.is-active { color: var(--chrome-active); }
+.tab.is-active .tab-label { font-weight: 700; }
 /* Pendant un tracé, changer d'onglet annulerait le dessin en cours : on le
    signale visuellement plutôt que de désactiver les boutons, pour que sortir
    reste possible (l'annulation est explicite dans setView). */

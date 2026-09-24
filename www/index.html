@@ -149,9 +149,24 @@
 <!-- Écran principal -->
 <section id="screen-app" class="screen-app" hidden>
   <header>
-    <h1>Logisol</h1>
-    <span id="user-email" class="user-email"></span>
-    <button id="btn-logout" type="button">Déconnexion</button>
+    <!-- Gabarit repris de mockups/maquette ferme appli.html : pastille logo +
+         nom + sous-titre à gauche, indicateur « en ligne » à droite. La
+         maquette n'a pas de bouton de déconnexion (page statique) — l'appli
+         en a besoin, donc #user-email/#btn-logout restent, seulement
+         redessinés dans le même esprit (pastille discrète) plutôt qu'ajoutés
+         à côté d'un indicateur qui, lui, n'a rien à faire ni personne à
+         piloter. -->
+    <div class="header-brand">
+      <span class="header-logo" aria-hidden="true">🌱</span>
+      <div class="header-titre">
+        <span class="header-nom">LOGISOL</span>
+        <span class="header-sous-titre">Exploitation ovine Bio</span>
+      </div>
+    </div>
+    <div class="header-compte">
+      <span id="user-email" class="user-email"></span>
+      <button id="btn-logout" type="button">Déconnexion</button>
+    </div>
   </header>
 
   <!-- Barre de navigation basse, FIXE (cf. .tabs) : les six destinations
