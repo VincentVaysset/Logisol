@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Logisol — Troupeau & Historique</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased pb-28">
+
+  <!-- EN-TÊTE -->
+  <header class="bg-white/90 backdrop-blur-md sticky top-0 z-40 px-4 py-3 border-b border-slate-200/80 flex items-center justify-between shadow-xs">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center font-extrabold text-white text-base shadow-sm shadow-emerald-600/30">
+        🌱
+      </div>
+      <div>
+        <span class="font-bold text-base tracking-tight text-slate-900 block leading-none">Logisol</span>
+        <span class="text-[11px] text-slate-500 font-medium">vincdu632@gmail.com</span>
+      </div>
+    </div>
+    <select class="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none">
+      <option>Campagne 2025-2026</option>
+      <option>Campagne 2024-2025</option>
+    </select>
+  </header>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main class="px-4 py-4 space-y-4 max-w-lg mx-auto">
+
+    <!-- SELECTEUR SOUS-ONGLETS -->
+    <div class="flex bg-slate-200/70 p-1 rounded-xl text-xs font-bold text-slate-600">
+      <button class="flex-1 py-1.5 rounded-lg text-slate-500">Ration Actuelle</button>
+      <button class="flex-1 py-1.5 rounded-lg bg-white text-emerald-700 shadow-xs">Historique & Bilan</button>
+    </div>
+
+    <!-- SYNTHÈSE DU CUMUL CAMPAGNE -->
+    <div class="bg-emerald-900 text-white p-4 rounded-2xl shadow-md space-y-3">
+      <div class="flex justify-between items-center">
+        <div>
+          <span class="text-[10px] font-bold tracking-wider uppercase text-emerald-300 block">Total Consommé (Campagne)</span>
+          <span class="text-2xl font-extrabold text-white">42,8 tonnes</span>
+        </div>
+        <span class="bg-emerald-800/80 text-emerald-200 text-xs font-semibold px-2.5 py-1 rounded-lg border border-emerald-700">
+          240 Brebis
+        </span>
+      </div>
+
+      <div class="space-y-1.5 pt-2 border-t border-emerald-800/80 text-xs">
+        <div class="flex justify-between text-emerald-100">
+          <span>Luzerne séchée (Séchoir 1)</span>
+          <span class="font-bold text-white">24,5 t</span>
+        </div>
+        <div class="w-full bg-emerald-950/60 h-1.5 rounded-full overflow-hidden">
+          <div class="bg-emerald-400 h-full rounded-full" style="width: 57%"></div>
+        </div>
+
+        <div class="flex justify-between text-emerald-100 pt-1">
+          <span>Foin RGA / Trèfle (Séchoir 2)</span>
+          <span class="font-bold text-white">12,1 t</span>
+        </div>
+        <div class="w-full bg-emerald-950/60 h-1.5 rounded-full overflow-hidden">
+          <div class="bg-green-400 h-full rounded-full" style="width: 28%"></div>
+        </div>
+
+        <div class="flex justify-between text-emerald-100 pt-1">
+          <span>Concentrés / Céréales (Silo A)</span>
+          <span class="font-bold text-white">6,2 t</span>
+        </div>
+        <div class="w-full bg-emerald-950/60 h-1.5 rounded-full overflow-hidden">
+          <div class="bg-amber-400 h-full rounded-full" style="width: 15%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOURNAL DE CONSOMMATION PAR PERIODE / LOT -->
+    <div class="space-y-3">
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Périodes de consommation enregistrées</h2>
+
+      <!-- Période 1 : Fin de Gestation (En cours) -->
+      <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="inline-block bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200 mb-1">
+              En cours (depuis le 01/09)
+            </span>
+            <h3 class="font-bold text-slate-900 text-sm">Fin de gestation — 240 brebis</h3>
+          </div>
+          <span class="text-xs font-extrabold text-slate-900">11,04 t</span>
+        </div>
+        <p class="text-xs text-slate-500">Ration : 2 kg/j (Luzerne 1ʳᵉ coupe) • 23 jours consommés</p>
+      </div>
+
+      <!-- Période 2 : Mi-Gestation (Passé) -->
+      <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="inline-block bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded mb-1">
+              01/06 au 31/08 (92 jours)
+            </span>
+            <h3 class="font-bold text-slate-900 text-sm">Milieu de gestation — 240 brebis</h3>
+          </div>
+          <span class="text-xs font-extrabold text-slate-900">30,91 t</span>
+        </div>
+        <p class="text-xs text-slate-500">Ration : 1,4 kg/j (Foin RGA + Luzerne 2ᵉ coupe)</p>
+      </div>
+
+      <!-- Période 3 : Lot Agnelles -->
+      <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="inline-block bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded mb-1">
+              01/01 au 31/05 (151 jours)
+            </span>
+            <h3 class="font-bold text-slate-900 text-sm">Agnelles Renouvellement — 60 têtes</h3>
+          </div>
+          <span class="text-xs font-extrabold text-slate-900">8,15 t</span>
+        </div>
+        <p class="text-xs text-slate-500">Ration : 0,9 kg/j (Luzerne + Concentrés)</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-2 z-50 flex justify-around items-center text-[10px] text-slate-400 font-medium shadow-lg">
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 text-slate-400">
+      <i class="fa-solid fa-house text-base"></i>
+      <span>Ferme</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 text-slate-400">
+      <i class="fa-solid fa-map-location-dot text-base"></i>
+      <span>Carte</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 text-slate-400">
+      <i class="fa-solid fa-wheat-awn text-base"></i>
+      <span>Parcelles</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 text-slate-400">
+      <i class="fa-solid fa-cubes-stacked text-base"></i>
+      <span>Stocks</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 text-emerald-600 font-bold">
+      <i class="fa-solid fa-cow text-base"></i>
+      <span>Troupeau</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 text-slate-400">
+      <i class="fa-solid fa-warehouse text-base"></i>
+      <span>Bâtiments</span>
+    </a>
+  </nav>
+
+</body>
+</html>

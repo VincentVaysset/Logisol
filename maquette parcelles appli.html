@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Logisol — Version Mobile</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; pb-20; } /* pb-20 pour ne pas cacher le bas sous la barre de menu */
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased pb-24">
+
+  <!-- ================= EN-TÊTE MOBILE FIXE ================= -->
+  <header class="bg-slate-900 text-white sticky top-0 z-40 px-4 py-3 shadow-md flex items-center justify-between">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-sm text-white shadow">
+        🌱
+      </div>
+      <div>
+        <span class="font-bold text-base tracking-tight text-white block leading-none">LOGISOL</span>
+        <span class="text-[10px] text-slate-400 font-medium">Aveyron — 2026</span>
+      </div>
+    </div>
+    
+    <!-- Bouton profil / rapide -->
+    <div class="flex items-center space-x-2">
+      <button class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs text-slate-300">
+        <i class="fa-solid fa-sliders"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= CONTENU MOBILE ================= -->
+  <main class="px-3 py-4 space-y-4">
+
+    <!-- TITRE & ACTION RAPIDE -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-bold text-slate-900">Assolement UNOTEC</h1>
+        <p class="text-xs text-slate-500">102,05 ha • 3 parcelles</p>
+      </div>
+      <button class="bg-emerald-600 active:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-xl flex items-center space-x-1 shadow-sm">
+        <i class="fa-solid fa-plus"></i>
+        <span>Ajouter</span>
+      </button>
+    </div>
+
+    <!-- SYNTHÈSE DES SURFACES (Défilable horizontalement) -->
+    <div class="flex space-x-2 overflow-x-auto pb-1 pt-1 -mx-3 px-3 scrollbar-none">
+      <div class="flex-none bg-white p-3 rounded-xl border border-slate-200/80 w-32 border-l-4 border-l-emerald-500 shadow-sm">
+        <div class="text-[10px] font-bold text-slate-400 uppercase">Luzerne</div>
+        <div class="text-base font-bold text-slate-900 mt-0.5">32,50 ha</div>
+        <div class="text-[10px] text-emerald-600 font-medium">Luz 1 à 5</div>
+      </div>
+
+      <div class="flex-none bg-white p-3 rounded-xl border border-slate-200/80 w-32 border-l-4 border-l-green-500 shadow-sm">
+        <div class="text-[10px] font-bold text-slate-400 uppercase">Prairies RGA</div>
+        <div class="text-base font-bold text-slate-900 mt-0.5">28,10 ha</div>
+        <div class="text-[10px] text-green-600 font-medium">RG trèfle 1 à 3</div>
+      </div>
+
+      <div class="flex-none bg-white p-3 rounded-xl border border-slate-200/80 w-32 border-l-4 border-l-amber-500 shadow-sm">
+        <div class="text-[10px] font-bold text-slate-400 uppercase">Céréales</div>
+        <div class="text-base font-bold text-slate-900 mt-0.5">24,00 ha</div>
+        <div class="text-[10px] text-amber-600 font-medium">Blé / Orge</div>
+      </div>
+
+      <div class="flex-none bg-white p-3 rounded-xl border border-slate-200/80 w-32 border-l-4 border-l-lime-500 shadow-sm">
+        <div class="text-[10px] font-bold text-slate-400 uppercase">Prairies Nat.</div>
+        <div class="text-base font-bold text-slate-900 mt-0.5">17,45 ha</div>
+        <div class="text-[10px] text-slate-500 font-medium">PN</div>
+      </div>
+    </div>
+
+    <!-- LISTE DES PARCELLES (Cartes empilées adaptées au smartphone) -->
+    <div class="space-y-3">
+
+      <!-- Carte Parcelle 1 -->
+      <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-slate-400">#01</span>
+              <h2 class="font-bold text-slate-900 text-base">Grand Triangle</h2>
+            </div>
+            <span class="text-xs font-medium text-slate-500">8,50 ha</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-600 p-1">
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+          </button>
+        </div>
+
+        <!-- Bloc Rotation N / N+1 -->
+        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span class="text-[10px] text-slate-400 font-semibold block uppercase">2026 (N)</span>
+            <span class="font-bold text-emerald-700 block mt-0.5">Luzerne 2 (Luz 2)</span>
+          </div>
+          <div class="border-l border-slate-200 pl-2">
+            <span class="text-[10px] text-slate-400 font-semibold block uppercase">2027 (N+1)</span>
+            <span class="font-bold text-emerald-700 block mt-0.5">Luzerne 3 (Luz 3)</span>
+          </div>
+        </div>
+
+        <!-- Amendements (si présents) -->
+        <div class="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-100">
+          <span>Amendements prévus :</span>
+          <span class="font-medium text-slate-600">Aucun</span>
+        </div>
+      </div>
+
+      <!-- Carte Parcelle 2 -->
+      <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-slate-400">#02</span>
+              <h2 class="font-bold text-slate-900 text-base">Les Rivières</h2>
+            </div>
+            <span class="text-xs font-medium text-slate-500">12,30 ha</span>
+          </div>
+          <button class="text-slate-400 hover:text-slate-600 p-1">
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+          </button>
+        </div>
+
+        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span class="text-[10px] text-slate-400 font-semibold block uppercase">2026 (N)</span>
+            <span class="font-bold text-amber-700 block mt-0.5">Blé tendre</span>
+          </div>
+          <div class="border-l border-slate-200 pl-2">
+            <span class="text-[10px] text-slate-400 font-semibold block uppercase">2027 (N+1)</span>
+            <span class="font-bold text-green-700 block mt-0.5">RG Trèfle 1</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-600 pt-1 border-t border-slate-100">
+          <span class="text-slate-400">Amendements :</span>
+          <div class="flex space-x-2">
+            <span class="bg-amber-50 text-amber-800 px-2 py-0.5 rounded font-medium text-[11px]">Fumier : 25 t</span>
+            <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium text-[11px]">Chaux : 2 t/ha</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ================= BARRE DE NAVIGATION BASSE (BOTTOM NAV MOBILE) ================= -->
+  <!-- Adaptée à tes 6 rubriques avec icônes ergonomiques -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-2 py-2 z-50 flex justify-around items-center text-[10px] text-slate-400">
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-house text-base"></i>
+      <span>Ferme</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-map-location-dot text-base"></i>
+      <span>Carte</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 text-emerald-400 font-semibold">
+      <i class="fa-solid fa-wheat-awn text-base"></i>
+      <span>Parcelles</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-cubes-stacked text-base"></i>
+      <span>Stocks</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-cow text-base"></i>
+      <span>Troupeau</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-warehouse text-base"></i>
+      <span>Bâtiments</span>
+    </a>
+  </nav>
+
+</body>
+</html>
