@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Logisol — Tableau de Bord & Activités</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased pb-24">
+
+  <!-- EN-TÊTE MOBILE -->
+  <header class="bg-slate-900 text-white sticky top-0 z-40 px-4 py-3 shadow-md flex items-center justify-between">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-sm text-white shadow">
+        🌱
+      </div>
+      <div>
+        <span class="font-bold text-base tracking-tight text-white block leading-none">LOGISOL</span>
+        <span class="text-[10px] text-slate-400 font-medium">GAEC de la Ferme</span>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span class="text-[11px] font-medium text-slate-300">En ligne</span>
+    </div>
+  </header>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main class="px-3 py-4 space-y-4">
+
+    <!-- APERÇU CARTE IGN / SATELLITE DU DOMAINE -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+      <div class="relative h-44 bg-slate-800 flex items-center justify-center overflow-hidden">
+        <!-- Fond simulant la couche Carte IGN / Orthophoto -->
+        <div class="absolute inset-0 bg-cover bg-center opacity-80" style="background-image: url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1000&auto=format&fit=crop');"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent"></div>
+
+        <!-- Badges d'information sur la carte -->
+        <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-semibold px-2.5 py-1 rounded-lg border border-slate-700/50 flex items-center space-x-1.5">
+          <i class="fa-solid fa-layer-group text-emerald-400"></i>
+          <span>Couche IGN / RPG</span>
+        </div>
+
+        <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+          <div>
+            <span class="text-white font-bold text-sm block drop-shadow-md">Parcellaire du Domaine</span>
+            <span class="text-slate-300 text-[11px]">102,05 ha • 3 parcelles</span>
+          </div>
+          <button class="bg-white/90 hover:bg-white text-slate-900 font-semibold text-xs px-3 py-1.5 rounded-xl shadow backdrop-blur-md flex items-center space-x-1">
+            <i class="fa-solid fa-expand text-[10px]"></i>
+            <span>Plein écran</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESUME D'EXPLOITATION & BOUTON SAISIE -->
+    <div class="bg-slate-900 text-white p-4 rounded-2xl shadow-md space-y-3">
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50">
+          <span class="text-slate-400 block text-[10px]">Stock Fourrage Dispo</span>
+          <span class="text-sm font-bold text-emerald-400 mt-0.5 block">142 tonnes</span>
+        </div>
+        <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50">
+          <span class="text-slate-400 block text-[10px]">Travaux Saison</span>
+          <span class="text-sm font-bold text-slate-200 mt-0.5 block">12 interventions</span>
+        </div>
+      </div>
+
+      <!-- BOUTON PRINCIPAL D'ACTION RAPIDE -->
+      <button class="w-full bg-emerald-600 active:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/40 transition">
+        <i class="fa-solid fa-circle-plus text-lg"></i>
+        <span class="text-sm tracking-wide">NOUVELLE INTERVENTION</span>
+      </button>
+    </div>
+
+    <!-- JOURNAL DES ACTIVITES & FILTRES -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between px-1">
+        <h2 class="text-sm font-bold text-slate-900">Journal des Activités</h2>
+        <span class="text-xs text-slate-500 font-medium">Tout voir (12)</span>
+      </div>
+
+      <!-- FILTRES HORIZONTAUX TRIABLES -->
+      <div class="flex space-x-1.5 overflow-x-auto pb-1 -mx-3 px-3 scrollbar-none text-xs">
+        <button class="flex-none bg-slate-900 text-white font-medium px-3 py-1.5 rounded-xl">
+          Toutes
+        </button>
+        <button class="flex-none bg-white text-slate-600 hover:bg-slate-50 font-medium px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
+          🌾 Récoltes & Coupes
+        </button>
+        <button class="flex-none bg-white text-slate-600 hover:bg-slate-50 font-medium px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
+          🌱 Semis
+        </button>
+        <button class="flex-none bg-white text-slate-600 hover:bg-slate-50 font-medium px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
+          🚜 Travail du sol
+        </button>
+        <button class="flex-none bg-white text-slate-600 hover:bg-slate-50 font-medium px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
+          💩 Amendements
+        </button>
+      </div>
+
+      <!-- LISTE HISTORIQUE CHRONOLOGIQUE -->
+      <div class="space-y-2">
+
+        <!-- Activité 1 : Récolte (Fauche / Séchage) -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center text-base flex-shrink-0">
+              🌾
+            </div>
+            <div>
+              <div class="flex items-center space-x-1.5">
+                <span class="font-bold text-slate-900 text-sm">2ᵉ coupe Luzerne</span>
+                <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2 rounded">Récolte</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">Grand Triangle • 16 tonnes $\rightarrow$ Séchoir 1</p>
+            </div>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <span class="text-[11px] font-semibold text-slate-400 block">28 Juin</span>
+            <span class="text-[10px] text-emerald-600 font-medium">Validé</span>
+          </div>
+        </div>
+
+        <!-- Activité 2 : Récolte (1re coupe) -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-green-50 border border-green-200 text-green-600 flex items-center justify-center text-base flex-shrink-0">
+              🌾
+            </div>
+            <div>
+              <div class="flex items-center space-x-1.5">
+                <span class="font-bold text-slate-900 text-sm">1ʳᵉ coupe Foin RGA</span>
+                <span class="bg-green-100 text-green-800 text-[10px] font-bold px-1.5 py-0.2 rounded">Récolte</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">Les Rivières • 30 tonnes $\rightarrow$ Séchoir 2</p>
+            </div>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <span class="text-[11px] font-semibold text-slate-400 block">18 Mai</span>
+            <span class="text-[10px] text-emerald-600 font-medium">Validé</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAVIGATION -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 px-2 py-2 z-50 flex justify-around items-center text-[10px] text-slate-400">
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 text-emerald-400 font-semibold">
+      <i class="fa-solid fa-house text-base"></i>
+      <span>Ferme</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-map-location-dot text-base"></i>
+      <span>Carte</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-wheat-awn text-base"></i>
+      <span>Parcelles</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-cubes-stacked text-base"></i>
+      <span>Stocks</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-cow text-base"></i>
+      <span>Troupeau</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-warehouse text-base"></i>
+      <span>Bâtiments</span>
+    </a>
+  </nav>
+
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Logisol — Carte Interactive</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-800 antialiased h-screen flex flex-col justify-between overflow-hidden">
+
+  <!-- BARRE DE RECHERCHE & FILTRES SUPERPOSÉS SUR LA CARTE -->
+  <div class="absolute top-3 left-3 right-3 z-30 space-y-2">
+    <!-- Barre d'outils haut -->
+    <div class="bg-slate-900/90 backdrop-blur-md p-2 rounded-2xl border border-slate-700/60 shadow-xl flex items-center justify-between text-white">
+      <div class="flex items-center space-x-2 pl-2">
+        <i class="fa-solid fa-layer-group text-emerald-400"></i>
+        <span class="font-bold text-sm tracking-wide">Carte SIG / RPG</span>
+      </div>
+      
+      <div class="flex items-center space-x-1">
+        <!-- Sélecteur de couches -->
+        <button class="bg-slate-800 hover:bg-slate-700 text-xs px-2.5 py-1.5 rounded-xl border border-slate-700 text-slate-200 flex items-center space-x-1">
+          <i class="fa-solid fa-globe text-slate-400"></i>
+          <span>IGN Sat.</span>
+        </button>
+        <button class="w-8 h-8 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 flex items-center justify-center text-slate-300">
+          <i class="fa-solid fa-location-arrow text-xs text-emerald-400"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filtres rapides par culture -->
+    <div class="flex space-x-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+      <button class="flex-none bg-emerald-600 text-white font-medium px-3 py-1 rounded-xl shadow-lg shadow-emerald-950/50">
+        Toutes (3)
+      </button>
+      <button class="flex-none bg-slate-900/90 text-slate-200 font-medium px-3 py-1 rounded-xl border border-slate-700/60 backdrop-blur-md">
+        🟢 Luzerne
+      </button>
+      <button class="flex-none bg-slate-900/90 text-slate-200 font-medium px-3 py-1 rounded-xl border border-slate-700/60 backdrop-blur-md">
+        🟡 Céréales
+      </button>
+      <button class="flex-none bg-slate-900/90 text-slate-200 font-medium px-3 py-1 rounded-xl border border-slate-700/60 backdrop-blur-md">
+        🟢 Prairies
+      </button>
+    </div>
+  </div>
+
+  <!-- ZONE CONTENEUR CARTE (PLEIN ÉCRAN SIMULÉ) -->
+  <div class="relative flex-1 w-full h-full bg-slate-900 overflow-hidden">
+    <!-- Image satellite de fond -->
+    <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1000&auto=format&fit=crop');"></div>
+    <div class="absolute inset-0 bg-slate-900/20"></div>
+
+    <!-- EXEMPLE DE POLYGONE SÉLECTIONNÉ (PIN SUR LA CARTE) -->
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20 cursor-pointer">
+      <div class="bg-emerald-500 text-slate-900 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-lg border border-white mb-1 animate-bounce">
+        Grand Triangle (8,5 ha)
+      </div>
+      <div class="w-8 h-8 rounded-full bg-emerald-500/40 border-2 border-emerald-400 flex items-center justify-center text-white shadow-xl">
+        <i class="fa-solid fa-wheat-awn text-xs"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- FICHE D'INFORMATION PARCELLE SÉLECTIONNÉE (BOTTOM SHEET) -->
+  <div class="relative z-30 bg-white rounded-t-3xl shadow-2xl border-t border-slate-200/80 px-4 pt-3 pb-2 space-y-3">
+    <!-- Poignée de glissement -->
+    <div class="w-10 h-1 bg-slate-300 rounded-full mx-auto"></div>
+
+    <!-- En-tête de la parcelle -->
+    <div class="flex items-start justify-between">
+      <div>
+        <div class="flex items-center space-x-2">
+          <span class="text-xs font-bold text-slate-400">#01</span>
+          <h2 class="font-bold text-slate-900 text-base">Grand Triangle</h2>
+          <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+            8,50 ha
+          </span>
+        </div>
+        <p class="text-xs text-slate-500 mt-0.5">Culture 2026 : <strong class="text-emerald-700">Luzerne 2 (Luz 2)</strong></p>
+      </div>
+
+      <button class="bg-slate-100 text-slate-600 p-2 rounded-xl text-xs font-semibold hover:bg-slate-200">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Actions rapides sur la parcelle -->
+    <div class="grid grid-cols-2 gap-2 pt-1">
+      <button class="bg-emerald-600 active:bg-emerald-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-sm">
+        <i class="fa-solid fa-circle-plus"></i>
+        <span>Saisir une activité</span>
+      </button>
+      <button class="bg-slate-100 active:bg-slate-200 text-slate-800 font-semibold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center space-x-2 border border-slate-200">
+        <i class="fa-solid fa-clock-rotate-left text-slate-500"></i>
+        <span>Historique coupes</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAVIGATION -->
+  <nav class="relative z-40 bg-slate-900 border-t border-slate-800 px-2 py-2 flex justify-around items-center text-[10px] text-slate-400">
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-house text-base"></i>
+      <span>Ferme</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 text-emerald-400 font-semibold">
+      <i class="fa-solid fa-map-location-dot text-base"></i>
+      <span>Carte</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-wheat-awn text-base"></i>
+      <span>Parcelles</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-cubes-stacked text-base"></i>
+      <span>Stocks</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-cow text-base"></i>
+      <span>Troupeau</span>
+    </a>
+    <a href="#" class="flex flex-col items-center space-y-1 py-1 px-2 hover:text-white">
+      <i class="fa-solid fa-warehouse text-base"></i>
+      <span>Bâtiments</span>
+    </a>
+  </nav>
+
+</body>
+</html>
