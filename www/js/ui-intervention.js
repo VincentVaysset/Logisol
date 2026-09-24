@@ -43,6 +43,7 @@ import {
 import { getCultureById, getCultures, onCulturesChange, addCulture } from './cultures-config.js';
 import { COUPES, FOURRAGES, cleFoin, labelFoin, cleCereale, labelCereale } from './stocks.js';
 import { conservationDuContenant } from './fourrages.js';
+import { prevision, culturePrev } from './assolement-previsionnel.js';
 
 const panel = document.getElementById('intervention-panel');
 const form = document.getElementById('itv-form');
@@ -598,8 +599,8 @@ function injecterFourrageDeLaParcelle() {
     el.fourrage.value = culture.nom;
   }
   el['fourrage-aide'].textContent = culture
-    ? `Proposé d'après la culture en place sur ${culture.parcelleNom} : ${culture.nom}. Modifiable.`
-    : "Aucune culture renseignée sur la parcelle — saisis le type de fourrage.";
+    ? `Proposé d'après ${culture.source} de ${culture.parcelleNom} : ${culture.detail || culture.nom}. Modifiable.`
+    : "Aucune culture renseignée sur la parcelle (ni au prévisionnel, ni en place) — saisis le type de fourrage.";
   el['fourrage-aide'].hidden = false;
 }
 
@@ -617,13 +618,28 @@ function majListeFourrages() {
 }
 
 /** Culture en place sur la première parcelle cochée qui en porte une. */
+// Ordre de lecture : l'assolement PRÉVISIONNEL de la campagne de l'activité
+// d'abord — c'est la culture que l'exploitant a choisie pour l'année, dans
+// son propre vocabulaire (« Luz 3 » donne « Luzerne ») —, puis, à défaut, la
+// culture réellement en place.
 function cultureDeLaSelection() {
+  const campagne = el.campagne.value || campagneDeLaDate();
+  for (const id of selection) {
+    const p = parcelles.find((x) => x.id === id);
+    const nomParcelle = p ? p.nom : 'la parcelle';
+    const prev = prevision(id, campagne);
+    const cp = prev && prev.cultureCode ? culturePrev(prev.cultureCode) : null;
+    if (cp && cp.fourrage) {
+      return { nom: cp.fourrage, detail: `${cp.label} (${cp.fourrage})`,
+               source: `l'assolement ${campagne}`, parcelleNom: nomParcelle };
+    }
+  }
   for (const id of selection) {
     const impl = implantationEnCours(id, el.date.value || aujourdhui());
     const culture = impl ? getCultureById(impl.cultureId) : null;
     if (culture) {
       const p = parcelles.find((x) => x.id === id);
-      return { nom: culture.nom, parcelleNom: p ? p.nom : 'la parcelle' };
+      return { nom: culture.nom, source: 'la culture en place', parcelleNom: p ? p.nom : 'la parcelle' };
     }
   }
   return null;
@@ -729,7 +745,13 @@ async function relever(automatique) {
   }
 }
 el['meteo-refresh'].addEventListener('click', () => relever(false));
-el.campagne.addEventListener('input', () => { el.campagne.dataset.auto = 'non'; });
+el.campagne.addEventListener('input', () => {
+  el.campagne.dataset.auto = 'non';
+  if (!el['g-fourrage'].hidden && !el.fourrage.dataset.saisi) {
+    el.fourrage.value = '';
+    injecterFourrageDeLaParcelle();
+  }
+});
 el.date.addEventListener('change', () => {
   // La campagne suit la date tant que l'exploitant ne l'a pas corrigée
   // lui-même : on ne réécrit que si elle correspondait encore à l'ancienne.
@@ -852,6 +874,17 @@ function majCalculFlux() {
 // n'a pas d'implantation renseignée, la cellule garde ce qu'elle avait.
 function especeDeduite() {
   if (formulaireDe(typeCourant()) !== 'MOISSON') return null;
+  // Même ordre que pour le fourrage : le prévisionnel de la campagne, puis le
+  // réel. « Blé 1 » au prévisionnel suffit à étiqueter la cellule en blé.
+  const campagne = el.campagne.value || campagneDeLaDate();
+  for (const id of selection) {
+    const prev = prevision(id, campagne);
+    const cp = prev && prev.cultureCode ? culturePrev(prev.cultureCode) : null;
+    if (cp && cp.grain) {
+      const g = TYPES_GRAIN.find((x) => x.value === cp.grain);
+      return { label: g ? g.label : cp.label, valeur: cp.grain };
+    }
+  }
   for (const id of selection) {
     const impl = implantationEnCours(id, el.date.value || aujourdhui());
     const culture = impl ? getCultureById(impl.cultureId) : null;

@@ -45,7 +45,7 @@ export function labelCoupe(n) {
 export const FOURRAGES = [
   'Prairie permanente', 'Prairie temporaire', 'Luzerne', 'Trèfle violet',
   'Ray-grass anglais (RGA)', 'Ray-grass italien (RGI)', 'Dactyle', 'Fétuque',
-  'Sainfoin', 'Mélange prairial', 'Prairie naturelle'
+  'RG trèfle', 'Sainfoin', 'Mélange prairial', 'Prairie naturelle'
 ];
 
 let courants = [];

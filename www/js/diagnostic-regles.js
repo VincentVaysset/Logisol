@@ -21,7 +21,7 @@ const REQUISES = [
   'stocks', 'stades_config', 'lots_animaux', 'prelevements',
   // Collections préfixées, couvertes d'avance par le joker des règles.
   'lgs_batiments', 'lgs_cellules_grain', 'lgs_emplacements_fourrage',
-  'lgs_mouvements_stock', 'lgs_materiel'
+  'lgs_mouvements_stock', 'lgs_materiel', 'lgs_assolement_previsionnel'
 ];
 
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }

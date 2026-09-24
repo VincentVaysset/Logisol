@@ -705,6 +705,80 @@ culture détruite pour toujours.
 Une action sur mesure n'a **aucun** effet sur la culture : détruire un
 assolement par surprise serait la pire des initiatives.
 
+## Assolement prévisionnel (onglet Parcelles)
+
+Sur le modèle du dossier UNOTEC. L'onglet Parcelles bascule entre **📋 Liste**
+et **📅 Assolement prévisionnel**.
+
+### Le tableau
+
+| N° | Parcelle | Surface (ha) | Culture N | Prévision fumier (t) | Prévision chaux (t/ha) | Culture N+1 |
+|---|---|---|---|---|---|---|
+
+- **Éditable en place** : chaque case s'enregistre seule dès qu'on la quitte.
+  Un bouton « Enregistrer » global serait le meilleur moyen de perdre dix
+  modifications en quittant l'écran. Le tableau ne se reconstruit jamais sous
+  les doigts de l'exploitant : pendant la saisie, seuls les totaux et la
+  synthèse se mettent à jour.
+- **◀ ▶** font glisser la paire de campagnes (2026 → 2027, 2027 → 2028…).
+- Le **N°** est enregistré sur la parcelle elle-même, et sert d'ordre de tri.
+- Pied de tableau : surface totale, fumier total, et chaux **à épandre**
+  (dose × surface, parcelle par parcelle — c'est le tonnage à commander).
+- Fumier et chaux sont rattachés à la campagne N, entre les deux colonnes de
+  culture comme dans le dossier.
+
+### Cultures et âges
+
+| Famille | Cultures |
+|---|---|
+| Céréales | Blé 1, Blé 2, Orge 1, Orge 2, Triticale 1, Triticale 2, Avoine, Méteil |
+| Luzerne | Luz 1 à Luz 5 |
+| Prairie courte durée | RG trèfle 1 à 3 |
+| Prairie naturelle | PN |
+| Semis de prairies | Luz 0, RG 0 (année du semis) |
+
+**↻ Reconduire les âges vers N+1** remplit la colonne N+1 **là où elle est
+vide** avec la suite logique : Luz 0 → Luz 1 → … → Luz 5, RG 0 → RG trèfle 1
+→ … → 3, PN → PN. Il ne touche **jamais** une case déjà renseignée (retourner
+une Luz 4 pour semer un blé est un choix, pas une déduction), ni les
+céréales, qui restent à choisir. La suite proposée s'affiche aussi sous
+chaque case N+1 vide.
+
+### Prévu et réel restent séparés
+
+Le prévisionnel vit dans sa propre collection (`lgs_assolement_previsionnel`,
+un document par parcelle × campagne). Les implantations continuent de dire ce
+qui **pousse réellement**. Mélanger les deux ferait passer un plan pour un
+fait. Sous chaque culture N, le tableau rappelle ce qui est **en place**, et
+signale en orange un écart (« ⚠ en place : Orge » sous une Luz 3) : une
+luzerne retournée plus tôt que prévu doit se voir ici.
+
+Préfixe `lgs_` : couvert par la règle Firestore générique, **rien à
+republier**.
+
+### Synthèse des surfaces par famille
+
+Sous le tableau, pour les deux campagnes côte à côte : détail et total par
+famille, total général. La structure est fixe pour la luzerne (Luz 1 à 5), le
+RG trèfle (1 à 3) et les semis (Luz 0, RG 0), même à zéro : c'est la pyramide
+des âges qu'on lit. Les céréales ne listent que celles présentes sur l'une des
+deux campagnes. Une ligne **« Culture non renseignée »** apparaît si des
+parcelles n'ont pas encore de culture, pour que le total général colle
+toujours à la surface de l'exploitation.
+
+### Lien avec les récoltes
+
+À la saisie d'un pressage ou d'un séchage en grange, le **type de fourrage**
+est pré-rempli d'après le prévisionnel de **la campagne de l'activité** (Luz
+3 → « Luzerne », RG trèfle 2 → « RG trèfle », PN → « Prairie naturelle »),
+puis, à défaut, d'après la culture en place. L'âge n'entre pas dans le type :
+une luzerne de 3ᵉ année et une de 4ᵉ donnent le même fourrage, et doivent
+tomber dans la même colonne de stock. Changer la campagne de l'activité met à
+jour la proposition, tant que l'exploitant ne l'a pas saisie lui-même.
+
+Même logique pour la moisson : « Blé 1 » au prévisionnel suffit à étiqueter
+la cellule en blé.
+
 ## Placement d'un bâtiment
 
 Deux voies, au choix :

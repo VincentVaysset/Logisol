@@ -45,6 +45,10 @@ import { watchCellules, onCellulesChange } from './cellules.js';
 import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
 import { watchMouvements, onMouvementsChange, getMouvements } from './mouvements.js';
 import { agregerMouvements, fusionnerCategories } from './fourrages.js';
+import { watchPrevisions, onPrevisionsChange } from './assolement-previsionnel.js';
+import {
+  initAssolement, setParcellesAssolement, rafraichirAssolement
+} from './ui-assolement.js';
 import {
   setParcellesBatiments, openEditBatiment, setOnDemanderPlacement,
   openCreateBatiment, openCreateCellule, openCreateEmplacement
@@ -78,6 +82,11 @@ let currentView = 'ferme';
 const mapEl = document.getElementById('map');
 const feedEl = document.getElementById('feed');
 const listViewEl = document.getElementById('list-view');
+const parcellesListeEl = document.getElementById('parcelles-liste');
+const assolementVueEl = document.getElementById('assolement-vue');
+// Sous-vue de l'onglet Parcelles, retenue d'un passage à l'autre : revenir
+// sur l'onglet doit ramener là où on travaillait.
+let sousVueParcelles = 'liste';
 const stocksViewEl = document.getElementById('stocks-view');
 const troupeauViewEl = document.getElementById('troupeau-view');
 const batimentsViewEl = document.getElementById('batiments-view');
@@ -121,6 +130,7 @@ function recomputeAndRender() {
   setParcellesStocks(enriched);
   setParcellesBatiments(enriched);
   setParcellesMouvements(enriched);
+  setParcellesAssolement(enriched);
 
   majEtat({
     parcelles: enriched,
@@ -188,11 +198,20 @@ function openEditParcelle(parcelle) {
 }
 
 function renderListView(enriched) {
+  parcellesListeEl.hidden = sousVueParcelles !== 'liste';
+  assolementVueEl.hidden = sousVueParcelles !== 'previsionnel';
+  listViewEl.querySelectorAll('[data-sousvue]').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.sousvue === sousVueParcelles);
+  });
+  // rafraichirAssolement et non renderAssolement : ce rendu est aussi déclenché
+  // par chaque modification de parcelle, y compris celle qu'on vient de faire
+  // dans le tableau — le reconstruire ferait perdre la case suivante.
+  if (sousVueParcelles === 'previsionnel') { rafraichirAssolement(); return; }
   if (!enriched.length) {
-    listViewEl.innerHTML = '<p class="list-empty">Aucune parcelle pour le moment.</p>';
+    parcellesListeEl.innerHTML = '<p class="list-empty">Aucune parcelle pour le moment.</p>';
     return;
   }
-  listViewEl.innerHTML = enriched
+  parcellesListeEl.innerHTML = enriched
     .map((p) => {
       const impl = implantationsByParcelle.get(p.id);
       const depuis = impl ? ` · depuis le ${impl.dateSemis}` : '';
@@ -206,7 +225,7 @@ function renderListView(enriched) {
     </div>`;
     })
     .join('');
-  listViewEl.querySelectorAll('.parcelle-card').forEach((card) => {
+  parcellesListeEl.querySelectorAll('.parcelle-card').forEach((card) => {
     card.addEventListener('click', () => {
       const p = enrichedById.get(card.dataset.id);
       if (p) ouvrirApercu(p);
@@ -443,6 +462,13 @@ async function boot() {
     initAlimentation();
     initBatiments({ onChange: recomputeBatiments });
     initMateriel();
+    initAssolement();
+    listViewEl.querySelectorAll('[data-sousvue]').forEach((b) => {
+      b.addEventListener('click', () => {
+        sousVueParcelles = b.dataset.sousvue;
+        renderListView(Array.from(enrichedById.values()));
+      });
+    });
 
     // Le tunnel de saisie peut créer un contenant à la volée, sans perdre la
     // récolte en cours. Branché ici plutôt qu'importé : ui-batiments.js
@@ -526,6 +552,10 @@ async function boot() {
       recomputeAndRender();
     });
     watchParcelles((list) => { latestParcelles = list; recomputeAndRender(); });
+    onPrevisionsChange(() => {
+      if (currentView === 'liste' && sousVueParcelles === 'previsionnel') rafraichirAssolement();
+    });
+    watchPrevisions();
 
     onStocksChange((list) => { latestStocks = list; setStocks(list); recomputeStocksEtTroupeau(); });
     watchStocks();

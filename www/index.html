@@ -212,7 +212,35 @@
     <div id="feed-list"></div>
   </div>
 
-  <div id="list-view" class="list-view" hidden></div>
+  <div id="list-view" class="list-view" hidden>
+    <div class="choix-row sous-vues" id="parcelles-sous-vues">
+      <button type="button" class="choix-btn is-active" data-sousvue="liste">📋 Liste</button>
+      <button type="button" class="choix-btn" data-sousvue="previsionnel">📅 Assolement prévisionnel</button>
+    </div>
+    <div id="parcelles-liste"></div>
+
+    <!-- Assolement prévisionnel, sur le modèle du dossier UNOTEC. Le tableau
+         est éditable en place : c'est là qu'on ajuste le plan aux aléas. -->
+    <section id="assolement-vue" hidden>
+      <div class="prev-entete">
+        <button type="button" id="prev-annee-moins" class="btn btn-secondary btn-mini" aria-label="Campagne précédente">◀</button>
+        <div class="prev-annees" id="prev-annees">Campagnes 2026 → 2027</div>
+        <button type="button" id="prev-annee-plus" class="btn btn-secondary btn-mini" aria-label="Campagne suivante">▶</button>
+      </div>
+      <div class="prev-actions">
+        <button type="button" id="prev-reconduire" class="btn btn-secondary btn-mini">↻ Reconduire les âges vers N+1</button>
+        <span id="prev-etat" class="champ-aide"></span>
+      </div>
+      <div class="table-scroll">
+        <table class="tableau tableau-prev" id="prev-tableau"></table>
+      </div>
+
+      <h3 class="section-titre">Synthèse des surfaces par famille</h3>
+      <div class="table-scroll">
+        <table class="tableau tableau-synthese" id="prev-synthese"></table>
+      </div>
+    </section>
+  </div>
 
   <!-- Vue Stocks : synthèse d'exploitation construite à partir des récoltes
        saisies parcelle par parcelle. -->
