@@ -694,27 +694,8 @@
         <label for="lot-batiment">Bergerie</label>
         <select id="lot-batiment"></select>
 
-        <label for="lot-stade">Stade physiologique</label>
-        <select id="lot-stade"></select>
-        <p id="lot-ration-info" class="champ-aide"></p>
-
-        <label for="lot-stock">Stock puisé</label>
-        <select id="lot-stock"></select>
-        <p class="champ-aide">Le choix reste manuel : rien n'est affecté automatiquement.</p>
-
-        <label for="lot-debut">Prélèvement sur ce stock depuis le</label>
-        <input type="date" id="lot-debut">
-
-        <div class="besoin-calcule">
-          <span>Besoin journalier du lot</span>
-          <strong id="lot-besoin-calc">0 kg/j</strong>
-        </div>
-
         <label for="lot-notes">Notes</label>
         <textarea id="lot-notes" rows="2" placeholder="Observations..."></textarea>
-
-        <h3 class="apercu-sous-titre">Historique des prélèvements</h3>
-        <div id="lot-historique" class="apercu-activites"></div>
 
         <div class="fiche-actions">
           <button type="submit" id="lot-save" class="btn btn-primary">Enregistrer</button>
@@ -722,6 +703,42 @@
           <button type="button" id="lot-delete" class="btn btn-danger" hidden>Supprimer</button>
         </div>
       </form>
+
+      <!-- Plan de périodes : le lot une fois enregistré peut recevoir
+           plusieurs périodes datées (stade + début + fin optionnelle +
+           effectif), y compris à l'avance (plan de campagne) — indépendant du
+           formulaire ci-dessus, qui ne porte que l'identité du lot. -->
+      <div id="lot-periodes-section" hidden>
+        <h3 class="apercu-sous-titre">Plan de périodes (stade × dates × effectif)</h3>
+        <div id="lot-periodes-liste" class="apercu-activites"></div>
+
+        <div class="groupe-saisie">
+          <div class="groupe-titre">➕ Nouvelle période</div>
+
+          <label for="lot-p-stade">Stade physiologique</label>
+          <select id="lot-p-stade"></select>
+          <p id="lot-p-ration-info" class="champ-aide"></p>
+
+          <div id="lot-p-composants"></div>
+
+          <label for="lot-p-debut">Début</label>
+          <input type="date" id="lot-p-debut">
+
+          <label for="lot-p-fin">Fin (optionnelle — laisser vide si indéterminée)</label>
+          <input type="date" id="lot-p-fin">
+
+          <label for="lot-p-effectif">Effectif sur cette période</label>
+          <input type="number" id="lot-p-effectif" step="1" min="1" inputmode="numeric">
+
+          <div class="besoin-calcule">
+            <span>Besoin journalier de cette période</span>
+            <strong id="lot-p-besoin-calc">0 kg/j</strong>
+          </div>
+
+          <p id="lot-p-erreur" class="champ-aide champ-aide-erreur" hidden></p>
+          <button type="button" id="lot-p-ajouter" class="btn btn-secondary btn-mini">➕ Ajouter au plan</button>
+        </div>
+      </div>
     </div>
   </div>
 

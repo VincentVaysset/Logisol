@@ -10,7 +10,7 @@
 // L'affectation reste MANUELLE, comme demandé : rien ne choisit un stock à la
 // place de Vincent. Ce module ne fait que rendre visibles les conséquences de
 // ses choix.
-import { joursNourris, tonnesConsommees, besoinJournalierKg, prelevementEnCours } from './lots.js';
+import { joursNourris, tonnesConsommees, besoinJournalierKg, prelevementsActifs, stadeActifId } from './lots.js';
 import { aujourdhui } from './implantations.js';
 
 function arrondi3(v) { return Math.round(v * 1000) / 1000; }
@@ -45,14 +45,18 @@ export function construireTableau({ categories, lots, stades, prelevements, date
   // Une catégorie peut avoir été consommée alors qu'aucune récolte ne la
   // porte plus (récolte supprimée, catégorie renommée) : on la fait quand même
   // apparaître, en négatif, plutôt que de perdre silencieusement la trace.
+  // Un aliment du commerce (cle "commerce|...") n'a lui JAMAIS de récolte : il
+  // est acheté au besoin, sans notion de stock qui s'épuise.
   const assurer = (cle, label) => {
     if (!parCategorie.has(cle)) {
+      const commerce = String(cle).startsWith('commerce|');
       parCategorie.set(cle, {
-        cle, label: label || cle, categorie: null, conservation: null, coupe: null,
+        cle, label: label || cle, categorie: commerce ? 'commerce' : null, conservation: null, coupe: null,
         fourrage: null, espece: null, tonnes: 0, nbRecoltes: 0, nbBottes: 0,
         nbRemorques: 0, surfaceHa: 0, lignes: [],
         recolte: 0, consomme: 0, restant: 0, besoinJourKg: 0,
-        lotsActifs: [], autonomieJours: null, dateEpuisement: null, orpheline: true
+        lotsActifs: [], autonomieJours: null, dateEpuisement: null,
+        orpheline: !commerce, commerce
       });
     }
     return parCategorie.get(cle);
@@ -61,13 +65,20 @@ export function construireTableau({ categories, lots, stades, prelevements, date
   prelevements.forEach((p) => {
     const c = assurer(p.categorieCle, p.categorieLabel);
     c.consomme = arrondi3(c.consomme + tonnesConsommees(p, date));
-    if (!p.fin) {
+    if (p.debut <= date && (!p.fin || p.fin > date)) {
       c.besoinJourKg += besoinJournalierKg(p);
       c.lotsActifs.push(p);
     }
   });
 
   parCategorie.forEach((c) => {
+    if (c.commerce) {
+      // Illimité par nature : acheté à mesure du besoin, jamais épuisé.
+      c.restant = null;
+      c.autonomieJours = null;
+      c.dateEpuisement = null;
+      return;
+    }
     c.restant = arrondi3(c.recolte - c.consomme);
     if (c.besoinJourKg > 0) {
       const jours = Math.floor((c.restant * 1000) / c.besoinJourKg);
@@ -76,17 +87,23 @@ export function construireTableau({ categories, lots, stades, prelevements, date
     }
   });
 
-  // 2) Lignes du tableau : un stade, ses lots, leur besoin et le stock puisé.
+  // 2) Lignes du tableau : un stade, ses lots, leur besoin et les stocks
+  // puisés — un lot peut désormais puiser sur PLUSIEURS composants
+  // simultanément (fourrage + céréale + commerce), donc plusieurs lignes de
+  // prélèvement actives à la fois.
   const lignes = stades.map((stade) => {
-    const lotsDuStade = lots.filter((l) => l.stadeId === stade.id);
+    const lotsDuStade = lots.filter((l) => (stadeActifId(l.id, prelevements, date) || l.stadeId) === stade.id);
     const details = lotsDuStade.map((lot) => {
-      const prel = prelevementEnCours(lot.id, prelevements);
+      const actifs = prelevementsActifs(lot.id, prelevements, date);
+      const besoinJourKg = actifs.length
+        ? actifs.reduce((n, p) => n + besoinJournalierKg(p), 0)
+        : (Number(stade.rationKgParBrebis) || 0) * (Number(lot.nbBrebis) || 0);
       return {
         lot,
-        prelevement: prel,
-        besoinJourKg: prel ? besoinJournalierKg(prel) : (Number(stade.rationKgParBrebis) || 0) * (Number(lot.nbBrebis) || 0),
-        categorieCle: prel ? prel.categorieCle : null,
-        joursNourris: prel ? joursNourris(prel, date) : 0
+        prelevements: actifs,
+        besoinJourKg,
+        categoriesCles: actifs.map((p) => p.categorieCle),
+        joursNourris: actifs.length ? joursNourris(actifs[0], date) : 0
       };
     });
     return {
@@ -96,8 +113,9 @@ export function construireTableau({ categories, lots, stades, prelevements, date
       besoinJourKg: details.reduce((n, d) => n + d.besoinJourKg, 0),
       // Besoin par catégorie de stock, pour remplir les cellules du croisement.
       parCategorie: details.reduce((acc, d) => {
-        if (!d.categorieCle) return acc;
-        acc[d.categorieCle] = (acc[d.categorieCle] || 0) + d.besoinJourKg;
+        d.prelevements.forEach((p) => {
+          acc[p.categorieCle] = (acc[p.categorieCle] || 0) + besoinJournalierKg(p);
+        });
         return acc;
       }, {})
     };
@@ -132,7 +150,7 @@ export function construireTableau({ categories, lots, stades, prelevements, date
 // Lots sans stock affecté : c'est l'oubli le plus probable, et il rend le
 // tableau muet pour ces animaux. On le signale au lieu de le laisser passer.
 export function lotsSansStock(lots, prelevements) {
-  return lots.filter((l) => !prelevementEnCours(l.id, prelevements));
+  return lots.filter((l) => !prelevementsActifs(l.id, prelevements).length);
 }
 
 export function decalerJours(dateIso, jours) {

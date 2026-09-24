@@ -979,21 +979,57 @@ header button {
 .lot-card-stock { font-size: 12px; color: var(--primary); font-weight: 600; margin-top: 3px; }
 .sans-stock { color: var(--danger); }
 
-/* --- Rations éditables --- */
-.ration-ligne {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 12px;
-  margin-bottom: 6px;
+/* --- Rations éditables, par stade, multi-ingrédients ---
+   Un stade peut mêler fourrage ferme + céréale ferme + aliment du commerce,
+   chacun avec sa propre dose : la carte liste ses composants, éditables
+   ligne par ligne, avec un total recalculé en tête. */
+.ration-stade-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 13px; margin-bottom: 8px;
 }
-.ration-nom { flex: 1; font-size: 13px; font-weight: 600; }
+.ration-stade-entete { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ration-stade-nom { flex: 1; font-size: 14px; font-weight: 700; }
 .ration-precision { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); }
-.ration-input { width: 78px; margin: 0; padding: 8px; text-align: right; }
-.ration-unite { font-size: 12px; color: var(--text-muted); }
+.ration-stade-total { font-size: 13px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+.ration-composants { display: flex; flex-direction: column; gap: 6px; }
+.ration-composant-ligne { display: flex; align-items: center; gap: 6px; }
+.ration-composant-ligne .rc-origine { flex: 1 1 128px; margin: 0; padding: 8px; font-size: 12px; min-height: 38px; }
+.ration-composant-ligne .rc-nom { flex: 1 1 110px; margin: 0; padding: 8px; font-size: 12px; min-height: 38px; }
+.ration-composant-ligne .rc-nom[hidden] { display: none; }
+.ration-composant-ligne .rc-dose { flex: 0 0 64px; margin: 0; padding: 8px; text-align: right; min-height: 38px; }
+.rc-unite { font-size: 11px; color: var(--text-muted); flex: 0 0 auto; }
+.rc-suppr {
+  flex: 0 0 auto; background: none; border: none; color: var(--text-muted);
+  font-size: 15px; line-height: 1; padding: 6px; cursor: pointer; border-radius: 6px;
+}
+.rc-suppr:active { background: rgba(209,88,79,0.12); color: var(--danger); }
+.ration-ajouter { margin-top: 8px; }
+
+/* --- Composants d'une période (fiche lot) ---
+   Un composant ferme demande un choix de stock ; un composant commerce n'a
+   qu'une ligne d'information, sans stock (acheté au besoin). */
+.composant-ligne {
+  display: flex; align-items: center; gap: 8px; justify-content: space-between;
+  padding: 8px 0;
+}
+.composant-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.composant-nom { font-size: 13px; font-weight: 600; }
+.composant-dose { font-size: 11px; color: var(--text-muted); }
+.composant-stock { flex: 1 1 auto; max-width: 220px; margin: 0; }
+.col-commerce {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--accent);
+  background: rgba(199,145,38,0.12); border-radius: 5px; padding: 1px 5px; margin-left: 4px;
+}
+
+.champ-aide-erreur { color: var(--danger); }
+
+.apercu-activite-corps { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.apercu-activite-detail { font-size: 11px; color: var(--text-muted); }
+.btn-icone-suppr {
+  flex: 0 0 auto; background: none; border: none; color: var(--text-muted);
+  font-size: 15px; line-height: 1; padding: 6px; cursor: pointer; border-radius: 6px;
+}
+.btn-icone-suppr:active { background: rgba(209,88,79,0.12); color: var(--danger); }
 
 /* --- Résultats calculés dans les formulaires --- */
 .tonnage-calcule, .besoin-calcule {

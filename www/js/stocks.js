@@ -130,6 +130,14 @@ export function labelCereale(espece) {
   return `Céréale — ${espece || '?'}`;
 }
 
+// Un aliment du commerce n'est pas une récolte : pas de coupe, pas de
+// parcelle, juste un nom donné par Vincent. La clé sert uniquement à
+// regrouper ses propres consommations dans le tableau croisé et le bilan —
+// jamais à le confondre avec un fourrage ou une céréale de la ferme.
+export function cleCommerce(nom) {
+  return ['commerce', slug(nom || '')].join('|');
+}
+
 function slug(s) {
   return String(s)
     .toLowerCase()
