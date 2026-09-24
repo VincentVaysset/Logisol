@@ -70,3 +70,4 @@ non-régression existante avant de pousser.
   sur la branche par défaut sans y avoir été invité.
 - Commits explicites : le message raconte le pourquoi, pas seulement le quoi.
 - Ne jamais déployer les règles Firestore automatiquement (voir plus haut).
+- Réponses ultra-concises : aucun résumé, aucune justification, pas de bavardage. Applique le code et fais le commit directement.
