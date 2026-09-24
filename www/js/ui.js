@@ -23,6 +23,8 @@ const inputNewCultureCouleur = document.getElementById('fiche-newculture-couleur
 const inputNewCultureFamille = document.getElementById('fiche-newculture-famille');
 const inputDateSemis = document.getElementById('fiche-datesemis');
 const dureeInfo = document.getElementById('fiche-duree-info');
+const numeroBadge = document.getElementById('fiche-numero');
+const surfaceBadge = document.getElementById('fiche-surface-badge');
 const inputNom = document.getElementById('fiche-nom');
 const inputSurface = document.getElementById('fiche-surface');
 const inputCouleur = document.getElementById('fiche-couleur');
@@ -114,6 +116,7 @@ export function openCreate({ geometry, surfaceHa, croise }) {
 
   try {
     titleEl.textContent = 'Nouvelle parcelle';
+    numeroBadge.hidden = true;   // pas encore de numéro sur une parcelle qui n'existe pas
     btnDelete.hidden = true;
     inputNom.value = '';
     inputSurface.value = (typeof surfaceHa === 'number' && isFinite(surfaceHa)) ? surfaceHa : '';
@@ -126,6 +129,7 @@ export function openCreate({ geometry, surfaceHa, croise }) {
     inputDateSemis.value = aujourdhui();
     dureeInfo.hidden = true;
     populateCultureSelect(getCultures(), ''); // pas de culture présélectionnée -> "à renseigner"
+    majSurfaceBadge();
     if (!geometry) {
       showFicheError("Le contour n'a pas pu être lu : annule et retrace la parcelle.");
     } else if (croise || !surfaceHa) {
@@ -152,6 +156,11 @@ export function openEdit(parcelle, implantation) {
   hideFicheError();
   resetSaveButton();
   titleEl.textContent = parcelle.nom || 'Parcelle';
+  // Numéro éventuellement posé depuis l'assolement prévisionnel
+  // (ui-assolement.js) : purement informatif ici, ce n'est pas ce
+  // formulaire qui le modifie.
+  numeroBadge.hidden = !parcelle.numero;
+  numeroBadge.textContent = parcelle.numero ? '#' + parcelle.numero : '';
   btnDelete.hidden = false;
   inputNom.value = parcelle.nom || '';
   inputSurface.value = parcelle.surfaceHa != null ? parcelle.surfaceHa : '';
@@ -165,6 +174,7 @@ export function openEdit(parcelle, implantation) {
   inputDateSemis.value = implantation && implantation.dateSemis ? implantation.dateSemis : '';
   majDureeInfo();
   populateCultureSelect(getCultures(), (implantation && implantation.cultureId) || '');
+  majSurfaceBadge();
   panel.hidden = false;
 }
 
@@ -180,6 +190,17 @@ function majDureeInfo() {
   dureeInfo.hidden = !texte;
 }
 inputDateSemis.addEventListener('change', majDureeInfo);
+
+// Badge de surface à côté du titre : suit le champ en direct, y compris
+// pendant qu'on corrige une surface calculée automatiquement à tort (cf.
+// l'avertissement de contour croisé dans openCreate).
+function majSurfaceBadge() {
+  const v = Number(inputSurface.value);
+  surfaceBadge.hidden = !(isFinite(v) && v > 0);
+  if (!surfaceBadge.hidden) surfaceBadge.textContent = arrondiHa(v) + ' ha';
+}
+inputSurface.addEventListener('input', majSurfaceBadge);
+function arrondiHa(v) { return Math.round(v * 100) / 100; }
 
 function closePanel() {
   panel.hidden = true;

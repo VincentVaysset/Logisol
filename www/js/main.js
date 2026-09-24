@@ -211,15 +211,20 @@ function renderListView(enriched) {
     parcellesListeEl.innerHTML = '<p class="list-empty">Aucune parcelle pour le moment.</p>';
     return;
   }
+  // Gabarit repris de mockups/maquette parcelles appli.html (carte blanche,
+  // numéro discret + nom en tête, liseré de couleur à gauche) : le numéro
+  // remplace ici le "#01" de la maquette quand il a été renseigné (depuis
+  // l'assolement prévisionnel), et le liseré reprend la couleur déjà
+  // attribuée à la parcelle plutôt que d'ajouter une pastille séparée.
   parcellesListeEl.innerHTML = enriched
     .map((p) => {
       const impl = implantationsByParcelle.get(p.id);
       const depuis = impl ? ` · depuis le ${impl.dateSemis}` : '';
+      const numero = p.numero ? `<span class="parcelle-card-numero">#${escapeHtml(p.numero)}</span>` : '';
       return `
-    <div class="parcelle-card" data-id="${escapeAttr(p.id)}">
-      <span class="parcelle-card-swatch" style="background:${escapeAttr(p._couleur)}"></span>
+    <div class="parcelle-card" data-id="${escapeAttr(p.id)}" style="border-left-color:${escapeAttr(p._couleur)}">
       <div class="parcelle-card-info">
-        <div class="parcelle-card-nom">${escapeHtml(p.nom || 'Sans nom')}</div>
+        <div class="parcelle-card-nom">${numero}${escapeHtml(p.nom || 'Sans nom')}</div>
         <div class="parcelle-card-sub">${escapeHtml(p._label)} · ${formatSurface(p.surfaceHa)} ha${escapeHtml(depuis)}</div>
       </div>
     </div>`;

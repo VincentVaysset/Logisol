@@ -1068,7 +1068,15 @@
   <!-- Fiche parcelle (panneau) -->
   <div id="fiche-panel" class="fiche-overlay" hidden>
     <div class="fiche-panel">
-      <h2 id="fiche-title">Parcelle</h2>
+      <!-- Numéro + surface en badge à côté du titre, dans l'esprit de
+           mockups/maquette carte appli.html (« #01 Grand Triangle · 8,50 ha »).
+           Mis à jour en direct par ui.js à l'ouverture et à chaque
+           modification du champ Surface. -->
+      <div class="fiche-titre-ligne">
+        <span id="fiche-numero" class="fiche-badge" hidden></span>
+        <h2 id="fiche-title">Parcelle</h2>
+        <span id="fiche-surface-badge" class="fiche-badge" hidden></span>
+      </div>
       <div id="fiche-error-banner" class="fiche-error-banner" hidden>
         <span id="fiche-error-text"></span>
         <button type="button" id="fiche-error-close" aria-label="Fermer">✕</button>
