@@ -1061,7 +1061,15 @@ header button {
 .contenant-body { flex: 1; min-width: 0; }
 .contenant-nom { font-size: 14px; font-weight: 600; }
 .contenant-detail { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
-.contenant-taux { font-size: 13px; font-weight: 700; color: var(--primary); white-space: nowrap; }
+/* Badge en pastille (repris de la jauge de capacité de mockups/batiment.html)
+   plutôt qu'un simple pourcentage brut : plus facile à repérer d'un coup d'œil
+   dans une liste de contenants. */
+.contenant-taux {
+  font-size: 12px; font-weight: 700; color: var(--primary); white-space: nowrap;
+  background: rgba(5,150,105,0.10); border: 1px solid rgba(5,150,105,0.25);
+  padding: 2px 8px; border-radius: 999px;
+}
+.contenant-taux.urgent { color: var(--danger); background: rgba(209,88,79,0.10); border-color: rgba(209,88,79,0.3); }
 
 /* Jauge de remplissage d'un silo : un chiffre seul se compare mal d'un coup
    d'œil, une barre se lit sans lire. */
