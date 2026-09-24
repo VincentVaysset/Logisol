@@ -154,18 +154,36 @@
     <button id="btn-logout" type="button">Déconnexion</button>
   </header>
 
-  <!-- Onglets de navigation. En flux normal sous l'en-tête, hors de la carte :
-       toujours atteignables, quoi qu'affiche Leaflet. Les trois vues PARTAGENT
-       LA MÊME carte Leaflet (#map), qui change simplement de hauteur : deux
-       instances Leaflet coûteraient le double en mémoire et en tuiles, et
-       chaque correctif de carte serait à faire deux fois. -->
+  <!-- Barre de navigation basse, FIXE (cf. .tabs) : les six destinations
+       restent atteignables d'un pouce, quel que soit ce qu'affiche l'écran
+       au-dessus, sans jamais recouvrir Leaflet ni en être recouverte (cf.
+       échelle d'empilement plus haut). Les six vues PARTAGENT LA MÊME carte
+       Leaflet (#map), qui change simplement de hauteur : deux instances
+       Leaflet coûteraient le double en mémoire et en tuiles, et chaque
+       correctif de carte serait à faire deux fois.
+       Chaque vue qui défile (#map, .feed, .scroll-view, .list-view) réserve
+       elle-même l'espace de la hauteur de la barre en bas
+       (padding-bottom : var(--bottomnav-h)) pour que son dernier élément ne
+       se retrouve jamais caché dessous. -->
   <nav class="tabs" id="tabs">
-    <button type="button" class="tab" data-vue="ferme">🏠 Ferme</button>
-    <button type="button" class="tab" data-vue="carte">🗺️ Carte</button>
-    <button type="button" class="tab" data-vue="liste">📋 Parcelles</button>
-    <button type="button" class="tab" data-vue="stocks">🌾 Stocks</button>
-    <button type="button" class="tab" data-vue="troupeau">🐑 Troupeau</button>
-    <button type="button" class="tab" data-vue="batiments">🏚️ Bâtiments</button>
+    <button type="button" class="tab" data-vue="ferme">
+      <span class="tab-icone">🏠</span><span class="tab-label">Ferme</span>
+    </button>
+    <button type="button" class="tab" data-vue="carte">
+      <span class="tab-icone">🗺️</span><span class="tab-label">Carte</span>
+    </button>
+    <button type="button" class="tab" data-vue="liste">
+      <span class="tab-icone">📋</span><span class="tab-label">Parcelles</span>
+    </button>
+    <button type="button" class="tab" data-vue="stocks">
+      <span class="tab-icone">🌾</span><span class="tab-label">Stocks</span>
+    </button>
+    <button type="button" class="tab" data-vue="troupeau">
+      <span class="tab-icone">🐑</span><span class="tab-label">Troupeau</span>
+    </button>
+    <button type="button" class="tab" data-vue="batiments">
+      <span class="tab-icone">🏚️</span><span class="tab-label">Bâtiments</span>
+    </button>
   </nav>
 
   <!-- Alerte de règles Firestore. En flux normal sous les onglets, donc
