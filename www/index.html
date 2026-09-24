@@ -312,25 +312,49 @@
     <div id="mouvements-liste"></div>
   </div>
 
-  <!-- Vue Troupeau : croisement stades physiologiques × stocks. -->
+  <!-- Vue Troupeau : croisement stades physiologiques × stocks, et bilan de
+       campagne — gabarit repris de mockups/maquette troupeau appli.html
+       pour la bascule à deux onglets et la sous-vue Historique & bilan.
+       L'en-tête et la barre basse restent le gabarit sombre commun établi à
+       l'étape 1 (voir header, .tabs) : la maquette Troupeau en explore une
+       variante claire, mais fragmenter le chrome global pour un seul écran
+       casserait la cohérence de navigation que l'étape 1 vient d'établir. -->
   <div id="troupeau-view" class="scroll-view" hidden>
     <div class="vue-head">
       <h2>Alimentation du troupeau</h2>
       <button type="button" id="btn-new-lot" class="btn btn-primary btn-mini">➕ Lot</button>
     </div>
-    <div id="troupeau-alerte" class="alerte" hidden></div>
-    <div id="troupeau-totaux" class="tuiles"></div>
 
-    <h3 class="section-titre">Stades × stocks</h3>
-    <div id="troupeau-tableau" class="table-scroll"></div>
+    <div class="choix-row sous-vues" id="troupeau-sous-vues">
+      <button type="button" class="choix-btn is-active" data-sousvue="actuel">🥣 Ration actuelle</button>
+      <button type="button" class="choix-btn" data-sousvue="historique">📜 Historique &amp; bilan</button>
+    </div>
 
-    <h3 class="section-titre">Lots</h3>
-    <div id="troupeau-lots"></div>
+    <div id="troupeau-actuel">
+      <div id="troupeau-alerte" class="alerte" hidden></div>
+      <div id="troupeau-totaux" class="tuiles"></div>
 
-    <h3 class="section-titre">
-      <button type="button" id="btn-rations-toggle" class="lien-section">Rations par stade ▾</button>
-    </h3>
-    <div id="troupeau-rations" hidden></div>
+      <h3 class="section-titre">Stades × stocks</h3>
+      <div id="troupeau-tableau" class="table-scroll"></div>
+
+      <h3 class="section-titre">Lots</h3>
+      <div id="troupeau-lots"></div>
+
+      <h3 class="section-titre">
+        <button type="button" id="btn-rations-toggle" class="lien-section">Rations par stade ▾</button>
+      </h3>
+      <div id="troupeau-rations" hidden></div>
+    </div>
+
+    <!-- Historique & bilan : bannière de cumul de campagne (par stock
+         d'origine) + journal de toutes les périodes de prélèvement, tous
+         lots confondus — 100% dérivé du même historique que l'onglet
+         « Ration actuelle », aucune saisie propre. -->
+    <div id="troupeau-historique" hidden>
+      <div id="troupeau-campagne" class="campagne-banniere"></div>
+      <h3 class="section-titre">Périodes de consommation enregistrées</h3>
+      <div id="troupeau-journal"></div>
+    </div>
   </div>
 
   <div class="fab-row" id="fab-carte">

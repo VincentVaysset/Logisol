@@ -811,6 +811,58 @@ header button {
 .tuile-consomme .tuile-val { color: var(--text-muted); }
 .tuile-besoin .tuile-val { color: var(--accent); }
 
+/* --- Troupeau : bilan de campagne + journal de périodes ---
+   Gabarit repris de mockups/maquette troupeau appli.html. Bannière sombre
+   (seule zone hors chrome à utiliser ce vert profond) et cartes claires
+   pour le journal, cohérentes avec le reste de l'appli. */
+.campagne-banniere {
+  background: #064e3b;   /* emerald-900 */
+  color: white;
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.campagne-entete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.campagne-label {
+  display: block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; color: #6ee7b7;   /* emerald-300 */
+}
+.campagne-total { display: block; font-size: 22px; font-weight: 800; margin-top: 2px; }
+.campagne-brebis {
+  background: rgba(6,78,59,0.6); color: #a7f3d0; font-size: 12px; font-weight: 600;
+  padding: 5px 10px; border-radius: 10px; border: 1px solid rgba(52,211,153,0.35);
+  white-space: nowrap;
+}
+.campagne-detail { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(52,211,153,0.25); }
+.campagne-source {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: #d1fae5; margin-top: 7px;
+}
+.campagne-source:first-child { margin-top: 0; }
+.campagne-source-val { font-weight: 700; color: white; }
+.campagne-barre {
+  width: 100%; height: 5px; border-radius: 3px; margin-top: 3px;
+  background: rgba(6,78,59,0.7); overflow: hidden;
+}
+.campagne-barre-remplie { height: 100%; border-radius: 3px; background: var(--chrome-active); }
+
+.periode-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px; margin-bottom: 8px;
+}
+.periode-entete { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.periode-badge {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  background: var(--bg); color: var(--text-muted);
+  padding: 2px 8px; border-radius: 6px; margin-bottom: 4px;
+}
+.periode-badge-encours {
+  background: rgba(5,150,105,0.12); color: var(--primary); border: 1px solid rgba(5,150,105,0.3);
+}
+.periode-titre { margin: 0; font-size: 14px; font-weight: 700; color: var(--text); }
+.periode-tonnage { font-size: 13px; font-weight: 800; color: var(--text); white-space: nowrap; }
+.periode-sub { margin: 4px 0 0; font-size: 12px; color: var(--text-muted); }
+
 /* --- Tableaux ---
    Un tableau large ne doit JAMAIS élargir la page : il défile dans son propre
    conteneur, sinon toute l'interface part de travers sur une tablette. */

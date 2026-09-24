@@ -37,8 +37,18 @@ const totauxEl = document.getElementById('troupeau-totaux');
 const tableauEl = document.getElementById('troupeau-tableau');
 const lotsEl = document.getElementById('troupeau-lots');
 const rationsEl = document.getElementById('troupeau-rations');
+const sousVuesEl = document.getElementById('troupeau-sous-vues');
+const vueActuelleEl = document.getElementById('troupeau-actuel');
+const vueHistoriqueEl = document.getElementById('troupeau-historique');
+const campagneEl = document.getElementById('troupeau-campagne');
+const journalEl = document.getElementById('troupeau-journal');
 
 const SANS_STOCK = '';
+// « Ration actuelle » : le contenu qui existait déjà (tuiles, tableau
+// croisé, lots, rations). « Historique & bilan » : nouvelle sous-vue
+// purement en lecture, dérivée du même historique de prélèvements — aucune
+// saisie ne lui est propre.
+let sousVueTroupeau = 'actuel';
 
 let mode = null;
 let editingId = null;
@@ -66,6 +76,20 @@ export function initAlimentation() {
   form.addEventListener('submit', enregistrer);
   btnDelete.addEventListener('click', supprimer);
   onStadesChange(peuplerStades);
+  sousVuesEl.querySelectorAll('[data-sousvue]').forEach((b) => {
+    b.addEventListener('click', () => {
+      sousVueTroupeau = b.dataset.sousvue;
+      afficherSousVue();
+    });
+  });
+}
+
+function afficherSousVue() {
+  vueActuelleEl.hidden = sousVueTroupeau !== 'actuel';
+  vueHistoriqueEl.hidden = sousVueTroupeau !== 'historique';
+  sousVuesEl.querySelectorAll('[data-sousvue]').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.sousvue === sousVueTroupeau);
+  });
 }
 
 // Seuls les bâtiments qui hébergent des animaux sont proposés : rattacher un
@@ -305,7 +329,10 @@ export function renderVue() {
   renderTableau(vue);
   renderLots(vue);
   renderRations();
+  renderCampagne(vue);
+  renderJournal();
   peuplerStocks(selectStock.value);
+  afficherSousVue();
 }
 
 function renderTableau(vue) {
@@ -449,6 +476,89 @@ async function appliquerNouvelleRation(stadeId, valeur) {
       debut: aujourdhui()
     });
   }
+}
+
+// --- Historique & bilan -----------------------------------------------------
+// Bannière de cumul de campagne : le total déjà consommé, par stock
+// d'origine, avec une barre proportionnelle au total — gabarit repris de
+// mockups/maquette troupeau appli.html. Entièrement dérivé de vue.colonnes
+// (déjà calculé par construireTableau pour le tableau croisé) : aucun
+// nouveau calcul, seulement un second affichage des mêmes chiffres.
+function renderCampagne(vue) {
+  const sources = vue.colonnes
+    .filter((c) => c.consomme > 0)
+    .sort((a, b) => b.consomme - a.consomme);
+
+  if (!sources.length) {
+    campagneEl.innerHTML = '<p class="list-empty">Aucune consommation enregistrée pour le moment.</p>';
+    return;
+  }
+
+  const total = vue.totaux.consomme || 0;
+  const lignes = sources
+    .map((c) => {
+      const pct = total > 0 ? Math.round((c.consomme / total) * 100) : 0;
+      return `
+      <div class="campagne-source">
+        <span>${escapeHtml(c.label)}</span>
+        <span class="campagne-source-val">${formatTonnes(c.consomme)} t</span>
+      </div>
+      <div class="campagne-barre"><div class="campagne-barre-remplie" style="width:${pct}%"></div></div>`;
+    })
+    .join('');
+
+  campagneEl.innerHTML = `
+    <div class="campagne-entete">
+      <div>
+        <span class="campagne-label">Total consommé (campagne)</span>
+        <span class="campagne-total">${formatTonnes(total)} tonnes</span>
+      </div>
+      <span class="campagne-brebis">${vue.totaux.nbBrebis} brebis</span>
+    </div>
+    <div class="campagne-detail">${lignes}</div>`;
+}
+
+// Journal de toutes les périodes de prélèvement, tous lots confondus, la
+// plus récente d'abord — les périodes ouvertes (encore en cours) passent
+// devant, quelle que soit leur date de début : c'est ce qu'on regarde en
+// premier. Même donnée que la fiche d'un lot (historiqueLot), mais tous les
+// lots mélangés, comme le montre la maquette.
+function renderJournal() {
+  const periodes = getPrelevements()
+    .slice()
+    .sort((a, b) => {
+      if (!a.fin && b.fin) return -1;
+      if (a.fin && !b.fin) return 1;
+      return a.debut < b.debut ? 1 : a.debut > b.debut ? -1 : 0;
+    });
+
+  if (!periodes.length) {
+    journalEl.innerHTML = '<p class="list-empty">Aucune période de consommation enregistrée.</p>';
+    return;
+  }
+
+  journalEl.innerHTML = periodes
+    .map((p) => {
+      const enCours = !p.fin;
+      const badge = enCours
+        ? `En cours (depuis le ${dateLisible(p.debut)})`
+        : `${dateLisible(p.debut)} au ${dateLisible(p.fin)} (${joursNourris(p)} j)`;
+      const ration = p.rationKgParBrebis
+        ? `Ration : ${p.rationKgParBrebis} kg/j (${p.categorieLabel || p.categorieCle || '—'})`
+        : `Stock : ${p.categorieLabel || p.categorieCle || '—'}`;
+      return `
+      <div class="periode-card">
+        <div class="periode-entete">
+          <div>
+            <span class="periode-badge ${enCours ? 'periode-badge-encours' : ''}">${escapeHtml(badge)}</span>
+            <h3 class="periode-titre">${escapeHtml(p.stadeNom || 'Stade non défini')} — ${p.nbBrebis || 0} brebis</h3>
+          </div>
+          <span class="periode-tonnage">${formatTonnes(tonnesConsommees(p))} t</span>
+        </div>
+        <p class="periode-sub">${escapeHtml(ration)}${enCours ? ` • ${joursNourris(p)} jours consommés` : ''}</p>
+      </div>`;
+    })
+    .join('');
 }
 
 function tuile(nom, val, unite, cls) {
