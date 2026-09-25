@@ -787,9 +787,23 @@ function setPhoto(dataUrl) {
 // moisson rentre en cellule à grain, un séchage en grange dans une cellule à
 // fourrage, un pressage sur un emplacement où les bottes se comptent. Proposer
 // les trois à chaque fois, c'est proposer trois occasions de se tromper.
+//
+// Filtre d'abord sur le bon contenu (GRAIN / FOURRAGE) pour ne pas mélanger
+// les deux dans la même liste. Mais si ce filtre strict ne renvoie AUCUNE
+// cellule alors qu'il en existe (ex. une cellule créée « Fourrage » par
+// erreur, ou avant que la distinction grain/séchage existe), retomber sur
+// TOUTES les cellules plutôt que de laisser « Vers » vide et forcer la
+// création d'un doublon : l'exploitant choisit la bonne, et peut corriger son
+// contenu depuis la fiche bâtiment ensuite.
 function contenantsPour(formulaire) {
-  if (formulaire === 'MOISSON')  return contenantsOptions({ cellules: 'GRAIN', emplacements: false });
-  if (formulaire === 'SECHAGE')  return contenantsOptions({ cellules: 'FOURRAGE', emplacements: false });
+  if (formulaire === 'MOISSON') {
+    const strict = contenantsOptions({ cellules: 'GRAIN', emplacements: false });
+    return strict.length ? strict : contenantsOptions({ cellules: 'TOUS', emplacements: false });
+  }
+  if (formulaire === 'SECHAGE') {
+    const strict = contenantsOptions({ cellules: 'FOURRAGE', emplacements: false });
+    return strict.length ? strict : contenantsOptions({ cellules: 'TOUS', emplacements: false });
+  }
   if (formulaire === 'PRESSAGE') return contenantsOptions({ cellules: null, emplacements: true });
   return contenantsOptions();
 }
@@ -819,7 +833,14 @@ function remplirSelect(select, options, valeur) {
   select.innerHTML = options.length
     ? options.map((o) => `<option value="${escapeAttr(o.value)}">${escapeHtml(o.label)}</option>`).join('')
     : '<option value="">— rien à sélectionner —</option>';
-  if (valeur && options.some((o) => o.value === valeur)) select.value = valeur;
+  if (valeur && options.some((o) => o.value === valeur)) {
+    select.value = valeur;
+  } else if (options.length === 1) {
+    // Une seule destination possible (ex. une seule cellule à grain déjà
+    // créée) : pas de raison de la faire choisir explicitement, c'est déjà
+    // la seule case cochable.
+    select.value = options[0].value;
+  }
 }
 
 function preparerFlux(prefill = {}) {
@@ -902,16 +923,16 @@ function especeDeduite() {
 function besoinDeContenant() {
   const f = formulaireDe(typeCourant());
   if (f === 'MOISSON') {
-    return { genre: 'CELLULE', contenu: 'GRAIN', quoi: 'une cellule à grain',
+    return { genre: 'CELLULE', contenu: 'GRAIN', quoi: 'une cellule à grain', toggle: '＋ Nouvelle cellule à grain',
              batimentOk: accepteCellules,
              typeBatiment: 'un bâtiment de stockage grain (ou mixte)' };
   }
   if (f === 'SECHAGE') {
-    return { genre: 'CELLULE', contenu: 'FOURRAGE', quoi: 'une cellule de séchage en grange',
+    return { genre: 'CELLULE', contenu: 'FOURRAGE', quoi: 'une cellule de séchage en grange', toggle: '＋ Nouvelle cellule de séchage',
              batimentOk: accepteFourrage,
              typeBatiment: 'un bâtiment de stockage fourrage (ou mixte)' };
   }
-  return { genre: 'EMPLACEMENT', contenu: null, quoi: 'un emplacement de fourrage (en bottes)',
+  return { genre: 'EMPLACEMENT', contenu: null, quoi: 'un emplacement de fourrage (en bottes)', toggle: '＋ Nouvel emplacement de fourrage',
            batimentOk: accepteFourrage,
            typeBatiment: 'un bâtiment de stockage fourrage (ou mixte)' };
 }
@@ -952,11 +973,12 @@ function majBlocCreation(nbOptions) {
   }
 
   // Liste vide : le bloc est ouvert d'office, c'est la seule chose à faire.
-  // Liste garnie : un simple lien, pour ne pas encombrer le cas courant.
+  // Liste garnie : un simple lien discret, pour que « Vers » reste le choix
+  // principal et que créer un contenant ne soit jamais la seule option visible.
   const vide = nbOptions === 0;
   el['flux-creer-wrap'].hidden = !vide;
   el['flux-creer-toggle'].hidden = vide;
-  el['flux-creer-toggle'].textContent = '＋ Nouvel emplacement de stockage';
+  el['flux-creer-toggle'].textContent = besoin.toggle;
 }
 
 el['flux-creer-toggle'].addEventListener('click', () => {
