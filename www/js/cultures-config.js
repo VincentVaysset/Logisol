@@ -68,6 +68,15 @@ export async function addCulture(nom, couleur, famille) {
   return ref.id;
 }
 
+// Reclasse une culture existante (PP/PT/Céréale/Dérobée/...) depuis la fiche
+// parcelle — ex. une prairie migrée automatiquement en PT qui est en fait une
+// PP, ou une culture historique jamais classée finement. N'écrit rien si la
+// famille n'a pas changé.
+export async function updateCultureFamille(id, famille) {
+  if (!id || !famille) return;
+  await setDoc(doc(db, 'cultures_config', id), { famille, majLe: serverTimestamp() }, { merge: true });
+}
+
 // Reprise des cultures créées avant la distinction PP/PT : toute culture
 // encore sur l'ancienne famille générique 'prairie' est reclassée d'après
 // son nom (permanente/naturelle -> PP, sinon -> PT, l'écrasante majorité des

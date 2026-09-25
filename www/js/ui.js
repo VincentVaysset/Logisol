@@ -2,8 +2,8 @@
 // avec sa DATE DE SEMIS (si vocation culture/prairie — voir implantations.js,
 // une culture est une période, pas une année civile), surface, couleur, notes.
 // Suppression avec confirmation obligatoire.
-import { VOCATIONS, estVocationCulture } from './vocation.js';
-import { getCultures, onCulturesChange, addCulture } from './cultures-config.js';
+import { VOCATIONS, estVocationCulture, FAMILLE_LABEL } from './vocation.js';
+import { getCultures, getCultureById, onCulturesChange, addCulture, updateCultureFamille } from './cultures-config.js';
 import {
   setImplantation, cloturerImplantation, deleteImplantation, historiqueParcelle,
   aujourdhui, dureeLisible
@@ -17,6 +17,9 @@ const titleEl = document.getElementById('fiche-title');
 const selectVocation = document.getElementById('fiche-vocation');
 const cultureWrap = document.getElementById('fiche-culture-wrap');
 const selectCulture = document.getElementById('fiche-culture');
+const cultureFamilleWrap = document.getElementById('fiche-culture-famille-wrap');
+const selectCultureFamille = document.getElementById('fiche-culture-famille');
+const inputCampagne = document.getElementById('fiche-campagne');
 const newCultureWrap = document.getElementById('fiche-newculture-wrap');
 const inputNewCultureNom = document.getElementById('fiche-newculture-nom');
 const inputNewCultureCouleur = document.getElementById('fiche-newculture-couleur');
@@ -98,8 +101,25 @@ function populateCultureSelect(cultures, keepValue) {
   if (current && cultures.some((c) => c.id === current)) selectCulture.value = current;
 }
 
+// Familles proposées pour reclasser une culture EXISTANTE : toutes celles
+// connues (y compris oléagineux/légumineuse/autre, héritées d'avant la
+// distinction PP/PT/Dérobée) — jamais seulement les 4 nouvelles, sinon
+// choisir une culture déjà classée "Oléagineux" la ferait glisser vers une
+// famille fausse au premier enregistrement.
+const FAMILLES_EXISTANTES = Object.keys(FAMILLE_LABEL).filter((f) => f !== 'prairie');
+
+function peuplerFamilleCulture(familleActuelle) {
+  selectCultureFamille.innerHTML = FAMILLES_EXISTANTES
+    .map((f) => `<option value="${f}"${f === familleActuelle ? ' selected' : ''}>${escapeHtml(FAMILLE_LABEL[f])}</option>`)
+    .join('');
+}
+
 selectCulture.addEventListener('change', () => {
-  newCultureWrap.hidden = selectCulture.value !== '__new__';
+  const valeur = selectCulture.value;
+  newCultureWrap.hidden = valeur !== '__new__';
+  const culture = valeur && valeur !== '__new__' ? getCultureById(valeur) : null;
+  cultureFamilleWrap.hidden = !culture;
+  if (culture) peuplerFamilleCulture(culture.famille);
 });
 
 // --- Secteur / zone (texte libre avec suggestion) --------------------------
@@ -175,8 +195,10 @@ export function openCreate({ geometry, surfaceHa, croise }) {
     selectVocation.value = 'culture';
     cultureWrap.hidden = false;
     newCultureWrap.hidden = true;
+    cultureFamilleWrap.hidden = true;
     implantationCourante = null;
     inputDateSemis.value = aujourdhui();
+    inputCampagne.value = aujourdhui().slice(0, 4);
     dureeInfo.hidden = true;
     populateCultureSelect(getCultures(), ''); // pas de culture présélectionnée -> "à renseigner"
     majSurfaceBadge();
@@ -225,7 +247,16 @@ export function openEdit(parcelle, implantation) {
   newCultureWrap.hidden = true;
   implantationCourante = implantation || null;
   inputDateSemis.value = implantation && implantation.dateSemis ? implantation.dateSemis : '';
+  // Campagne déjà rattachée à cette implantation si elle existe (semis fait
+  // depuis le tunnel d'activité, ou déjà corrigé ici) ; à défaut, l'année du
+  // semis — l'exploitant l'avance à la main pour un semis d'automne.
+  inputCampagne.value = implantation && implantation.campagneVisee
+    ? implantation.campagneVisee
+    : (implantation && implantation.dateSemis ? implantation.dateSemis.slice(0, 4) : aujourdhui().slice(0, 4));
   majDureeInfo();
+  const cultureActuelle = implantation ? getCultureById(implantation.cultureId) : null;
+  cultureFamilleWrap.hidden = !cultureActuelle;
+  if (cultureActuelle) peuplerFamilleCulture(cultureActuelle.famille);
   populateCultureSelect(getCultures(), (implantation && implantation.cultureId) || '');
   majSurfaceBadge();
   panel.hidden = false;
@@ -309,6 +340,13 @@ form.addEventListener('submit', async (e) => {
         cultureId = await addCulture(nom, couleur, famille);
       } else if (selectCulture.value) {
         cultureId = selectCulture.value;
+        // Reclassement d'une culture déjà existante (PP/PT/Céréale/Dérobée/...)
+        // depuis la fiche parcelle : n'écrit rien si rien n'a changé.
+        const actuelle = getCultureById(cultureId);
+        const nouvelleFamille = selectCultureFamille.value;
+        if (actuelle && nouvelleFamille && nouvelleFamille !== actuelle.famille) {
+          await updateCultureFamille(cultureId, nouvelleFamille);
+        }
       }
       // sinon : placeholder "— Choisir une culture —" -> cultureId reste null
       // (la parcelle apparaîtra en gris "à renseigner" sur la carte).
@@ -349,8 +387,9 @@ form.addEventListener('submit', async (e) => {
         implantationCourante &&
         implantationCourante.cultureId === cultureId &&
         implantationCourante.dateSemis === dateSemis;
+      const campagneVisee = inputCampagne.value ? String(parseInt(inputCampagne.value, 10)) : null;
       await setImplantation(
-        { parcelleId, cultureId, dateSemis, dateFin: null },
+        { parcelleId, cultureId, dateSemis, dateFin: null, campagneVisee },
         { cloturerPrecedente: !inchangee }
       );
     } else if (implantationCourante && !implantationCourante.dateFin) {

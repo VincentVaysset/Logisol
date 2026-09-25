@@ -948,7 +948,7 @@ header button {
 }
 .prev-actions .champ-aide { margin: 0; }
 .tableau-prev { min-width: 720px; }
-.tableau-prev th, .tableau-prev td { padding: 6px 7px; vertical-align: middle; }
+.tableau-prev th, .tableau-prev td { padding: 6px 7px; vertical-align: middle; position: relative; }
 .tableau-prev thead th { text-align: center; white-space: normal; line-height: 1.2; }
 /* La colonne du nom reste visible pendant qu'on fait défiler le tableau vers
    les colonnes de droite : sinon on ne sait plus quelle ligne on modifie. */
@@ -960,7 +960,14 @@ header button {
    une cellule figée translucide laisserait voir défiler les colonnes dessous. */
 .tableau-prev thead .col-nom-parcelle { background: #eef3ef; z-index: 2; }
 .tableau-prev tfoot .col-nom-parcelle { background: #f2f6f3; }
+/* Un select/input doit toujours recevoir le clic/tap avant n'importe quelle
+   cellule — sticky ou non. Sans z-index et pointer-events explicites, la
+   colonne "Parcelle" figée (position:sticky + z-index) peut, selon le
+   moteur de rendu, se retrouver peinte AU-DESSUS des contrôles statiques
+   d'une cellule voisine et intercepter le pointerdown à leur place :
+   c'est ce qui bloquait l'enregistrement d'une case Culture au clic. */
 .tableau-prev input, .tableau-prev select {
+  position: relative; z-index: 3; pointer-events: auto;
   margin: 0; padding: 6px 7px; font-size: 13px; min-height: 36px; border-radius: 8px;
 }
 .tableau-prev input[type=number] { width: 72px; text-align: right; }
