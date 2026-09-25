@@ -1625,3 +1625,31 @@ header button {
   }
   .reel-statut, .badge-semis0 { font-size: 9px; }
 }
+
+/* Bandeau "nouvelle version installée" (maj-disponible.js) : au-dessus de
+   la barre de nav basse (bottomnav-h), sous les toasts (3000) pour qu'une
+   confirmation d'enregistrement reste toujours visible par-dessus. */
+.maj-banniere {
+  position: fixed;
+  left: 12px; right: 12px;
+  bottom: calc(var(--bottomnav-h) + 14px + env(safe-area-inset-bottom, 0px));
+  z-index: 2900;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--chrome-bg);
+  color: white;
+  border: 1px solid var(--chrome-border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+.maj-banniere-visible { opacity: 1; transform: translateY(0); }
+.maj-banniere-texte { flex: 1; font-size: 13px; font-weight: 600; }
+.maj-banniere-fermer {
+  background: transparent; border: none; color: var(--chrome-text-muted);
+  font-size: 16px; line-height: 1; padding: 4px; cursor: pointer; flex-shrink: 0;
+}
