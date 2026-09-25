@@ -23,15 +23,25 @@ export const COULEUR_A_RENSEIGNER = '#c4c0b0';
 
 // Vue regroupée (macro / PAC) : chaque culture retombe sur la couleur et le
 // libellé de SA FAMILLE (cultures_config.famille) plutôt que sa couleur
-// propre — toutes les prairies (RG trèfle, luzerne, fétuque/trèfle, prairie
-// permanente) se confondent alors sous un seul vert, comme demandé.
+// propre. Prairie Permanente (non retournée, sans compteur d'âge) et Prairie
+// Temporaire (semée, compteur d'âge 0/1/2...) restent deux familles à part —
+// les fondre masquerait la vraie question d'assolement (combien de PT à
+// ressemer cette année ?).
+// 'prairie' : alias hérité, avant la distinction PP/PT (cf.
+// cultures-config.js/migrerFamillesPrairie, qui reclasse ces cultures au
+// démarrage) — gardé ici en secours pour ne jamais retomber sur "Autre" tant
+// que la reprise n'est pas passée (ex. premier lancement hors-ligne).
 export const FAMILLE_LABEL = {
-  prairie: 'Prairie', cereale: 'Céréales', oleagineux: 'Oléagineux',
-  legumineuse: 'Légumineuses', autre: 'Autre'
+  prairie_permanente: 'Prairie permanente', prairie_temporaire: 'Prairie temporaire',
+  prairie: 'Prairie temporaire',
+  cereale: 'Céréales', oleagineux: 'Oléagineux', legumineuse: 'Légumineuses',
+  derobee: 'Dérobée / Couvert', autre: 'Autre'
 };
 export const FAMILLE_COULEUR = {
-  prairie: '#059669', cereale: '#d97706', oleagineux: '#a8b83f',
-  legumineuse: '#10b981', autre: '#9a988f'
+  prairie_permanente: '#65a30d', prairie_temporaire: '#059669',
+  prairie: '#059669',
+  cereale: '#d97706', oleagineux: '#a8b83f', legumineuse: '#10b981',
+  derobee: '#8b5cf6', autre: '#9a988f'
 };
 
 export function estVocationCulture(vocation) {

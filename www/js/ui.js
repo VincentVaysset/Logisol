@@ -302,7 +302,10 @@ form.addEventListener('submit', async (e) => {
           throw new Error('Le nom de la nouvelle culture est requis.');
         }
         const couleur = inputNewCultureCouleur.value || '#9a988f';
-        const famille = inputNewCultureFamille.value || 'autre';
+        const famille = inputNewCultureFamille.value;
+        if (!famille) {
+          throw new Error('La famille de la nouvelle culture est requise (PP, PT, Céréale ou Dérobée).');
+        }
         cultureId = await addCulture(nom, couleur, famille);
       } else if (selectCulture.value) {
         cultureId = selectCulture.value;

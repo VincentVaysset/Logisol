@@ -1180,12 +1180,12 @@
             <label for="fiche-newculture-couleur">Couleur</label>
             <input type="color" id="fiche-newculture-couleur" value="#9a988f">
             <label for="fiche-newculture-famille">Famille</label>
-            <select id="fiche-newculture-famille">
-              <option value="cereale">Céréale</option>
-              <option value="oleagineux">Oléagineux</option>
-              <option value="legumineuse">Légumineuse</option>
-              <option value="prairie">Prairie</option>
-              <option value="autre" selected>Autre</option>
+            <select id="fiche-newculture-famille" required>
+              <option value="" selected disabled>— Choisir une famille —</option>
+              <option value="prairie_permanente">Prairie permanente (PP)</option>
+              <option value="prairie_temporaire">Prairie temporaire (PT)</option>
+              <option value="cereale">Céréale / Grain</option>
+              <option value="derobee">Dérobée / Couvert</option>
             </select>
           </div>
         </div>

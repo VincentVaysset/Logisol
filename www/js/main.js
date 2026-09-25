@@ -6,7 +6,9 @@
 // vues — Ferme (carte + fil d'activités), Carte (plein écran, dessin/import)
 // et Parcelles (liste). Les trois PARTAGENT la même carte Leaflet, qui change
 // seulement de hauteur.
-import { ensureSeeded as ensureCulturesSeeded, watchCultures, onCulturesChange } from './cultures-config.js';
+import {
+  ensureSeeded as ensureCulturesSeeded, watchCultures, onCulturesChange, migrerFamillesPrairie
+} from './cultures-config.js';
 import {
   watchImplantations, onImplantationsChange, implantationEnCours, migrerAnciensAssolements
 } from './implantations.js';
@@ -721,6 +723,8 @@ async function boot() {
 
     const reprises = await migrerAnciensAssolements();
     if (reprises) log(reprises + ' ancien(s) assolement(s) repris en implantations');
+    const reprisesPrairie = await migrerFamillesPrairie();
+    if (reprisesPrairie) log(reprisesPrairie + ' culture(s) « prairie » reclassée(s) en PP/PT');
 
     // Diagnostic des règles, en dernier et sans bloquer : il transforme un
     // « permission-denied » muet en message qui dit quelle collection est

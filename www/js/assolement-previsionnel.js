@@ -36,15 +36,24 @@ export const FAMILLES = [
   { value: 'AUTRE',          label: 'Autre' }
 ];
 
-// Regroupement « vue macro / PAC » : toutes les déclinaisons de prairie
-// (luzerne, RG trèfle, fétuque/trèfle, prairie naturelle, semis) fondues sous
-// un seul libellé Prairie — cf. ui-assolement.js, bascule Détaillée/Regroupée.
+// Regroupement « vue macro / PAC » : deux familles de prairie, pas une —
+// Prairie Permanente (PN, jamais retournée, pas de compteur d'âge) et
+// Prairie Temporaire (luzerne, RG trèfle, fétuque/trèfle, semis de l'année :
+// semées, retournées au bout de quelques années, compteur d'âge 0/1/2...).
+// Les confondre masquerait la vraie question d'assolement (combien de PT à
+// ressemer cette année ?) — cf. ui-assolement.js, bascule Détaillée/Regroupée.
 export const GROUPE_DE_FAMILLE = {
-  LUZERNE: 'PRAIRIE', PRAIRIE_COURTE: 'PRAIRIE', FETUQUE: 'PRAIRIE',
-  PN: 'PRAIRIE', SEMIS_PRAIRIE: 'PRAIRIE',
+  PN: 'PRAIRIE_PERMANENTE',
+  LUZERNE: 'PRAIRIE_TEMPORAIRE', PRAIRIE_COURTE: 'PRAIRIE_TEMPORAIRE',
+  FETUQUE: 'PRAIRIE_TEMPORAIRE', SEMIS_PRAIRIE: 'PRAIRIE_TEMPORAIRE',
   CEREALES: 'CEREALE', AUTRE: 'AUTRE'
 };
-export const LABEL_GROUPE = { PRAIRIE: 'Prairie', CEREALE: 'Céréales', AUTRE: 'Autre' };
+export const LABEL_GROUPE = {
+  PRAIRIE_PERMANENTE: 'Prairie permanente',
+  PRAIRIE_TEMPORAIRE: 'Prairie temporaire',
+  CEREALE: 'Céréales',
+  AUTRE: 'Autre'
+};
 
 /**
  * @typedef {object} CulturePrev
