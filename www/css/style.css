@@ -975,6 +975,19 @@ header button {
 .tableau-prev td.saved { animation: cell-saved 1.1s ease-out; }
 @keyframes cell-saved { from { background: rgba(5,150,105,0.28); } to { background: transparent; } }
 
+/* Badge "semis de l'année" (indice 0, prairies/pluriannuelles uniquement) et
+   filtre associé : masque les autres lignes SANS reconstruire le tableau,
+   pour ne jamais couper une saisie en cours (cf. rafraichirAssolement). */
+.badge-semis0 {
+  display: inline-block; margin-top: 3px; font-size: 9px; font-weight: 700;
+  color: var(--primary); background: rgba(5,150,105,0.12);
+  border-radius: 5px; padding: 1px 5px;
+}
+#prev-filtre-semis0.is-active {
+  border-color: var(--primary); background: rgba(5,150,105,0.12); color: var(--primary);
+}
+.prev-filtre-semis0-actif tbody tr:not([data-semis0]) { display: none; }
+
 .tableau-synthese { min-width: 360px; }
 .tableau-synthese thead th:first-child { text-align: left; }
 .tableau-synthese .famille th { background: rgba(5,150,105,0.10); text-transform: uppercase; font-size: 11px; letter-spacing: .04em; }

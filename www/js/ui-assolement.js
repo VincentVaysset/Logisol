@@ -7,7 +7,7 @@
 import {
   FAMILLES, CULTURES_PREV, culturePrev, prevision, getPrevisions,
   setPrevision, syntheseSurfaces, campagneCourante, suiteNaturelle,
-  GROUPE_DE_FAMILLE, LABEL_GROUPE
+  GROUPE_DE_FAMILLE, LABEL_GROUPE, estSemisDeLAnnee
 } from './assolement-previsionnel.js';
 import { updateParcelle } from './parcelles.js';
 import { implantationEnCours } from './implantations.js';
@@ -25,6 +25,9 @@ const derobeesEl = document.getElementById('prev-derobees');
 
 let campagneN = Number(campagneCourante());
 let parcelles = [];
+// Filtre "semis de l'année" (indice 0) : masque les autres lignes sans
+// reconstruire le tableau, pour ne jamais couper une saisie en cours.
+let filtreSemis0 = false;
 
 export function setParcellesAssolement(list) {
   // Tri par numéro de parcelle quand il existe (c'est l'ordre du dossier),
@@ -44,6 +47,11 @@ export function initAssolement() {
   document.getElementById('prev-annee-moins').addEventListener('click', () => { campagneN--; renderAssolement(); });
   document.getElementById('prev-annee-plus').addEventListener('click', () => { campagneN++; renderAssolement(); });
   document.getElementById('prev-reconduire').addEventListener('click', reconduire);
+  document.getElementById('prev-filtre-semis0').addEventListener('click', (e) => {
+    filtreSemis0 = !filtreSemis0;
+    e.currentTarget.classList.toggle('is-active', filtreSemis0);
+    appliquerFiltreSemis0();
+  });
   toggleVueBtn.addEventListener('click', toggleVueLegende);
   // Bascule partagée avec la légende de la carte (map.js) : actionnée d'un
   // côté ou de l'autre, les deux doivent refléter le même mode.
@@ -86,12 +94,14 @@ export function renderAssolement() {
     // prévu doit se voir ici, pas seulement sur le terrain.
     const ecart = reel && cN && !correspond(cN, reel.nom);
     const suggestion = !prevN1.cultureCode ? suiteNaturelle(prevN.cultureCode) : null;
-    return `<tr data-id="${esc(p.id)}">
+    const semis0 = estSemisDeLAnnee(prevN.cultureCode);
+    return `<tr data-id="${esc(p.id)}"${semis0 ? ' data-semis0="1"' : ''}>
       <td><input type="text" class="in-numero" data-champ="numero" value="${esc(p.numero || '')}" inputmode="numeric" aria-label="N° de parcelle"></td>
       <th class="col-nom-parcelle">${esc(p.nom || 'Sans nom')}</th>
       <td>${formatHa(p.surfaceHa)}</td>
       <td>
         <select data-champ="cultureN" aria-label="Culture ${N}">${optionsCultures(prevN.cultureCode)}</select>
+        ${semis0 ? '<span class="badge-semis0">🌱 semis de l\'année</span>' : ''}
         ${reel ? `<span class="reel${ecart ? ' ecart' : ''}">${ecart ? '⚠ ' : ''}en place : ${esc(reel.nom)}</span>` : ''}
       </td>
       <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierTHa" value="${nombre(prevN.fumierTHa)}" aria-label="Prévision fumier (t/ha)"></td>
@@ -115,8 +125,16 @@ export function renderAssolement() {
   tableEl.querySelectorAll('[data-champ]').forEach((ctrl) => {
     ctrl.addEventListener('change', () => enregistrerCase(ctrl));
   });
+  appliquerFiltreSemis0();
   renderTotaux();
   renderSynthese();
+}
+
+// Masque les lignes sans semis de l'année plutôt que reconstruire le
+// tableau : appelable à tout moment (y compris pendant une saisie) sans
+// risque pour le focus en cours.
+function appliquerFiltreSemis0() {
+  tableEl.classList.toggle('prev-filtre-semis0-actif', filtreSemis0);
 }
 
 function renderTotaux() {

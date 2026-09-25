@@ -77,12 +77,35 @@ export const CULTURES_PREV = [
   cer('BLE1', 'Blé 1', 'BLE'), cer('BLE2', 'Blé 2', 'BLE'),
   cer('ORGE1', 'Orge 1', 'ORGE'), cer('ORGE2', 'Orge 2', 'ORGE'),
   cer('TRITICALE1', 'Triticale 1', 'TRITICALE'), cer('TRITICALE2', 'Triticale 2', 'TRITICALE'),
-  cer('AVOINE', 'Avoine', 'AVOINE'), cer('METEIL', 'Méteil', 'METEIL'),
+  // Un seul créneau pour l'instant, mais le libellé indexe quand même à 1 :
+  // une annuelle n'a jamais d'année 0 (règle métier), même quand elle ne
+  // tourne pas encore avec un « 2 ». Le code Firestore ne change pas — un
+  // renommage casserait les campagnes déjà saisies.
+  cer('AVOINE', 'Avoine 1', 'AVOINE'), cer('METEIL', 'Méteil 1', 'METEIL'),
   { code: 'AUTRE', label: 'Autre', famille: 'AUTRE' }
 ];
 
 export function culturePrev(code) {
   return CULTURES_PREV.find((c) => c.code === code) || null;
+}
+
+// Indice d'âge/semis porté par le CODE lui-même (LUZ0 -> 0, RGT2 -> 2,
+// BLE1 -> 1) : les prairies/pluriannuelles démarrent à 0 l'année du semis,
+// les céréales/annuelles à 1 — jamais 0 — conformément à la règle métier.
+// null pour les codes sans indice (PN, Fétuque/Trèfle, Autre : perennes non
+// comptées par âge sur ce dossier).
+export function indiceCulture(code) {
+  const c = culturePrev(code);
+  if (!c) return null;
+  const m = String(c.code).match(/(\d+)$/);
+  return m ? Number(m[1]) : null;
+}
+
+// Vrai pour un semis/implantation de l'année (indice 0) : c'est la ligne à
+// surveiller (jeune prairie tout juste semée). N'existe que pour les
+// familles pluriannuelles — une céréale (indice 1 minimum) n'est jamais "0".
+export function estSemisDeLAnnee(code) {
+  return indiceCulture(code) === 0;
 }
 
 // --- Lecture ----------------------------------------------------------------
