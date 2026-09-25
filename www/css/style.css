@@ -1568,10 +1568,13 @@ header button {
 
 /* ========================================================================
    RESPONSIVE MOBILE (< 600px) — smartphone en une main.
-   Au-dessus de ce seuil (tablette 10.1", desktop), tout reste en l'état :
-   tableaux multi-colonnes, boutons compacts. Le breakpoint est délibérément
-   sous la largeur tablette portrait (~800px+) pour ne jamais déclencher la
-   vue carte sur un écran où le tableau tient déjà.
+   Au-dessus de ce seuil (tablette 10.1", desktop), tout reste en l'état.
+   Le tableau d'assolement et celui du plan de fertilisation restent des
+   TABLEAUX sur tous les formats (une vue "cartes empilées" testée ici a été
+   abandonnée sur retour utilisateur — la lecture en colonnes était plus
+   utile que l'empilement, même resserrée) : sur mobile, ils se contentent
+   d'une police et d'un remplissage plus compacts, avec le même défilement
+   horizontal que .table-scroll offre déjà partout ailleurs.
    ======================================================================== */
 @media (max-width: 599px) {
   /* Cibles tactiles : 48px mini, pouce sur écran une main (WCAG 2.5.5).
@@ -1584,65 +1587,19 @@ header button {
   .tableau-prev input, .tableau-prev select { min-height: 48px; }
   .in-numero { min-width: 48px; }
 
-  /* Tableaux denses -> cartes empilées : l'assolement prévisionnel et le
-     plan de fertilisation (rapports) sont les deux tableaux à beaucoup de
-     colonnes ; les autres (2 colonnes, croisements récolte/ration) restent
-     tabulaires, un défilement horizontal court n'y gêne pas le pouce.
-     Technique : thead masqué, chaque <tr> devient une carte, chaque
-     <td data-label="…"> une ligne "libellé : valeur" via ::before — aucun
-     changement de DOM ni de câblage d'événements (data-champ, listeners),
-     seulement l'affichage. */
+  /* Même gabarit qu'en tablette (table-layout fixe, colonnes figées,
+     émeraude/chrome sombre) — seuls la police et le remplissage réduisent,
+     pour tenir plus de colonnes à l'écran avant que le défilement
+     horizontal ne prenne le relais. */
   .tableau-prev, #rap-ferti-tableau {
-    display: block; min-width: 0; width: 100%; table-layout: auto;
+    font-size: 12px;
   }
-  .tableau-prev thead, #rap-ferti-tableau thead { display: none; }
-  .tableau-prev tbody, .tableau-prev tfoot,
-  #rap-ferti-tableau tbody, #rap-ferti-tableau tfoot { display: block; }
-  .tableau-prev tr, #rap-ferti-tableau tr {
-    display: block;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 4px 12px;
-    margin-bottom: 10px;
+  .tableau-prev th, .tableau-prev td,
+  #rap-ferti-tableau th, #rap-ferti-tableau td {
+    padding: 5px 5px;
   }
-  /* display:block plutôt qu'une ligne flex "libellé / valeur" : une cellule
-     Culture contient PLUSIEURS éléments empilés (select + badge "semis de
-     l'année" + statut réel) — un flex row les aurait mis côte à côte au lieu
-     de les garder lisibles les uns sous les autres. Le libellé (::before)
-     devient une légende au-dessus du contenu, quel que soit ce contenu. */
-  .tableau-prev td, .tableau-prev th,
-  #rap-ferti-tableau td, #rap-ferti-tableau th {
-    display: block;
-    width: auto !important; max-width: none !important;
-    padding: 9px 0; border-bottom: 1px solid var(--bg);
-    text-align: left; position: static; overflow: visible;
+  .tableau-prev input, .tableau-prev select {
+    padding: 5px 6px; font-size: 12px;
   }
-  .tableau-prev tr td:last-child, .tableau-prev tr th:last-child,
-  #rap-ferti-tableau tr td:last-child, #rap-ferti-tableau tr th:last-child {
-    border-bottom: none;
-  }
-  .tableau-prev td[data-label]::before, .tableau-prev th[data-label]::before,
-  #rap-ferti-tableau td[data-label]::before, #rap-ferti-tableau th[data-label]::before {
-    content: attr(data-label);
-    display: block;
-    font-size: 11px; font-weight: 700; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.03em;
-    margin-bottom: 4px;
-  }
-  /* Les <input>/<select> sont déjà width:100% par la règle globale — on ne
-     neutralise ici que les largeurs fixes propres au tableau desktop. */
-  .tableau-prev input[type=number], .tableau-prev .in-numero, .tableau-prev select {
-    width: 100%; text-align: left; min-width: 0;
-  }
-  /* Le nom de parcelle devient le titre de la carte plutôt qu'une ligne
-     "libellé : valeur" parmi d'autres — c'est lui qui identifie la carte. */
-  .tableau-prev .col-nom-parcelle, #rap-ferti-tableau .col-nom-parcelle {
-    display: block; position: static; background: none;
-    text-align: left; font-size: 16px; font-weight: 800; width: auto;
-    padding: 10px 0 8px; border-bottom: 2px solid var(--primary); margin-bottom: 2px;
-  }
-  .tableau-prev tfoot tr, #rap-ferti-tableau tfoot tr {
-    background: rgba(5,150,105,0.06);
-  }
+  .reel-statut, .badge-semis0 { font-size: 9px; }
 }
