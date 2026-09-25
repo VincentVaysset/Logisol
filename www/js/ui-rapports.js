@@ -11,6 +11,7 @@ import {
 } from './assolement-previsionnel.js';
 
 const panelEl = document.getElementById('rapports-panel');
+const genereLeEl = document.getElementById('rapports-genere-le');
 const campagneLabelEl = document.getElementById('rap-campagne-label');
 const semisKpisEl = document.getElementById('rap-semis-kpis');
 const syntheseEl = document.getElementById('rap-synthese');
@@ -69,6 +70,12 @@ export function initRapports() {
 
 function render() {
   campagneLabelEl.textContent = `Campagne ${campagneR}`;
+  // Imprimé sur le PDF (le sélecteur de campagne, lui, ne l'est pas) : sans
+  // ça, une feuille imprimée ne dit ni quand ni pour quelle campagne elle a
+  // été produite.
+  const maintenant = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  genereLeEl.textContent = `Édité le ${p(maintenant.getDate())}/${p(maintenant.getMonth() + 1)}/${maintenant.getFullYear()} à ${p(maintenant.getHours())}:${p(maintenant.getMinutes())}`;
   renderSemis();
   renderFertilisation();
 }
@@ -83,11 +90,18 @@ function renderSemis() {
     ? details.map((d) => `${esc(d.label)} : ${formatHa(d.ha)} ha`).join(' · ')
     : 'Rien de renseigné pour l\'instant.';
 
+  const sousTotauxTxt = cal.automne.sousTotaux.length
+    ? cal.automne.sousTotaux.map((g) =>
+        `<div class="rapport-kpi-soustotal"><span>${esc(g.label)}</span><span>${formatHa(g.ha)} ha</span></div>`
+      ).join('')
+    : '';
+
   semisKpisEl.innerHTML = `
     <div class="rapport-kpi">
       <div class="rapport-kpi-valeur">${formatHa(cal.automne.ha)} ha</div>
       <div class="rapport-kpi-label">🍂 Semis d'automne</div>
       <div class="rapport-kpi-detail">${detailTxt(cal.automne.details)}</div>
+      ${sousTotauxTxt}
     </div>
     <div class="rapport-kpi">
       <div class="rapport-kpi-valeur">${formatHa(cal.printemps.ha)} ha</div>

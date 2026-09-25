@@ -234,6 +234,15 @@ header button {
 .rapport-kpi-valeur { font-size: 21px; font-weight: 700; color: var(--primary); }
 .rapport-kpi-label { font-size: 12px; font-weight: 600; margin-top: 2px; }
 .rapport-kpi-detail { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+/* Sous-totaux clairs (Céréales/Annuelles vs Prairies temporaires &
+   Fourrages) sous le total "Semis d'automne" : une ligne par groupe, valeur
+   alignée à droite, pour qu'on les distingue d'un coup d'œil du détail par
+   culture juste au-dessus. */
+.rapport-kpi-soustotal {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-size: 12px; font-weight: 700; color: var(--text);
+  margin-top: 5px; padding-top: 5px; border-top: 1px dashed var(--border);
+}
 
 .rapport-validation-ok th { color: var(--success); font-weight: 600; }
 .rapport-validation-ko th { color: var(--warning); font-weight: 600; }
@@ -247,6 +256,7 @@ header button {
    plutôt qu'en overlay plein écran (position:fixed imprime mal sur
    plusieurs pages) — tout le reste de l'appli disparaît. */
 @media print {
+  @page { size: A4; margin: 14mm; }
   .no-print { display: none !important; }
   #screen-app > *:not(#rapports-panel) { display: none !important; }
   #rapports-panel {
@@ -256,6 +266,18 @@ header button {
     width: 100%; max-height: none; overflow: visible; border-radius: 0;
     box-shadow: none; padding: 0;
   }
+  /* Les navigateurs n'impriment pas les couleurs de fond par défaut : sans
+     ça, les badges/en-têtes emerald ressortiraient blancs sur le PDF. */
+  #rapports-imprimable, #rapports-imprimable * {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  /* Une ligne de tableau ou une carte KPI coupée entre deux pages est
+     illisible — on garde chaque unité entière, quitte à la reporter en
+     entier sur la page suivante. */
+  .rapport-kpi, .rapport-card, .tableau tr, .cat-card {
+    break-inside: avoid;
+  }
+  .table-scroll { overflow: visible; }
 }
 
 #map {

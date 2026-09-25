@@ -38,7 +38,8 @@ import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getLots } from './lots.js';
 import { niveauContenant, createMouvement, updateMouvement, deleteMouvement, getMouvements } from './mouvements.js';
 import {
-  implantationEnCours, historiqueParcelle, setImplantation, cloturerImplantation, deleteImplantation
+  implantationEnCours, historiqueParcelle, setImplantation, cloturerImplantation, deleteImplantation,
+  campagneDeSemis
 } from './implantations.js';
 import { getCultureById, getCultures, onCulturesChange, addCulture } from './cultures-config.js';
 import { COUPES, FOURRAGES, cleFoin, labelFoin, cleCereale, labelCereale } from './stocks.js';
@@ -537,7 +538,13 @@ function peuplerCultures(valeur) {
   if (valeur && liste.some((c) => c.id === valeur)) el.culture.value = valeur;
 }
 
-el.culture.addEventListener('change', () => { el.culture.dataset.saisi = '1'; });
+el.culture.addEventListener('change', () => {
+  el.culture.dataset.saisi = '1';
+  // La campagne dépend de la culture choisie (dérobée = campagne en cours,
+  // toute autre = campagne visée par campagneDeSemis) : un changement manuel
+  // doit la recalculer, sauf si l'exploitant l'a lui-même déjà corrigée.
+  if (el.campagne.dataset.auto !== 'non') el.campagne.value = campagneDeLaDate();
+});
 
 el['culture-toggle'].addEventListener('click', () => {
   el['culture-new'].hidden = !el['culture-new'].hidden;
@@ -1218,20 +1225,37 @@ function enInterculture(parcelleId, date) {
 
 // Campagne agricole : l'année de la date saisie, proposée d'office. Une
 // récolte de juillet appartient à la campagne en cours, et corriger l'année à
-// la main reste possible pour un semis d'automne rattaché à la suivante.
-// Exception automatique : fumier, chaux et travail du sol (déchaumage,
-// labour, vibroculteur, moisson — effetCulture 'DETRUIT') faits PENDANT
-// l'interculture d'une parcelle sélectionnée sont déjà de la préparation
-// pour le prochain semis, pas un geste de fin de campagne — rattachés
-// d'office à la campagne SUIVANTE. Une activité qui vient elle-même de
-// clore la culture en place (ex. la moisson qui déclenche la clôture) ne
-// bascule pas : au moment du calcul, l'implantation est encore active.
+// la main reste possible pour un cas particulier.
+//
+// Deux exceptions automatiques, toutes deux réservées à une activité sur
+// PARCELLE :
+//   1) Fumier, chaux et travail du sol (déchaumage, labour, vibroculteur,
+//      moisson — effetCulture 'DETRUIT') faits PENDANT l'interculture d'une
+//      parcelle sélectionnée sont déjà de la préparation pour le prochain
+//      semis, pas un geste de fin de campagne — rattachés d'office à la
+//      campagne SUIVANTE. Une activité qui vient elle-même de clore la
+//      culture en place (ex. la moisson qui déclenche la clôture) ne
+//      bascule pas : au moment du calcul, l'implantation est encore active.
+//   2) Un Semis (effetCulture 'IMPLANTE') vise la campagne où sa culture
+//      sera récoltée/pâturée, jamais celle où on l'a semée — même règle que
+//      campagneDeSemis() (implantations.js), qui tague déjà l'implantation
+//      elle-même : un semis d'automne (août-décembre) appartient à l'année
+//      suivante, y compris pour le champ "campagne" de l'ACTIVITÉ. Seule une
+//      dérobée/CIPAN (culture de famille "derobee") fait exception : elle
+//      reste rattachée à la campagne EN COURS, en interculture — ce n'est
+//      pas la culture N+1 elle-même, juste une étape avant elle.
 function campagneDeLaDate() {
   const d = el.date.value || aujourdhui();
   const annee = d.slice(0, 4);
   const t = typeCourant();
+  const effet = effetCultureDe(t);
+  if (cible === 'PARCELLE' && effet === 'IMPLANTE') {
+    const culture = getCultureById(el.culture.value);
+    if (culture && culture.famille === 'derobee') return annee;
+    return campagneDeSemis(d) || annee;
+  }
   const preparationInterculture = cible === 'PARCELLE' &&
-    (formulaireDe(t) === 'FUMIER' || formulaireDe(t) === 'CHAULAGE' || effetCultureDe(t) === 'DETRUIT') &&
+    (formulaireDe(t) === 'FUMIER' || formulaireDe(t) === 'CHAULAGE' || effet === 'DETRUIT') &&
     Array.from(selection).some((id) => enInterculture(id, d));
   return preparationInterculture ? String(Number(annee) + 1) : annee;
 }

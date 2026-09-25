@@ -16,15 +16,27 @@ function r(v) { return Math.round((Number(v) || 0) * 100) / 100; }
 // (Luz 0, seule "année de semis" du référentiel) au printemps.
 const SAISON_PAR_FAMILLE = { CEREALES: 'automne', PRAIRIE_COURTE: 'automne', SEMIS_PRAIRIE: 'printemps' };
 
+// Sous-totaux du semis d'automne : deux familles y sèment, mais ce ne sont
+// pas le même chantier — un semoir à céréales et un semoir à prairie ne se
+// commandent pas ensemble, et le tonnage de semence non plus. D'où deux
+// lignes à part dans le tableau, en plus du total.
+const GROUPE_AUTOMNE = {
+  CEREALES: { cle: 'cereales', label: 'Céréales / Annuelles' },
+  PRAIRIE_COURTE: { cle: 'prairies', label: 'Prairies temporaires & Fourrages' }
+};
+
 /**
  * Chantiers de semis à venir pour une campagne : surfaces prévisionnelles à
- * semer, regroupées par saison, plus les dérobées/couverts RÉELLEMENT en
- * place (champ vivant de la fiche parcelle — jamais fondues dans le total
- * prévisionnel, cf. CLAUDE.md : le réel et le prévu ne se mélangent jamais).
+ * semer, regroupées par saison (avec, pour l'automne, le sous-total
+ * Céréales/Annuelles et celui des Prairies temporaires & Fourrages), plus
+ * les dérobées/couverts RÉELLEMENT en place (champ vivant de la fiche
+ * parcelle — jamais fondues dans le total prévisionnel, cf. CLAUDE.md : le
+ * réel et le prévu ne se mélangent jamais).
  */
 export function calendrierSemis(parcelles, campagne, liste) {
   const automne = new Map();
   const printemps = new Map();
+  const sousTotauxAutomne = new Map();
   let haAutomne = 0;
   let haPrintemps = 0;
   parcelles.forEach((p) => {
@@ -36,11 +48,20 @@ export function calendrierSemis(parcelles, campagne, liste) {
     const ha = Number(p.surfaceHa) || 0;
     const bucket = saison === 'automne' ? automne : printemps;
     bucket.set(c.code, (bucket.get(c.code) || 0) + ha);
-    if (saison === 'automne') haAutomne += ha; else haPrintemps += ha;
+    if (saison === 'automne') {
+      haAutomne += ha;
+      const groupe = GROUPE_AUTOMNE[c.famille];
+      if (groupe) sousTotauxAutomne.set(groupe.cle, (sousTotauxAutomne.get(groupe.cle) || 0) + ha);
+    } else {
+      haPrintemps += ha;
+    }
   });
   const details = (m) => Array.from(m.entries())
     .map(([code, ha]) => ({ code, label: culturePrev(code).label, ha: r(ha) }))
     .sort((a, b) => b.ha - a.ha);
+  const sousTotaux = Object.values(GROUPE_AUTOMNE)
+    .map((g) => ({ cle: g.cle, label: g.label, ha: r(sousTotauxAutomne.get(g.cle) || 0) }))
+    .filter((g) => g.ha > 0);
 
   const enDerobee = parcelles.filter((p) => p.derobee && String(p.derobee).trim());
   const derobees = {
@@ -51,7 +72,7 @@ export function calendrierSemis(parcelles, campagne, liste) {
   };
 
   return {
-    automne: { ha: r(haAutomne), details: details(automne) },
+    automne: { ha: r(haAutomne), details: details(automne), sousTotaux },
     printemps: { ha: r(haPrintemps), details: details(printemps) },
     derobees
   };

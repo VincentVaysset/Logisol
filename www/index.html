@@ -1309,16 +1309,18 @@
        Stocks reste "Bientôt" — hors périmètre de ce module. -->
   <div id="rapports-panel" class="fiche-overlay" hidden>
     <div class="fiche-panel" id="rapports-imprimable">
-      <div class="vue-head no-print">
+      <div class="vue-head">
         <h2>Rapports &amp; Synthèses</h2>
-        <button type="button" id="rapports-imprimer" class="btn btn-secondary btn-mini">🖨️ Imprimer / PDF</button>
+        <button type="button" id="rapports-imprimer" class="btn btn-secondary btn-mini no-print">🖨️ Télécharger / Imprimer PDF</button>
       </div>
-      <p class="apercu-sous-titre">Bilans construits à partir de l'assolement prévisionnel et des fiches parcelles.</p>
+      <p class="apercu-sous-titre">Bilans construits à partir de l'assolement prévisionnel et des fiches parcelles.<br>
+        <span id="rapports-genere-le"></span>
+      </p>
 
-      <div class="prev-entete no-print">
-        <button type="button" id="rap-campagne-moins" class="btn btn-secondary btn-mini" aria-label="Campagne précédente">◀</button>
+      <div class="prev-entete">
+        <button type="button" id="rap-campagne-moins" class="btn btn-secondary btn-mini no-print" aria-label="Campagne précédente">◀</button>
         <div class="prev-annees" id="rap-campagne-label">Campagne 2026</div>
-        <button type="button" id="rap-campagne-plus" class="btn btn-secondary btn-mini" aria-label="Campagne suivante">▶</button>
+        <button type="button" id="rap-campagne-plus" class="btn btn-secondary btn-mini no-print" aria-label="Campagne suivante">▶</button>
       </div>
 
       <h3 class="section-titre">📋 Assolement &amp; calendrier des semis</h3>
