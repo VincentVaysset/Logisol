@@ -11,12 +11,13 @@ import {
   synchroniserStadeCache, joursNourris, besoinJournalierKg, tonnesConsommees, estActive
 } from './lots.js';
 
-import { construireTableau, lotsSansStock, autonomieLisible } from './alimentation.js';
+import { construireTableau, lotsSansStock, autonomieLisible, regrouperColonnesParFamille } from './alimentation.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
 import { getBatiments, accepteLots } from './batiments.js';
 import { toastSucces, toastErreur } from './toast.js';
+import { familleAffichage, FAMILLES_AFFICHAGE, CONCENTRES_ACHETES } from './stocks.js';
 
 const panel = document.getElementById('lot-panel');
 const form = document.getElementById('lot-form');
@@ -52,6 +53,11 @@ const vueActuelleEl = document.getElementById('troupeau-actuel');
 const vueHistoriqueEl = document.getElementById('troupeau-historique');
 const campagneEl = document.getElementById('troupeau-campagne');
 const journalEl = document.getElementById('troupeau-journal');
+
+// Suggestions de concentrés achetés courants pour le nom d'un composant
+// "Aliment du commerce" — liste statique, le champ reste libre.
+document.getElementById('rc-concentres-suggestions').innerHTML = CONCENTRES_ACHETES
+  .map((n) => `<option value="${n.replace(/"/g, '&quot;')}"></option>`).join('');
 
 // « Ration actuelle » : le contenu qui existait déjà (tuiles, tableau
 // croisé, lots, rations). « Historique & bilan » : nouvelle sous-vue
@@ -138,6 +144,33 @@ function stocksPourFamille(origine) {
   return categories.filter((c) => c.categorie === famille);
 }
 
+// Options du <select> de stock, groupées par famille d'affichage (Foin
+// Prairie Naturelle, Foin Autres Prairies, Foin Séchage 1ère/2ème/3ème
+// coupe, Céréales / Mélange Ferme) : la VALEUR de chaque <option> reste le
+// lot précis (categorieCle), la famille n'est qu'un rangement — choisir "la
+// catégorie globale" revient à choisir le lot le plus évident dans son
+// groupe, jamais un mélange imprécis de plusieurs lots.
+function optionsStockGroupees(origine) {
+  const parFamille = new Map();
+  stocksPourFamille(origine).forEach((o) => {
+    const f = familleAffichage(o);
+    if (!parFamille.has(f)) parFamille.set(f, []);
+    parFamille.get(f).push(o);
+  });
+  const ordre = (label) => {
+    const i = FAMILLES_AFFICHAGE.indexOf(label);
+    return i === -1 ? FAMILLES_AFFICHAGE.length : i;
+  };
+  return Array.from(parFamille.keys())
+    .sort((a, b) => ordre(a) - ordre(b) || a.localeCompare(b, 'fr'))
+    .map((f) => {
+      const lignes = parFamille.get(f).slice().sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+      return `<optgroup label="${escapeAttr(f)}">${lignes.map((o) =>
+        `<option value="${escapeAttr(o.cle)}">${escapeHtml(o.label)} — ${formatTonnes(resteStock(o.cle, o.tonnes))} t</option>`
+      ).join('')}</optgroup>`;
+    }).join('');
+}
+
 function resteStock(cle, fallbackTonnes) {
   const c = derniereVue ? derniereVue.colonnes.find((x) => x.cle === cle) : null;
   return c && c.restant != null ? c.restant : fallbackTonnes;
@@ -163,7 +196,6 @@ function peuplerComposantsPeriode(stocksPreselectionnes = {}) {
         </div>
       </div>`;
     }
-    const options = stocksPourFamille(c.origine);
     const preselection = stocksPreselectionnes[c.id] || '';
     return `<div class="composant-ligne" data-composant="${escapeAttr(c.id)}">
       <div class="composant-info">
@@ -172,7 +204,7 @@ function peuplerComposantsPeriode(stocksPreselectionnes = {}) {
       </div>
       <select class="composant-stock" data-composant="${escapeAttr(c.id)}">
         <option value="">— Choisir un stock —</option>
-        ${options.map((o) => `<option value="${escapeAttr(o.cle)}">${escapeHtml(o.label)} — ${formatTonnes(resteStock(o.cle, o.tonnes))} t</option>`).join('')}
+        ${optionsStockGroupees(c.origine)}
       </select>
     </div>`;
   }).join('');
@@ -460,7 +492,16 @@ function renderTableau(vue) {
     tableauEl.innerHTML = '<p class="list-empty">Aucun stock saisi. Commence par l\'onglet Stocks.</p>';
     return;
   }
-  const entetes = vue.colonnes
+  // "Ration actuelle par stade" se lit par FAMILLE (Foin Prairie Naturelle,
+  // Foin Autres Prairies, Foin Séchage 1ère/2ème/3ème coupe, Céréales /
+  // Mélange Ferme, chaque achat du commerce à part) — une colonne par lot de
+  // stock exact étalerait le tableau sans rien apporter à la lecture rapide
+  // en bergerie. Le choix du lot précis reste entier à l'affectation d'une
+  // période (cf. peuplerComposantsPeriode) ; ce regroupement n'est qu'une
+  // présentation, cf. alimentation.js/regrouperColonnesParFamille.
+  const colonnes = regrouperColonnesParFamille(vue.colonnes, vue.date);
+
+  const entetes = colonnes
     .map(
       (c) => `<th>
         <div class="col-nom">${escapeHtml(c.label)}${c.commerce ? ' <span class="col-commerce">achat</span>' : ''}</div>
@@ -479,9 +520,9 @@ function renderTableau(vue) {
           <span class="stade-nom">${escapeHtml(l.stade.nom)}</span>
           <span class="stade-sub">${l.nbBrebis} brebis · ${l.stade.rationKgParBrebis} kg/j</span>
         </th>
-        ${vue.colonnes
+        ${colonnes
           .map((c) => {
-            const kg = l.parCategorie[c.cle];
+            const kg = c.membres.reduce((n, cle) => n + (l.parCategorie[cle] || 0), 0);
             return kg
               ? `<td class="cell-active">${Math.round(kg)}<small> kg/j</small></td>`
               : '<td class="vide">—</td>';
@@ -498,10 +539,10 @@ function renderTableau(vue) {
       <tbody>${corps}</tbody>
       <tfoot>
         <tr><th>Tiré par jour</th>
-          ${vue.colonnes.map((c) => `<td class="total">${c.besoinJourKg ? Math.round(c.besoinJourKg) + ' kg' : '—'}</td>`).join('')}
+          ${colonnes.map((c) => `<td class="total">${c.besoinJourKg ? Math.round(c.besoinJourKg) + ' kg' : '—'}</td>`).join('')}
           <td class="total">${Math.round(vue.totaux.tireJourKg)} kg</td></tr>
         <tr><th>Épuisement estimé</th>
-          ${vue.colonnes.map((c) => `<td class="${!c.commerce && c.autonomieJours != null && c.autonomieJours < 30 ? 'urgent' : ''}">${c.commerce ? '—' : (c.dateEpuisement ? escapeHtml(dateLisible(c.dateEpuisement)) : '—')}</td>`).join('')}
+          ${colonnes.map((c) => `<td class="${!c.commerce && c.autonomieJours != null && c.autonomieJours < 30 ? 'urgent' : ''}">${c.commerce ? '—' : (c.dateEpuisement ? escapeHtml(dateLisible(c.dateEpuisement)) : '—')}</td>`).join('')}
           <td></td></tr>
       </tfoot>
     </table>`;
@@ -587,7 +628,7 @@ function ligneComposantRation(stadeId, c) {
       <option value="cereale" ${c.origine === 'cereale' ? 'selected' : ''}>Céréale ferme</option>
       <option value="commerce" ${c.origine === 'commerce' ? 'selected' : ''}>Aliment du commerce</option>
     </select>
-    <input type="text" class="rc-nom" placeholder="Nom de l'aliment" value="${escapeAttr(c.nom || '')}" ${c.origine === 'commerce' ? '' : 'hidden'}>
+    <input type="text" class="rc-nom" list="rc-concentres-suggestions" placeholder="Nom de l'aliment" value="${escapeAttr(c.nom || '')}" ${c.origine === 'commerce' ? '' : 'hidden'}>
     <input type="number" class="rc-dose" step="0.1" min="0" inputmode="decimal" value="${c.doseKgParBrebis != null ? c.doseKgParBrebis : ''}">
     <span class="rc-unite">kg/j</span>
     <button type="button" class="rc-suppr" aria-label="Retirer cet ingrédient">✕</button>

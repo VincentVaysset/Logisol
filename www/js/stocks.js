@@ -48,6 +48,13 @@ export const FOURRAGES = [
   'RG trèfle', 'Sainfoin', 'Mélange prairial', 'Prairie naturelle'
 ];
 
+// Concentrés achetés courants, en suggestion pour le nom d'un composant de
+// ration "Aliment du commerce" (cf. ui-alimentation.js) — un aliment acheté
+// n'a pas de stock fermier à tracer (cf. calculerTonnes/agrégation), juste un
+// nom et une dose ; la liste ne fait qu'éviter de le retaper à l'identique
+// d'une ration à l'autre. Le champ reste libre, comme FOURRAGES ci-dessus.
+export const CONCENTRES_ACHETES = ['Tourteau', 'Aliment Complet Brebis Laitières'];
+
 let courants = [];
 const listeners = new Set();
 
@@ -98,6 +105,46 @@ function arrondi3(v) {
 // C'est la clé qui relie les stocks à l'alimentation : un lot d'animaux puise
 // sur UNE catégorie précise (« 1ʳᵉ coupe de luzerne séchée en grange »), pas
 // sur « du foin » en général.
+// --- Regroupement d'affichage (ration par stade) ---------------------------
+// La clé précise (categorieCle) reste l'identité RÉELLE d'un lot de stock —
+// c'est elle qui trace la récolte jusqu'à la ration, rien n'y touche ici.
+// Ce regroupement n'est qu'une présentation : plusieurs clés précises
+// (coupes, fourrages différents) tombent sous une même famille "à l'œil" pour
+// que le tableau croisé stades × stocks reste lisible plutôt que d'étaler
+// une colonne par variété. La sélection d'un stock pour une période garde,
+// elle, le choix précis (cf. ui-alimentation.js) — le regroupement ne fait
+// que présenter les colonnes du tableau, il ne mélange jamais deux lots au
+// moment de décompter une consommation.
+export const FAMILLES_AFFICHAGE = [
+  'Foin Prairie Naturelle (PP)',
+  'Foin Autres Prairies',
+  'Foin Séchage 1ère coupe',
+  'Foin Séchage 2ème coupe',
+  'Foin Séchage 3ème coupe',
+  'Foin Séchage (autre coupe)',
+  'Céréales / Mélange Ferme'
+];
+
+export function familleAffichage(cat) {
+  if (!cat) return 'Autre';
+  if (cat.categorie === 'cereale') return 'Céréales / Mélange Ferme';
+  if (cat.categorie === 'foin') {
+    if (cat.conservation === 'grange') {
+      const n = Number(cat.coupe) || 0;
+      if (n === 1) return 'Foin Séchage 1ère coupe';
+      if (n === 2) return 'Foin Séchage 2ème coupe';
+      if (n === 3) return 'Foin Séchage 3ème coupe';
+      return 'Foin Séchage (autre coupe)';
+    }
+    // Botte (conservation absente = botte par défaut, cf. nettoyer()) : la
+    // prairie naturelle isolée pour sa valeur nutritive propre, tout le reste
+    // (1ʳᵉ/2ᵉ coupe, prairie temporaire...) dans un même panier "Autres".
+    return slug(cat.fourrage || '').indexOf('prairie-naturelle') !== -1
+      ? 'Foin Prairie Naturelle (PP)' : 'Foin Autres Prairies';
+  }
+  return 'Autre';
+}
+
 export function categorieCle(s) {
   if (s.categorie === 'foin') return cleFoin(s.conservation, s.coupe, s.fourrage);
   if (s.categorie === 'cereale') return cleCereale(s.espece);

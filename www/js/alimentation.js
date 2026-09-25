@@ -12,6 +12,7 @@
 // ses choix.
 import { joursNourris, tonnesConsommees, besoinJournalierKg, prelevementsActifs, stadeActifId } from './lots.js';
 import { aujourdhui } from './implantations.js';
+import { familleAffichage, FAMILLES_AFFICHAGE } from './stocks.js';
 
 function arrondi3(v) { return Math.round(v * 1000) / 1000; }
 
@@ -145,6 +146,52 @@ export function construireTableau({ categories, lots, stades, prelevements, date
   };
 
   return { colonnes, lignes, totaux, date };
+}
+
+// Regroupe les colonnes PRÉCISES de construireTableau() (une par lot de
+// stock exact) en familles d'affichage (stocks.js/familleAffichage), pour le
+// tableau croisé "Ration actuelle par stade" — jamais pour le détail par lot
+// (ui-alimentation.js/renderLots), qui garde le stock précis, plus parlant
+// à l'échelle d'un lot d'animaux. Un aliment du commerce reste sa PROPRE
+// colonne, jamais fondu : chacun a déjà un nom choisi par l'exploitant.
+export function regrouperColonnesParFamille(colonnes, date = aujourdhui()) {
+  const parFamille = new Map();
+  colonnes.forEach((c) => {
+    const famille = c.commerce ? c.label : familleAffichage(c);
+    if (!parFamille.has(famille)) {
+      parFamille.set(famille, {
+        cle: famille, label: famille, commerce: !!c.commerce,
+        membres: [], recolte: 0, consomme: 0, restant: 0, besoinJourKg: 0
+      });
+    }
+    const g = parFamille.get(famille);
+    g.membres.push(c.cle);
+    if (!c.commerce) {
+      g.recolte = arrondi3(g.recolte + c.recolte);
+      g.consomme = arrondi3(g.consomme + c.consomme);
+      g.restant = arrondi3(g.restant + c.restant);
+    }
+    g.besoinJourKg += c.besoinJourKg;
+  });
+  parFamille.forEach((g) => {
+    if (g.commerce) { g.restant = null; g.autonomieJours = null; g.dateEpuisement = null; return; }
+    g.autonomieJours = null;
+    g.dateEpuisement = null;
+    if (g.besoinJourKg > 0) {
+      const jours = Math.floor((g.restant * 1000) / g.besoinJourKg);
+      g.autonomieJours = jours;
+      g.dateEpuisement = decalerJours(date, Math.max(0, jours));
+    }
+  });
+  const ordre = (label) => {
+    const i = FAMILLES_AFFICHAGE.indexOf(label);
+    return i === -1 ? FAMILLES_AFFICHAGE.length : i;
+  };
+  return Array.from(parFamille.values()).sort((a, b) => {
+    const ua = a.besoinJourKg > 0 ? 0 : 1;
+    const ub = b.besoinJourKg > 0 ? 0 : 1;
+    return ua - ub || ordre(a.label) - ordre(b.label) || a.label.localeCompare(b.label, 'fr');
+  });
 }
 
 // Lots sans stock affecté : c'est l'oubli le plus probable, et il rend le
