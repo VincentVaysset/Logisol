@@ -118,24 +118,32 @@ export function indiceCulture(code) {
 
 // Indice de la toute première année, par famille — PAS le même chiffre pour
 // toutes : la luzerne démarre à 0 (implantation lente, l'année de semis ne
-// "produit" rien), le RG trèfle et les céréales/annuelles démarrent à 1
-// (récoltés/pâturés dès leur première année). Absente de cette table = pas
-// de notion d'âge (PN, Fétuque/Trèfle, Autre : pérennes non comptées).
+// "produit" rien), le RG trèfle démarre à 1 (récolté/pâturé dès sa première
+// année). Absente de cette table = pas de notion d'âge (PN, Fétuque/Trèfle,
+// Autre : pérennes non comptées). Les céréales/annuelles n'y figurent plus :
+// contrairement à une prairie qui vieillit sur pied, "Blé 2" ou "Orge 3" ne
+// désigne pas une culture en place depuis deux/trois ans — l'indice compte
+// la succession de la même espèce dans la rotation, mais CHAQUE campagne
+// exige un nouveau semis (cf. estSemisDeLAnnee ci-dessous).
 const PREMIERE_ANNEE_PAR_FAMILLE = {
   SEMIS_PRAIRIE: 0,   // LUZ0 uniquement (les LUZ1-5 sont en famille LUZERNE)
-  PRAIRIE_COURTE: 1,  // RGT1 (RGT2/3 ne matchent pas, indice > 1)
-  CEREALES: 1
+  PRAIRIE_COURTE: 1   // RGT1 (RGT2/3 ne matchent pas, indice > 1)
 };
 
 // Vrai pour un semis/implantation de l'année — la ligne à surveiller (jeune
-// culture tout juste semée) : Luz 0 pour la luzerne, RG trèfle 1 pour les
-// prairies temporaires à récolte immédiate, Blé 1 / Orge 1 / Triticale 1
-// pour les céréales numérotées. Un code de céréale SANS indice numérique
-// (Avoine, Méteil : un seul créneau pour l'instant, cf. CULTURES_PREV) est
-// par construction toujours cette première (et seule) année.
+// culture tout juste semée, ou culture à ressemer chaque campagne) :
+//   - Céréales et annuelles (Blé, Orge, Triticale, Avoine, Méteil, Maïs,
+//     Tournesol...) : TOUJOURS vrai, quel que soit l'indice — "Blé 2" est un
+//     nouveau semis de blé tout autant que "Blé 1", l'indice ne fait que
+//     suivre la rotation, pas l'âge d'une culture en place ;
+//   - Luzerne : seulement Luz 0 (l'année d'implantation) — Luz 1 et plus sont
+//     une prairie déjà en place, pas un chantier de semis ;
+//   - RG trèfle / prairies temporaires courtes : seulement l'année 1 ;
+//   - Prairie permanente et pérennes en place (Fétuque/Trèfle...) : jamais.
 export function estSemisDeLAnnee(code) {
   const c = culturePrev(code);
   if (!c) return false;
+  if (c.famille === 'CEREALES') return true;
   const seuil = PREMIERE_ANNEE_PAR_FAMILLE[c.famille];
   if (seuil === undefined) return false;
   const indice = indiceCulture(code);
