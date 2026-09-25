@@ -270,16 +270,19 @@ function etapeChaine(etape) {
   return `${prefixe}${etape.nom} (${statut})`;
 }
 
-// Badge sous la case Culture. Trois situations, en plus de l'écart (qui garde
-// sa propre alerte, prioritaire, et ne se déclenche jamais sur une étape déjà
-// détruite — cf. l'appelant qui calcule "ecart") :
+// Badge sous la case Culture. Quatre situations, en plus de l'écart (qui
+// garde sa propre alerte, prioritaire, et ne se déclenche jamais sur une
+// étape déjà détruite — cf. l'appelant qui calcule "ecart") :
 //   - une SEULE implantation encore active pour cette campagne : badge simple
 //     ("Semé le ..." si rattachée à cette campagne, "En place" sinon — une
 //     prairie pluriannuelle en place depuis une campagne antérieure) ;
-//   - une implantation détruite SANS successeur encore semé, mais avec une
-//     culture déjà choisie au prévisionnel : l'enchaînement se montre quand
-//     même, la suite annoncée plutôt que constatée ("Colza (Détruit) ➔
-//     Luzerne (Prévue)") ;
+//   - une implantation détruite (récoltée, déchaumée...) SANS successeur —
+//     ni semé, ni même choisi au prévisionnel : la parcelle est entre deux
+//     cultures, en INTERCULTURE (chaumes). Jamais "vide" (elle a une
+//     histoire) ni encore affichée sur l'ancienne céréale (elle est finie) ;
+//   - la même implantation détruite, mais avec une culture déjà choisie au
+//     prévisionnel : l'enchaînement se montre quand même, la suite annoncée
+//     plutôt que constatée ("Blé 1 (Détruit) ➔ Luzerne 0 (Prévue)") ;
 //   - une VRAIE chaîne (dérobée détruite + culture suivante déjà semée) :
 //     "Colza fourrager (Détruit) ➔ Luzerne (Semé le ...)".
 function statutReel(reel, ecart, cultureCodePrevue) {
@@ -294,6 +297,9 @@ function statutReel(reel, ecart, cultureCodePrevue) {
     }
     if (etapes.length > 1) {
       return `<span class="reel-statut chaine">${esc(etapes.join(' ➔ '))}</span>`;
+    }
+    if (reel.dateFin) {
+      return `<span class="reel-statut interculture">${esc(reel.nom)} récoltée — Interculture (chaumes)</span>`;
     }
     const derobee = reel.famille === 'derobee';
     const prefixe = derobee ? '🟣 ' : '';

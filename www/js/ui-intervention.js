@@ -38,7 +38,7 @@ import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getLots } from './lots.js';
 import { niveauContenant, createMouvement, updateMouvement, deleteMouvement, getMouvements } from './mouvements.js';
 import {
-  implantationEnCours, setImplantation, cloturerImplantation, deleteImplantation
+  implantationEnCours, historiqueParcelle, setImplantation, cloturerImplantation, deleteImplantation
 } from './implantations.js';
 import { getCultureById, getCultures, onCulturesChange, addCulture } from './cultures-config.js';
 import { COUPES, FOURRAGES, cleFoin, labelFoin, cleCereale, labelCereale } from './stocks.js';
@@ -573,6 +573,13 @@ function implantationsTouchees() {
 }
 
 function majEffetCulture() {
+  // La campagne suit le type d'activité ET la sélection de parcelles, pas
+  // seulement la date (cf. campagneDeLaDate : bascule vers N+1 pour un
+  // fumier/chaux/travail du sol fait en interculture) — recalculée à chaque
+  // fois que l'un des deux change, tant que l'exploitant ne l'a pas corrigée
+  // lui-même. majEffetCulture() est déjà appelée à ces quatre moments (type,
+  // sélection, statut, date) : un seul endroit pour rester synchronisé.
+  if (!el.campagne.value || el.campagne.dataset.auto !== 'non') el.campagne.value = campagneDeLaDate();
   const effet = effetCultureDe(typeCourant());
   if (!effet || statut !== 'TERMINE') { el['effet-culture'].hidden = true; return; }
   const touchees = implantationsTouchees();
@@ -754,9 +761,7 @@ el.campagne.addEventListener('input', () => {
   }
 });
 el.date.addEventListener('change', () => {
-  // La campagne suit la date tant que l'exploitant ne l'a pas corrigée
-  // lui-même : on ne réécrit que si elle correspondait encore à l'ancienne.
-  if (!el.campagne.value || el.campagne.dataset.auto !== 'non') el.campagne.value = campagneDeLaDate();
+  // majEffetCulture() resynchronise déjà la campagne (cf. sa définition).
   majEffetCulture();
   if (meteoCourante && meteoCourante.date === el.date.value) return;
   meteoCourante = null;
@@ -1133,12 +1138,34 @@ function reinitialiser() {
   majCibleBoutons();
 }
 
+// Une parcelle qui n'a plus d'implantation active mais en a déjà porté une
+// est en INTERCULTURE (chaumes) — ni "vide", ni encore sur l'ancienne
+// culture (cf. accueil.js/ouvrirApercu et ui-assolement.js/statutReel, même
+// logique). Sert ici à savoir si un travail fait sur cette parcelle prépare
+// la campagne suivante plutôt que de clore la précédente.
+function enInterculture(parcelleId, date) {
+  if (implantationEnCours(parcelleId, date)) return false;
+  return historiqueParcelle(parcelleId).length > 0;
+}
+
 // Campagne agricole : l'année de la date saisie, proposée d'office. Une
 // récolte de juillet appartient à la campagne en cours, et corriger l'année à
 // la main reste possible pour un semis d'automne rattaché à la suivante.
+// Exception automatique : fumier, chaux et travail du sol (déchaumage,
+// labour, vibroculteur, moisson — effetCulture 'DETRUIT') faits PENDANT
+// l'interculture d'une parcelle sélectionnée sont déjà de la préparation
+// pour le prochain semis, pas un geste de fin de campagne — rattachés
+// d'office à la campagne SUIVANTE. Une activité qui vient elle-même de
+// clore la culture en place (ex. la moisson qui déclenche la clôture) ne
+// bascule pas : au moment du calcul, l'implantation est encore active.
 function campagneDeLaDate() {
   const d = el.date.value || aujourdhui();
-  return d.slice(0, 4);
+  const annee = d.slice(0, 4);
+  const t = typeCourant();
+  const preparationInterculture = cible === 'PARCELLE' &&
+    (formulaireDe(t) === 'FUMIER' || formulaireDe(t) === 'CHAULAGE' || effetCultureDe(t) === 'DETRUIT') &&
+    Array.from(selection).some((id) => enInterculture(id, d));
+  return preparationInterculture ? String(Number(annee) + 1) : annee;
 }
 
 // Liste des chauffeurs déjà saisis, construite depuis le journal : aucune

@@ -1,6 +1,6 @@
 // Vue Ferme : fil des dernières activités (toutes parcelles mélangées, les
 // plus récentes en premier) et aperçu d'une parcelle tapée sur la carte.
-import { implantationEnCours, dureeLisible } from './implantations.js';
+import { implantationEnCours, historiqueParcelle, dureeLisible } from './implantations.js';
 import { resumeMeteo } from './meteo.js';
 import { openCreateIntervention, openEditIntervention } from './ui-intervention.js';
 
@@ -149,7 +149,13 @@ export function ouvrirApercu(parcelle) {
       apercuDuree.textContent = dureeLisible(impl) || '—';
       apercuSemis.textContent = dateLisible(impl.dateSemis);
     } else {
-      apercuCulture.textContent = 'À renseigner';
+      // Rien d'actif : soit la parcelle n'a jamais rien porté ("À
+      // renseigner"), soit la dernière culture vient d'être récoltée/détruite
+      // (Moisson, Déchaumage, Labour...) et rien n'est encore semé — c'est
+      // l'interculture, jamais à confondre avec une parcelle qu'on aurait
+      // oublié de renseigner.
+      const derniere = historiqueParcelle(parcelle.id, etat.implantations)[0];
+      apercuCulture.textContent = derniere && derniere.dateFin ? 'Interculture (chaumes)' : 'À renseigner';
       apercuDuree.textContent = '—';
       apercuSemis.textContent = '—';
     }

@@ -69,7 +69,11 @@ const TYPES_PAR_DEFAUT = [
   { nom: 'Séchage en grange',            icone: '🚛', couleur: '#c98a3e', categorie: 'RECOLTE_FOURRAGE', cible: 'PARCELLE', flux: 'ENTREE_STOCK', formulaire: 'SECHAGE', champs: TRAVAIL },
 
   // --- 🌽 Moisson : entrée en stock OBLIGATOIRE, en cellule à grain ---
-  { nom: 'Moisson',                      icone: '🌽', couleur: '#c98a3e', categorie: 'MOISSON', cible: 'PARCELLE', flux: 'ENTREE_STOCK', formulaire: 'MOISSON', champs: TRAVAIL },
+  // effetCulture: DETRUIT — la moisson clôt la culture en place à la date de
+  // récolte (comme un déchaumage/labour) : la parcelle passe alors en
+  // interculture (chaumes) plutôt que de rester bloquée sur la céréale
+  // récoltée jusqu'au prochain déchaumage.
+  { nom: 'Moisson',                      icone: '🌽', couleur: '#c98a3e', categorie: 'MOISSON', cible: 'PARCELLE', flux: 'ENTREE_STOCK', formulaire: 'MOISSON', effetCulture: 'DETRUIT', champs: TRAVAIL },
 
   // --- 💩 Épandage ---
   { nom: 'Épandage fumier',              icone: '💩', couleur: '#8a6d5c', categorie: 'EPANDAGE', cible: 'PARCELLE', flux: null, formulaire: 'FUMIER', champs: TRAVAIL },

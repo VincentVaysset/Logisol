@@ -1033,6 +1033,12 @@ header button {
 .reel-statut.implantation {
   color: var(--primary); background: rgba(5,150,105,0.12); font-weight: 700;
 }
+/* Interculture (chaumes) : gris neutre — ni l'alerte ambre d'un écart, ni
+   l'émeraude d'une culture en place. Une parcelle entre deux cultures n'est
+   ni une anomalie, ni "vide" : juste une étape normale en attente de semis. */
+.reel-statut.interculture {
+  color: var(--text-muted); background: rgba(100,116,139,0.14);
+}
 .tableau-prev td.saved { animation: cell-saved 1.1s ease-out; }
 @keyframes cell-saved { from { background: rgba(5,150,105,0.28); } to { background: transparent; } }
 
