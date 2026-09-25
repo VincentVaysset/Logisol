@@ -44,6 +44,7 @@ import { getCultureById, getCultures, onCulturesChange, addCulture } from './cul
 import { COUPES, FOURRAGES, cleFoin, labelFoin, cleCereale, labelCereale } from './stocks.js';
 import { conservationDuContenant } from './fourrages.js';
 import { prevision, culturePrev } from './assolement-previsionnel.js';
+import { toastSucces, toastErreur } from './toast.js';
 
 const panel = document.getElementById('intervention-panel');
 const form = document.getElementById('itv-form');
@@ -1409,6 +1410,7 @@ form.addEventListener('submit', async (e) => {
     fini = true; clearTimeout(minuteur);
     if (monToken === saveToken) {
       log('activité enregistrée' + (mouvementId ? ' (+ mouvement de stock)' : ''));
+      toastSucces('Activité enregistrée.');
       fermer();
     }
   } catch (err) {
@@ -1419,6 +1421,7 @@ form.addEventListener('submit', async (e) => {
         const code = err && err.code ? `${err.code} — ` : '';
         showError(`Erreur d'enregistrement : ${code}${(err && err.message) || err}`);
       }
+      toastErreur(`Échec de l'enregistrement de l'activité : ${(err && err.message) || err}`);
     }
   } finally {
     fini = true;

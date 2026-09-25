@@ -27,6 +27,7 @@ import { formatTonnes } from './ui-stocks.js';
 import {
   centrerSurMaPosition, getMap, demarrerPlacement, arreterPlacement, positionPlacement
 } from './map.js';
+import { toastSucces, toastErreur } from './toast.js';
 import { messagePermission } from './diagnostic-regles.js';
 import { ventilationContenant, resumeLot } from './fourrages.js';
 
@@ -277,9 +278,12 @@ bat.form.addEventListener('submit', async (e) => {
     else nouveauId = (await createBatiment(data)).id;
     bat.panel.hidden = true;
     log('bâtiment enregistré');
+    toastSucces('Bâtiment enregistré.');
     if (apresBatiment) { const cb = apresBatiment; apresBatiment = null; cb(nouveauId, data.type); }
   } catch (err) {
-    batError(messageErreur(err, 'lgs_batiments'));
+    const msg = messageErreur(err, 'lgs_batiments');
+    batError(msg);
+    toastErreur(`Échec de l'enregistrement du bâtiment : ${msg}`);
   } finally {
     bat.save.disabled = false; bat.save.textContent = 'Enregistrer';
   }
@@ -295,8 +299,8 @@ bat.delete.addEventListener('click', async () => {
   }
   if (!confirm('Supprimer ce bâtiment ? Cette action est irréversible.')) return;
   bat.delete.disabled = true;
-  try { await deleteBatiment(batEditId); bat.panel.hidden = true; }
-  catch (err) { batError(messageErreur(err)); }
+  try { await deleteBatiment(batEditId); bat.panel.hidden = true; toastSucces('Bâtiment supprimé.'); }
+  catch (err) { const msg = messageErreur(err); batError(msg); toastErreur(`Échec de la suppression : ${msg}`); }
   finally { bat.delete.disabled = false; }
 });
 
@@ -384,9 +388,12 @@ cel.form.addEventListener('submit', async (e) => {
     cel.panel.hidden = true;
     const b = getBatimentById(celBatimentId);
     if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+    toastSucces('Cellule enregistrée.');
     if (apresCellule) { const cb = apresCellule; apresCellule = null; cb(nouveauId); }
   } catch (err) {
-    cel['error-text'].textContent = messageErreur(err, 'lgs_cellules_grain'); cel['error-banner'].hidden = false;
+    const msg = messageErreur(err, 'lgs_cellules_grain');
+    cel['error-text'].textContent = msg; cel['error-banner'].hidden = false;
+    toastErreur(`Échec de l'enregistrement de la cellule : ${msg}`);
   } finally {
     cel.save.disabled = false; cel.save.textContent = 'Enregistrer';
   }
@@ -404,8 +411,11 @@ cel.delete.addEventListener('click', async () => {
     cel.panel.hidden = true;
     const b = getBatimentById(celBatimentId);
     if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+    toastSucces('Cellule supprimée.');
   } catch (err) {
-    cel['error-text'].textContent = messageErreur(err); cel['error-banner'].hidden = false;
+    const msg = messageErreur(err);
+    cel['error-text'].textContent = msg; cel['error-banner'].hidden = false;
+    toastErreur(`Échec de la suppression : ${msg}`);
   } finally { cel.delete.disabled = false; }
 });
 
@@ -466,9 +476,12 @@ emp.form.addEventListener('submit', async (ev) => {
     emp.panel.hidden = true;
     const b = getBatimentById(empBatimentId);
     if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+    toastSucces('Emplacement enregistré.');
     if (apresEmplacement) { const cb = apresEmplacement; apresEmplacement = null; cb(nouveauId); }
   } catch (err) {
-    emp['error-text'].textContent = messageErreur(err, 'lgs_emplacements_fourrage'); emp['error-banner'].hidden = false;
+    const msg = messageErreur(err, 'lgs_emplacements_fourrage');
+    emp['error-text'].textContent = msg; emp['error-banner'].hidden = false;
+    toastErreur(`Échec de l'enregistrement de l'emplacement : ${msg}`);
   } finally {
     emp.save.disabled = false; emp.save.textContent = 'Enregistrer';
   }
@@ -486,8 +499,11 @@ emp.delete.addEventListener('click', async () => {
     emp.panel.hidden = true;
     const b = getBatimentById(empBatimentId);
     if (b && !bat.panel.hidden) renderContenantsDuBatiment(b);
+    toastSucces('Emplacement supprimé.');
   } catch (err) {
-    emp['error-text'].textContent = messageErreur(err); emp['error-banner'].hidden = false;
+    const msg = messageErreur(err);
+    emp['error-text'].textContent = msg; emp['error-banner'].hidden = false;
+    toastErreur(`Échec de la suppression : ${msg}`);
   } finally { emp.delete.disabled = false; }
 });
 

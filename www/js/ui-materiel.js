@@ -8,6 +8,7 @@ import {
 import { getTypes, onTypesChange, estMasque, cibleDe } from './interventions-types.js';
 import { aujourdhui } from './implantations.js';
 import { messagePermission } from './diagnostic-regles.js';
+import { toastSucces, toastErreur } from './toast.js';
 
 const panel = document.getElementById('materiel-panel');
 const form = document.getElementById('mat-form');
@@ -121,8 +122,11 @@ async function enregistrer(e) {
     else await createMateriel(data);
     fermer();
     log('matériel enregistré');
+    toastSucces('Matériel enregistré.');
   } catch (err) {
-    showError(messagePermission(err, 'lgs_materiel'));
+    const msg = messagePermission(err, 'lgs_materiel');
+    showError(msg);
+    toastErreur(`Échec de l'enregistrement du matériel : ${msg}`);
   } finally {
     el.save.disabled = false; el.save.textContent = 'Enregistrer';
   }
@@ -132,8 +136,8 @@ async function supprimer() {
   if (!editId) return;
   if (!confirm('Supprimer ce matériel ? Les activités qui le mentionnent garderont son nom.')) return;
   el.delete.disabled = true;
-  try { await deleteMateriel(editId); fermer(); }
-  catch (err) { showError((err && err.message) || err); }
+  try { await deleteMateriel(editId); fermer(); toastSucces('Matériel supprimé.'); }
+  catch (err) { const msg = (err && err.message) || err; showError(msg); toastErreur(`Échec de la suppression : ${msg}`); }
   finally { el.delete.disabled = false; }
 }
 

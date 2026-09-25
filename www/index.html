@@ -1189,7 +1189,11 @@
             <label for="fiche-newculture-couleur">Couleur</label>
             <input type="color" id="fiche-newculture-couleur" value="#9a988f">
             <label for="fiche-newculture-famille">Famille</label>
-            <select id="fiche-newculture-famille" required>
+            <!-- Pas de "required" HTML natif ici : le contrôle est refait en
+                 JS (voir ui.js) pour donner un message explicite dans le
+                 bandeau rouge de la fiche plutôt qu'une bulle native qui ne
+                 s'affiche pas correctement sur toutes les WebView Android. -->
+            <select id="fiche-newculture-famille">
               <option value="" selected disabled>— Choisir une famille —</option>
               <option value="prairie_permanente">Prairie permanente (PP)</option>
               <option value="prairie_temporaire">Prairie temporaire (PT)</option>

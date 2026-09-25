@@ -16,6 +16,7 @@ import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
 import { getBatiments, accepteLots } from './batiments.js';
+import { toastSucces, toastErreur } from './toast.js';
 
 const panel = document.getElementById('lot-panel');
 const form = document.getElementById('lot-form');
@@ -319,14 +320,17 @@ async function ajouterPeriode() {
 
     await planifierPeriode(editingLot, { stade, nbBrebis, debut, fin, stocksParComposant });
     log('période planifiée');
+    toastSucces('Période planifiée.');
     inputDebutP.value = aujourdhui();
     inputFinP.value = '';
     renderPeriodes(editingLot);
   } catch (err) {
-    erreurP.textContent = err instanceof ErreurDeSaisie
+    const msg = err instanceof ErreurDeSaisie
       ? err.message
       : `Erreur d'enregistrement : ${(err && err.message) || err}`;
+    erreurP.textContent = msg;
     erreurP.hidden = false;
+    toastErreur(`Échec de la planification : ${msg}`);
   } finally {
     btnAjouterPeriode.disabled = false;
   }
@@ -367,20 +371,24 @@ async function enregistrer(e) {
       clearTimeout(minuteur);
       if (monToken === saveToken) {
         log('lot créé — prêt pour la planification des périodes');
+        toastSucces('Lot créé.');
         openEditLot({ id: lotId, nom, nbBrebis: n, batimentId, notes, stadeId: null });
       }
     } else {
       await updateLot(editingId, { nom, nbBrebis: n, batimentId, notes });
       fini = true;
       clearTimeout(minuteur);
-      if (monToken === saveToken) { log('lot mis à jour'); fermer(); }
+      if (monToken === saveToken) { log('lot mis à jour'); toastSucces('Lot enregistré.'); fermer(); }
     }
   } catch (err) {
     fini = true;
     clearTimeout(minuteur);
     if (monToken === saveToken) {
-      if (err instanceof ErreurDeSaisie) showError(err.message);
-      else showError(`Erreur d'enregistrement : ${err && err.code ? err.code + ' — ' : ''}${(err && err.message) || err}`);
+      const msg = err instanceof ErreurDeSaisie
+        ? err.message
+        : `Erreur d'enregistrement : ${err && err.code ? err.code + ' — ' : ''}${(err && err.message) || err}`;
+      showError(msg);
+      toastErreur(`Échec de l'enregistrement du lot : ${msg}`);
     }
   } finally {
     fini = true;
@@ -394,9 +402,12 @@ async function supprimer() {
   btnDelete.disabled = true;
   try {
     await deleteLot(editingId);
+    toastSucces('Lot supprimé.');
     fermer();
   } catch (err) {
-    showError('Erreur de suppression : ' + ((err && err.message) || err));
+    const msg = 'Erreur de suppression : ' + ((err && err.message) || err);
+    showError(msg);
+    toastErreur(msg);
   } finally {
     btnDelete.disabled = false;
   }

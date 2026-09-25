@@ -27,6 +27,7 @@ import { formatTonnes } from './ui-stocks.js';
 import {
   openCreateBatiment, openEditBatiment, messageErreur, esc, ErreurDeSaisie
 } from './ui-batiments.js';
+import { toastSucces, toastErreur } from './toast.js';
 
 const panel = document.getElementById('mouvement-panel');
 const form = document.getElementById('mvt-form');
@@ -344,10 +345,14 @@ async function enregistrer(e) {
     if (editId) await updateMouvement(editId, data);
     else await createMouvement(data);
     fini = true; clearTimeout(minuteur);
-    if (monToken === saveToken) { log('mouvement enregistré'); fermer(); onChangeExterne(); }
+    if (monToken === saveToken) { log('mouvement enregistré'); toastSucces('Mouvement enregistré.'); fermer(); onChangeExterne(); }
   } catch (err) {
     fini = true; clearTimeout(minuteur);
-    if (monToken === saveToken) showError(messageErreur(err, 'lgs_mouvements_stock'));
+    if (monToken === saveToken) {
+      const msg = messageErreur(err, 'lgs_mouvements_stock');
+      showError(msg);
+      toastErreur(`Échec de l'enregistrement du mouvement : ${msg}`);
+    }
   } finally {
     fini = true;
     if (monToken === saveToken) { el.save.disabled = false; el.save.textContent = 'Enregistrer'; }
@@ -358,8 +363,8 @@ async function supprimer() {
   if (!editId) return;
   if (!confirm('Supprimer ce mouvement ? Les niveaux seront recalculés.')) return;
   el.delete.disabled = true;
-  try { await deleteMouvement(editId); fermer(); onChangeExterne(); }
-  catch (err) { showError(messageErreur(err)); }
+  try { await deleteMouvement(editId); fermer(); onChangeExterne(); toastSucces('Mouvement supprimé.'); }
+  catch (err) { const msg = messageErreur(err); showError(msg); toastErreur(`Échec de la suppression : ${msg}`); }
   finally { el.delete.disabled = false; }
 }
 

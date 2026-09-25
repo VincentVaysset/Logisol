@@ -10,6 +10,7 @@ import {
 } from './implantations.js';
 import { createParcelle, updateParcelle, deleteParcelle } from './parcelles.js';
 import { discardDrawnLayer, cancelDrawing } from './draw.js';
+import { toastSucces, toastErreur } from './toast.js';
 
 const panel = document.getElementById('fiche-panel');
 const form = document.getElementById('fiche-form');
@@ -393,6 +394,7 @@ form.addEventListener('submit', async (e) => {
       log(mode === 'create'
         ? 'parcelle créée — tu peux en dessiner une autre'
         : 'parcelle enregistrée');
+      toastSucces(mode === 'create' ? 'Parcelle créée.' : 'Parcelle enregistrée.');
       hideFicheError();
       closePanel();
     }
@@ -403,6 +405,7 @@ form.addEventListener('submit', async (e) => {
       const code = err && err.code ? `${err.code} — ` : '';
       const message = (err && err.message) || String(err);
       showFicheError(`Erreur d'enregistrement : ${code}${message}`);
+      toastErreur(`Échec de l'enregistrement de la parcelle : ${message}`);
     }
   } finally {
     settled = true;
@@ -427,9 +430,10 @@ btnDelete.addEventListener('click', async () => {
     for (const impl of aSupprimer) {
       await deleteImplantation(impl.id);
     }
+    toastSucces('Parcelle supprimée.');
     closePanel();
   } catch (err) {
-    alert('Erreur de suppression : ' + err.message);
+    toastErreur('Échec de la suppression : ' + ((err && err.message) || err));
   } finally {
     btnDelete.disabled = false;
   }

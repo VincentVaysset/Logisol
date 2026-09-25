@@ -6,6 +6,7 @@ import {
 import { croiseCoupeFourrage } from './fourrages.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
+import { toastSucces, toastErreur } from './toast.js';
 
 const panel = document.getElementById('stock-panel');
 const form = document.getElementById('stock-form');
@@ -268,13 +269,16 @@ async function enregistrer(e) {
     else if (editingId) await updateStock(editingId, data);
     fini = true;
     clearTimeout(minuteur);
-    if (monToken === saveToken) { log('récolte enregistrée'); fermer(); onChangeExterne(); }
+    if (monToken === saveToken) { log('récolte enregistrée'); toastSucces('Récolte enregistrée.'); fermer(); onChangeExterne(); }
   } catch (err) {
     fini = true;
     clearTimeout(minuteur);
     if (monToken === saveToken) {
-      if (err instanceof ErreurDeSaisie) showError(err.message);
-      else showError(`Erreur d'enregistrement : ${err && err.code ? err.code + ' — ' : ''}${(err && err.message) || err}`);
+      const msg = err instanceof ErreurDeSaisie
+        ? err.message
+        : `Erreur d'enregistrement : ${err && err.code ? err.code + ' — ' : ''}${(err && err.message) || err}`;
+      showError(msg);
+      toastErreur(`Échec de l'enregistrement de la récolte : ${msg}`);
     }
   } finally {
     fini = true;
@@ -288,10 +292,13 @@ async function supprimer() {
   btnDelete.disabled = true;
   try {
     await deleteStock(editingId);
+    toastSucces('Récolte supprimée.');
     fermer();
     onChangeExterne();
   } catch (err) {
-    showError('Erreur de suppression : ' + ((err && err.message) || err));
+    const msg = 'Erreur de suppression : ' + ((err && err.message) || err);
+    showError(msg);
+    toastErreur(msg);
   } finally {
     btnDelete.disabled = false;
   }
