@@ -1183,16 +1183,6 @@
           <input type="date" id="fiche-datesemis">
           <p id="fiche-duree-info" class="champ-aide" hidden></p>
 
-          <!-- Campagne visée : par défaut l'année du semis, à avancer d'un an
-               à la main pour un semis d'automne destiné à la récolte/pâture
-               suivante (ex: RG trèfle semé en septembre 2026 pour 2027).
-               Sans elle, l'assolement prévisionnel de la campagne EN COURS
-               croirait à tort que cette nouvelle culture lui appartient
-               (cf. ui-assolement.js/cultureReelle). -->
-          <label for="fiche-campagne">Campagne visée</label>
-          <input type="number" id="fiche-campagne" min="2000" max="2100" step="1" inputmode="numeric">
-          <p class="champ-aide">Avance-la d'un an pour un semis d'automne fait pour la campagne suivante.</p>
-
           <div id="fiche-newculture-wrap" class="fiche-newtype" hidden>
             <label for="fiche-newculture-nom">Nom de la nouvelle culture</label>
             <input type="text" id="fiche-newculture-nom" placeholder="ex: Tournesol">

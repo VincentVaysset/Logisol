@@ -19,7 +19,6 @@ const cultureWrap = document.getElementById('fiche-culture-wrap');
 const selectCulture = document.getElementById('fiche-culture');
 const cultureFamilleWrap = document.getElementById('fiche-culture-famille-wrap');
 const selectCultureFamille = document.getElementById('fiche-culture-famille');
-const inputCampagne = document.getElementById('fiche-campagne');
 const newCultureWrap = document.getElementById('fiche-newculture-wrap');
 const inputNewCultureNom = document.getElementById('fiche-newculture-nom');
 const inputNewCultureCouleur = document.getElementById('fiche-newculture-couleur');
@@ -198,7 +197,6 @@ export function openCreate({ geometry, surfaceHa, croise }) {
     cultureFamilleWrap.hidden = true;
     implantationCourante = null;
     inputDateSemis.value = aujourdhui();
-    inputCampagne.value = aujourdhui().slice(0, 4);
     dureeInfo.hidden = true;
     populateCultureSelect(getCultures(), ''); // pas de culture présélectionnée -> "à renseigner"
     majSurfaceBadge();
@@ -247,12 +245,6 @@ export function openEdit(parcelle, implantation) {
   newCultureWrap.hidden = true;
   implantationCourante = implantation || null;
   inputDateSemis.value = implantation && implantation.dateSemis ? implantation.dateSemis : '';
-  // Campagne déjà rattachée à cette implantation si elle existe (semis fait
-  // depuis le tunnel d'activité, ou déjà corrigé ici) ; à défaut, l'année du
-  // semis — l'exploitant l'avance à la main pour un semis d'automne.
-  inputCampagne.value = implantation && implantation.campagneVisee
-    ? implantation.campagneVisee
-    : (implantation && implantation.dateSemis ? implantation.dateSemis.slice(0, 4) : aujourdhui().slice(0, 4));
   majDureeInfo();
   const cultureActuelle = implantation ? getCultureById(implantation.cultureId) : null;
   cultureFamilleWrap.hidden = !cultureActuelle;
@@ -387,9 +379,8 @@ form.addEventListener('submit', async (e) => {
         implantationCourante &&
         implantationCourante.cultureId === cultureId &&
         implantationCourante.dateSemis === dateSemis;
-      const campagneVisee = inputCampagne.value ? String(parseInt(inputCampagne.value, 10)) : null;
       await setImplantation(
-        { parcelleId, cultureId, dateSemis, dateFin: null, campagneVisee },
+        { parcelleId, cultureId, dateSemis, dateFin: null },
         { cloturerPrecedente: !inchangee }
       );
     } else if (implantationCourante && !implantationCourante.dateFin) {

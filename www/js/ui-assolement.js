@@ -200,19 +200,18 @@ function correspond(culture, nomReel) {
 // Quelle implantation représente le réel d'une PARCELLE pour une CAMPAGNE
 // donnée. Deux façons de le savoir, dans cet ordre :
 //
-// 1) Une implantation explicitement rattachée à cette campagne
-//    (campagneVisee, posée par le tunnel d'activité quand l'exploitant a
-//    choisi/avancé la campagne d'un semis d'automne). C'est la seule source
-//    fiable pour un semis d'automne : sa dateSemis tombe dans l'année civile
-//    de la campagne EN COURS, pas de celle qu'il vise, donc une lecture par
-//    date seule le rattacherait à la mauvaise case.
-// 2) À défaut (implantation antérieure à ce marquage, ou saisie depuis la
-//    fiche parcelle plutôt que le tunnel d'activité) : l'ancienne heuristique
-//    par date — aujourd'hui pour la campagne en cours, le 1er juin pour une
-//    autre. Les implantations rattachées à une AUTRE campagne sont exclues de
-//    cette recherche : même si leur date les rendrait "actives" techniquement
-//    (semées mais pas encore closes), elles appartiennent explicitement
-//    ailleurs et ne doivent jamais s'afficher ici.
+// 1) Une implantation rattachée à cette campagne (campagneVisee, déduite
+//    automatiquement de sa date de semis par implantations.js/
+//    campagneDeSemis — jamais demandée à l'exploitant). C'est la seule
+//    source fiable pour un semis d'automne : sa dateSemis tombe dans l'année
+//    civile de la campagne EN COURS, pas de celle qu'il vise, donc une
+//    lecture par date seule le rattacherait à la mauvaise case.
+// 2) À défaut (implantation antérieure à l'ajout de ce champ) : l'ancienne
+//    heuristique par date — aujourd'hui pour la campagne en cours, le 1er
+//    juin pour une autre. Les implantations rattachées à une AUTRE campagne
+//    sont exclues de cette recherche : même si leur date les rendrait
+//    "actives" techniquement (semées mais pas encore closes), elles
+//    appartiennent explicitement ailleurs et ne doivent jamais s'afficher ici.
 function cultureReelle(parcelleId, campagne) {
   const cible = String(campagne);
   const implsParcelle = getImplantations().filter((i) => i.parcelleId === parcelleId);

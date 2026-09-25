@@ -108,20 +108,28 @@ export function historiqueParcelle(parcelleId, liste = courantes) {
     .sort((a, b) => (a.dateSemis < b.dateSemis ? 1 : -1));
 }
 
+// À quelle campagne appartient un semis, d'après sa seule date — jamais
+// demandé à l'exploitant : convention agricole standard, un semis d'automne
+// (août à décembre) fait la campagne de l'année SUIVANTE (il pousse pour la
+// récolte/pâture de l'an prochain), le reste de l'année fait celle en cours.
+// C'est ce qui distingue, sans aucune case à remplir, un RG trèfle semé en
+// septembre 2026 (campagne 2027) d'un blé semé en mars 2026 (campagne 2026).
+export function campagneDeSemis(dateSemis) {
+  const m = String(dateSemis || '').match(/^(\d{4})-(\d{2})/);
+  if (!m) return null;
+  const annee = Number(m[1]);
+  const mois = Number(m[2]);
+  return String(mois >= 8 ? annee + 1 : annee);
+}
+
 // Enregistre une implantation. Si "cloturerPrecedente" est vrai, l'implantation
 // encore ouverte sur cette parcelle est fermée la veille du nouveau semis —
-// c'est le cas normal d'une rotation (on retourne pour ressemer).
-// campagneVisee (optionnel) : la campagne choisie EXPLICITEMENT par
-// l'exploitant pour ce semis (champ « Campagne » du tunnel d'activité).
-// Sans elle, un semis d'automne (RG trèfle semé en septembre pour la
-// récolte/pâture de l'année suivante) ne se distingue pas — à la seule
-// lecture de sa date — d'un semis qui serait, lui, destiné à la campagne en
-// cours : les deux ont une dateSemis qui tombe dans la même année civile.
-// Cette étiquette lève l'ambiguïté sans rien changer au modèle "réel" —
-// l'implantation reste une période datée, l'assolement prévisionnel (lui,
-// bucketé par campagne) s'en sert juste pour savoir à quelle case la
-// rattacher (cf. ui-assolement.js/cultureReelle).
-export async function setImplantation({ parcelleId, cultureId, dateSemis, dateFin = null, notes = '', campagneVisee = null }, { cloturerPrecedente = true } = {}) {
+// c'est le cas normal d'une rotation (on retourne pour ressemer). La campagne
+// (campagneVisee) est déduite automatiquement de dateSemis : c'est ce qui
+// permet à l'assolement prévisionnel de rattacher un semis d'automne à la
+// bonne case sans jamais faire deviner une année à l'exploitant
+// (cf. ui-assolement.js/cultureReelle).
+export async function setImplantation({ parcelleId, cultureId, dateSemis, dateFin = null, notes = '' }, { cloturerPrecedente = true } = {}) {
   if (!parcelleId || !cultureId || !dateSemis) {
     throw new Error('Parcelle, culture et date de semis sont obligatoires.');
   }
@@ -143,7 +151,7 @@ export async function setImplantation({ parcelleId, cultureId, dateSemis, dateFi
   const id = implantationId(parcelleId, dateSemis);
   await setDoc(
     doc(db, COL_NAME, id),
-    { parcelleId, cultureId, dateSemis, dateFin, notes, campagneVisee: campagneVisee ? String(campagneVisee) : null, majLe: serverTimestamp() },
+    { parcelleId, cultureId, dateSemis, dateFin, notes, campagneVisee: campagneDeSemis(dateSemis), majLe: serverTimestamp() },
     { merge: true }
   );
   return id;
