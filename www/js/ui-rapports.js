@@ -9,6 +9,8 @@ import {
 import {
   getPrevisions, onPrevisionsChange, campagneCourante
 } from './assolement-previsionnel.js';
+import { genererRapportPdf, exporterPdf } from './pdf-export.js';
+import { toastSucces, toastErreur } from './toast.js';
 
 const panelEl = document.getElementById('rapports-panel');
 const genereLeEl = document.getElementById('rapports-genere-le');
@@ -18,6 +20,8 @@ const syntheseEl = document.getElementById('rap-synthese');
 const fertiKpisEl = document.getElementById('rap-ferti-kpis');
 const fertiFiltreEl = document.getElementById('rap-ferti-filtre');
 const fertiTableauEl = document.getElementById('rap-ferti-tableau');
+const exportStatutEl = document.getElementById('rapports-export-statut');
+const btnTelechargerEl = document.getElementById('rapports-telecharger-pdf');
 
 let parcelles = [];
 let campagneR = Number(campagneCourante());
@@ -48,7 +52,8 @@ export function initRapports() {
     panelOuvert = false;
     panelEl.hidden = true;
   });
-  document.getElementById('rapports-imprimer').addEventListener('click', () => window.print());
+  btnTelechargerEl.addEventListener('click', telechargerPdf);
+  document.getElementById('rapports-imprimer-navigateur').addEventListener('click', () => window.print());
   document.getElementById('rap-campagne-moins').addEventListener('click', () => { campagneR--; render(); });
   document.getElementById('rap-campagne-plus').addEventListener('click', () => { campagneR++; render(); });
 
@@ -78,6 +83,39 @@ function render() {
   genereLeEl.textContent = `Édité le ${p(maintenant.getDate())}/${p(maintenant.getMonth() + 1)}/${maintenant.getFullYear()} à ${p(maintenant.getHours())}:${p(maintenant.getMinutes())}`;
   renderSemis();
   renderFertilisation();
+}
+
+// --- Export PDF ---------------------------------------------------------------
+// Génère le PDF (jsPDF, 100% local) puis le remet à l'utilisateur par la
+// méthode la plus fiable disponible (partage natif, sinon téléchargement
+// direct — cf. pdf-export.js). Toujours un retour explicite : bouton
+// désactivé + statut pendant la génération, toast de confirmation ou
+// d'erreur à la fin — jamais un échec silencieux.
+async function telechargerPdf() {
+  btnTelechargerEl.disabled = true;
+  exportStatutEl.textContent = 'Génération du PDF...';
+  try {
+    const blob = genererRapportPdf({ parcelles, campagne: String(campagneR), previsions: getPrevisions() });
+    const nomFichier = `logisol-rapports-${campagneR}.pdf`;
+    const resultat = await exporterPdf(blob, nomFichier);
+    if (!resultat.ok) {
+      exportStatutEl.textContent = '⚠️ ' + resultat.erreur;
+      toastErreur('PDF non enregistré : ' + resultat.erreur);
+    } else if (resultat.methode === 'annule') {
+      exportStatutEl.textContent = '';
+    } else {
+      exportStatutEl.textContent = resultat.methode === 'partage'
+        ? '✅ PDF prêt — choisis où l\'enregistrer ou l\'ouvrir.'
+        : '✅ PDF téléchargé (' + nomFichier + ').';
+      toastSucces('PDF généré.');
+    }
+  } catch (err) {
+    const message = (err && err.message) || 'Erreur inconnue.';
+    exportStatutEl.textContent = '⚠️ Génération impossible : ' + message;
+    toastErreur('PDF non généré : ' + message);
+  } finally {
+    btnTelechargerEl.disabled = false;
+  }
 }
 
 // --- Assolement & calendrier des semis --------------------------------------

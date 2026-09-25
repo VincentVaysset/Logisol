@@ -226,6 +226,11 @@ header button {
 /* Cartes indicateurs (KPI) des rapports : chiffre en avant, détail discret
    en dessous — même esprit que .cat-card mais empilé verticalement, pour un
    nombre qu'on doit pouvoir lire de loin sur tablette. */
+/* Export PDF : deux boutons (téléchargement direct en premier recours,
+   impression navigateur en repli) + une ligne de statut, jamais silencieuse. */
+.rapport-export { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 4px; }
+#rapports-export-statut { flex: 0 0 100%; margin: 2px 0 0; }
+
 .rapport-kpi-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
 .rapport-kpi {
   flex: 1 1 150px; background: var(--card); border: 1px solid var(--border);

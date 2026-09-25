@@ -1335,11 +1335,21 @@
     <div class="fiche-panel" id="rapports-imprimable">
       <div class="vue-head">
         <h2>Rapports &amp; Synthèses</h2>
-        <button type="button" id="rapports-imprimer" class="btn btn-secondary btn-mini no-print">🖨️ Télécharger / Imprimer PDF</button>
       </div>
       <p class="apercu-sous-titre">Bilans construits à partir de l'assolement prévisionnel et des fiches parcelles.<br>
         <span id="rapports-genere-le"></span>
       </p>
+      <!-- Export direct (Blob local + partage/téléchargement) en premier
+           recours : window.print()/window.open(), utilisés seuls
+           auparavant, restent peu fiables en WebView mobile (aucun moteur
+           d'impression système, popups bloquées) — cf. www/js/pdf-export.js.
+           L'impression navigateur reste disponible en repli, pour desktop
+           notamment. -->
+      <div class="rapport-export no-print">
+        <button type="button" id="rapports-telecharger-pdf" class="btn btn-primary btn-mini">📄 Télécharger le PDF</button>
+        <button type="button" id="rapports-imprimer-navigateur" class="btn btn-secondary btn-mini">🖨️ Imprimer (aperçu navigateur)</button>
+        <p id="rapports-export-statut" class="champ-aide"></p>
+      </div>
 
       <div class="prev-entete">
         <button type="button" id="rap-campagne-moins" class="btn btn-secondary btn-mini no-print" aria-label="Campagne précédente">◀</button>
@@ -1393,6 +1403,19 @@
     (typeof window.L !== 'undefined' && window.L.Draw)
       ? 'Leaflet.draw chargé'
       : 'Leaflet.draw INDISPONIBLE'
+  );
+</script>
+<!-- Génération PDF locale (rapports.js/pdf-export.js) : window.print()/
+     window.open() sont peu fiables dans une WebView Capacitor mobile (pas
+     de moteur d'impression système branché, popups bloquées) — jsPDF
+     construit un vrai fichier .pdf en mémoire (Blob), 100% hors-ligne,
+     aucun appel réseau. -->
+<script src="vendor/jspdf/jspdf.umd.min.js"></script>
+<script>
+  window.__logisolDebug(
+    (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF)
+      ? 'jsPDF chargé (v' + (window.jspdf.jsPDF.version || '?') + ')'
+      : 'jsPDF INDISPONIBLE — fichier www/vendor/jspdf manquant'
   );
 </script>
 <script type="module" src="js/firebase-config.js"></script>
