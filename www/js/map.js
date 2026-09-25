@@ -419,7 +419,14 @@ export function renderParcelles(list) {
 
     let layer = layers.get(p.id);
     if (layer) {
-      layer.setLatLngs(latlngs);
+      // Une édition de contour en cours ne doit JAMAIS être écrasée par un
+      // rendu réactif déclenché par un autre listener Firestore (n'importe
+      // quel document de n'importe quelle collection écoutée) pendant que
+      // l'utilisateur glisse les poignées : sinon getLatLngs() renvoie au
+      // clic sur "Enregistrer" la géométrie d'origine, pas la modifiée.
+      if (!(contourEnEdition && contourEnEdition.id === p.id)) {
+        layer.setLatLngs(latlngs);
+      }
       layer.setStyle(style);
     } else {
       layer = L.polygon(latlngs, style);
