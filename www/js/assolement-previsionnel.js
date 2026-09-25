@@ -116,11 +116,30 @@ export function indiceCulture(code) {
   return m ? Number(m[1]) : null;
 }
 
-// Vrai pour un semis/implantation de l'année (indice 0) : c'est la ligne à
-// surveiller (jeune prairie tout juste semée). N'existe que pour les
-// familles pluriannuelles — une céréale (indice 1 minimum) n'est jamais "0".
+// Indice de la toute première année, par famille — PAS le même chiffre pour
+// toutes : la luzerne démarre à 0 (implantation lente, l'année de semis ne
+// "produit" rien), le RG trèfle et les céréales/annuelles démarrent à 1
+// (récoltés/pâturés dès leur première année). Absente de cette table = pas
+// de notion d'âge (PN, Fétuque/Trèfle, Autre : pérennes non comptées).
+const PREMIERE_ANNEE_PAR_FAMILLE = {
+  SEMIS_PRAIRIE: 0,   // LUZ0 uniquement (les LUZ1-5 sont en famille LUZERNE)
+  PRAIRIE_COURTE: 1,  // RGT1 (RGT2/3 ne matchent pas, indice > 1)
+  CEREALES: 1
+};
+
+// Vrai pour un semis/implantation de l'année — la ligne à surveiller (jeune
+// culture tout juste semée) : Luz 0 pour la luzerne, RG trèfle 1 pour les
+// prairies temporaires à récolte immédiate, Blé 1 / Orge 1 / Triticale 1
+// pour les céréales numérotées. Un code de céréale SANS indice numérique
+// (Avoine, Méteil : un seul créneau pour l'instant, cf. CULTURES_PREV) est
+// par construction toujours cette première (et seule) année.
 export function estSemisDeLAnnee(code) {
-  return indiceCulture(code) === 0;
+  const c = culturePrev(code);
+  if (!c) return false;
+  const seuil = PREMIERE_ANNEE_PAR_FAMILLE[c.famille];
+  if (seuil === undefined) return false;
+  const indice = indiceCulture(code);
+  return indice === null ? true : indice === seuil;
 }
 
 // --- Lecture ----------------------------------------------------------------
