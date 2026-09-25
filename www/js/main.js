@@ -507,6 +507,18 @@ function terminerModifContour(valider) {
   else opts.onAnnuler();
 }
 
+// --- Panneau Paramètres (compte + version) --------------------------------
+// Le header ne garde que la marque et les indicateurs ; email et
+// déconnexion vivent ici, à un tap de distance via la roue crantée.
+function initParametres() {
+  const panel = document.getElementById('parametres-panel');
+  const v = window.__LOGISOL_VERSION || {};
+  document.getElementById('parametres-version').textContent =
+    v.build && v.build !== 'local' ? `${v.build}${v.date ? ' · ' + v.date : ''}` : 'Build local (dev)';
+  document.getElementById('btn-parametres').addEventListener('click', () => { panel.hidden = false; });
+  document.getElementById('parametres-fermer').addEventListener('click', () => { panel.hidden = true; });
+}
+
 // --- Navigation entre les trois vues --------------------------------------
 function setView(vue) {
   if (!VUES.includes(vue)) return;
@@ -585,6 +597,7 @@ async function boot() {
     initPlacement();
     initModifContour();
     initRapports();
+    initParametres();
     initSyncStatus();
     const syncStatusEl = document.getElementById('sync-status');
     onSyncStatusChange((etat) => {
