@@ -182,16 +182,18 @@ function renderFertilisation() {
       return `<th class="th-tri${actif ? ' is-active' : ''}" data-champ="${c.champ}">${c.label}${fleche}</th>`;
     }).join('')}</tr></thead>
     <tbody>${lignes.map((l) => `<tr>
-      <th>${esc(l.nom)}</th>
-      <td>${formatHa(l.surfaceHa)}</td>
-      <td>${l.fumierTHa ? formatHa(l.fumierTHa) : '—'}</td>
-      <td>${l.fumierTHa ? formatHa(l.fumierT) : '—'}</td>
-      <td>${l.chauxTHa ? formatHa(l.chauxTHa) : '—'}</td>
-      <td>${l.chauxTHa ? formatHa(l.chauxT) : '—'}</td>
+      <th class="col-nom-parcelle">${esc(l.nom)}</th>
+      <td data-label="Surface (ha)">${formatHa(l.surfaceHa)}</td>
+      <td data-label="Fumier (t/ha)">${l.fumierTHa ? formatHa(l.fumierTHa) : '—'}</td>
+      <td data-label="Fumier (t)">${l.fumierTHa ? formatHa(l.fumierT) : '—'}</td>
+      <td data-label="Chaux (t/ha)">${l.chauxTHa ? formatHa(l.chauxTHa) : '—'}</td>
+      <td data-label="Chaux (t)">${l.chauxTHa ? formatHa(l.chauxT) : '—'}</td>
     </tr>`).join('')}</tbody>
     <tfoot><tr>
-      <th>Total (${lignes.length} parcelle${lignes.length > 1 ? 's' : ''})</th>
-      <td>${formatHa(totSurf)}</td><td></td><td>${formatHa(totFumierT)}</td><td></td><td>${formatHa(totChauxT)}</td>
+      <th class="col-nom-parcelle">Total (${lignes.length} parcelle${lignes.length > 1 ? 's' : ''})</th>
+      <td data-label="Surface (ha)">${formatHa(totSurf)}</td><td></td>
+      <td data-label="Fumier (t)">${formatHa(totFumierT)}</td><td></td>
+      <td data-label="Chaux (t)">${formatHa(totChauxT)}</td>
     </tr></tfoot>`;
 
   fertiTableauEl.querySelectorAll('.th-tri').forEach((th) => {

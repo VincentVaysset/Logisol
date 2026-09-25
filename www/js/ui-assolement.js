@@ -98,18 +98,21 @@ export function renderAssolement() {
     const ecart = reel && !reel.dateFin && cN && !correspond(cN, reel.nom);
     const suggestion = !prevN1.cultureCode ? suiteNaturelle(prevN.cultureCode) : null;
     const semis0 = estSemisDeLAnnee(prevN.cultureCode);
+    // data-label : lu par le CSS mobile (< 600px) qui transforme chaque
+    // ligne en carte empilée — cf. section "Responsive mobile" du
+    // stylesheet. Sans effet en tableau multi-colonnes (tablette/desktop).
     return `<tr data-id="${esc(p.id)}"${semis0 ? ' data-semis0="1"' : ''}>
-      <td><input type="text" class="in-numero" data-champ="numero" value="${esc(p.numero || '')}" inputmode="numeric" aria-label="N° de parcelle"></td>
+      <td data-label="N°"><input type="text" class="in-numero" data-champ="numero" value="${esc(p.numero || '')}" inputmode="numeric" aria-label="N° de parcelle"></td>
       <th class="col-nom-parcelle">${esc(p.nom || 'Sans nom')}</th>
-      <td>${formatHa(p.surfaceHa)}</td>
-      <td>
+      <td data-label="Surface (ha)">${formatHa(p.surfaceHa)}</td>
+      <td data-label="Culture ${N}">
         <select data-champ="cultureN" data-valeur-avant="${esc(prevN.cultureCode || '')}" aria-label="Culture ${N}">${optionsCultures(prevN.cultureCode)}</select>
         ${semis0 ? '<span class="badge-semis0">🌱 semis de l\'année</span>' : ''}
         ${statutReel(reel, ecart, prevN.cultureCode)}
       </td>
-      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierTHa" value="${nombre(prevN.fumierTHa)}" aria-label="Prévision fumier (t/ha)"></td>
-      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="chauxTHa" value="${nombre(prevN.chauxTHa)}" aria-label="Prévision chaux (t/ha)"></td>
-      <td class="${suggestion ? 'suggestion' : ''}">
+      <td data-label="Fumier (t/ha)"><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierTHa" value="${nombre(prevN.fumierTHa)}" aria-label="Prévision fumier (t/ha)"></td>
+      <td data-label="Chaux (t/ha)"><input type="number" step="any" min="0" inputmode="decimal" data-champ="chauxTHa" value="${nombre(prevN.chauxTHa)}" aria-label="Prévision chaux (t/ha)"></td>
+      <td data-label="Culture ${N1}" class="${suggestion ? 'suggestion' : ''}">
         <select data-champ="cultureN1" data-valeur-avant="${esc(prevN1.cultureCode || '')}" aria-label="Culture ${N1}">${optionsCultures(prevN1.cultureCode)}</select>
         ${suggestion ? `<span class="reel">proposé : ${esc(culturePrev(suggestion).label)}</span>` : ''}
       </td>
@@ -161,8 +164,10 @@ function renderTotaux() {
     return n + d * (Number(p.surfaceHa) || 0);
   }, 0);
   tfoot.innerHTML = `<tr>
-      <th></th><th class="col-nom-parcelle">Total</th><td>${formatHa(totHa)}</td><td></td>
-      <td>${arrondi(totFumier)} t à épandre</td><td>${arrondi(totChaux)} t à épandre</td><td></td>
+      <th></th><th class="col-nom-parcelle">Total</th>
+      <td data-label="Surface (ha)">${formatHa(totHa)}</td><td></td>
+      <td data-label="Fumier">${arrondi(totFumier)} t à épandre</td>
+      <td data-label="Chaux">${arrondi(totChaux)} t à épandre</td><td></td>
     </tr>`;
 }
 
