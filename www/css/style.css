@@ -169,15 +169,17 @@ header {
   z-index: 1100;
 }
 .header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-/* Logo : pousse stylisée sur un tracé de parcelle géométrique (SVG inline,
-   aucun fichier à vendoriser) — remplace l'émoji 🌱 provisoire. */
+/* Logo : blason Logisol (épi + feuille), fichier embarqué www/img/logo-mark.png
+   — fond blanc pour que le tracé (vert sur transparent) ressorte sur le
+   bandeau sombre, plutôt que de se fondre dedans. */
 .header-logo {
   flex: 0 0 34px;
   width: 34px; height: 34px;
-  padding: 5px;
+  padding: 3px;
   border-radius: 10px;
-  background: var(--primary);
+  background: #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  object-fit: contain;
 }
 .header-titre { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 /* Typographie du wordmark : la pile système (-apple-system/Segoe UI/Roboto,
@@ -185,7 +187,14 @@ header {
    aucune police à charger depuis un CDN, ce qui casserait le démarrage hors
    ligne (cf. CLAUDE.md). Le rendu "moderne" vient du poids et de l'espacement. */
 .header-nom { font-weight: 800; font-size: 16px; letter-spacing: 0.06em; }
-.header-sous-titre { font-size: 9px; color: var(--chrome-active); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+/* Tagline du blason (auparavant "Gestion Parcellaire & Élevage" écrit sous le
+   logo lui-même) : déplacée ici, dans le bandeau, à droite du blason —
+   tronquée proprement plutôt que de casser la mise en page sur petit écran. */
+.header-sous-titre {
+  font-size: 9px; color: var(--chrome-active); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 44vw;
+}
 .header-compte { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 header button {
   background: rgba(255,255,255,0.12);
