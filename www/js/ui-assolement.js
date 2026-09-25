@@ -103,14 +103,14 @@ export function renderAssolement() {
       <th class="col-nom-parcelle">${esc(p.nom || 'Sans nom')}</th>
       <td>${formatHa(p.surfaceHa)}</td>
       <td>
-        <select data-champ="cultureN" aria-label="Culture ${N}">${optionsCultures(prevN.cultureCode)}</select>
+        <select data-champ="cultureN" data-valeur-avant="${esc(prevN.cultureCode || '')}" aria-label="Culture ${N}">${optionsCultures(prevN.cultureCode)}</select>
         ${semis0 ? '<span class="badge-semis0">🌱 semis de l\'année</span>' : ''}
         ${statutReel(reel, ecart, prevN.cultureCode)}
       </td>
       <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierTHa" value="${nombre(prevN.fumierTHa)}" aria-label="Prévision fumier (t/ha)"></td>
       <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="chauxTHa" value="${nombre(prevN.chauxTHa)}" aria-label="Prévision chaux (t/ha)"></td>
       <td class="${suggestion ? 'suggestion' : ''}">
-        <select data-champ="cultureN1" aria-label="Culture ${N1}">${optionsCultures(prevN1.cultureCode)}</select>
+        <select data-champ="cultureN1" data-valeur-avant="${esc(prevN1.cultureCode || '')}" aria-label="Culture ${N1}">${optionsCultures(prevN1.cultureCode)}</select>
         ${suggestion ? `<span class="reel">proposé : ${esc(culturePrev(suggestion).label)}</span>` : ''}
       </td>
     </tr>`;
@@ -126,7 +126,12 @@ export function renderAssolement() {
     <tfoot></tfoot>`;
 
   tableEl.querySelectorAll('[data-champ]').forEach((ctrl) => {
-    ctrl.addEventListener('change', () => enregistrerCase(ctrl));
+    // Culture déjà renseignée + select très exposé au doigt sur tablette :
+    // un tap malheureux ne doit jamais écraser une culture planifiée sans
+    // confirmation. Une case encore vide (première saisie) reste directe.
+    const sensible = ctrl.tagName === 'SELECT' &&
+      (ctrl.dataset.champ === 'cultureN' || ctrl.dataset.champ === 'cultureN1');
+    ctrl.addEventListener('change', () => (sensible ? confirmerPuisEnregistrerCulture(ctrl) : enregistrerCase(ctrl)));
   });
   appliquerFiltreSemis0();
   renderTotaux();
@@ -303,6 +308,29 @@ function dateCourte(iso) {
   if (!iso || iso.length < 10) return iso || '';
   const [, m, j] = iso.split('-');
   return `${j}/${m}`;
+}
+
+// Confirmation avant d'écraser une culture déjà renseignée (select Culture N
+// ou N1) : la valeur d'avant a été mémorisée au rendu de la ligne
+// (data-valeur-avant), donc fiable même si l'utilisateur ouvre puis referme
+// le menu plusieurs fois sans que le tableau ne soit reconstruit entre-temps
+// (rafraichirAssolement ne reconstruit jamais une ligne en cours de saisie).
+// Case encore vide -> aucune confirmation, l'attribution initiale reste
+// directe. Un "Annuler" restaure le select SANS toucher à Firestore.
+function confirmerPuisEnregistrerCulture(ctrl) {
+  const avant = ctrl.dataset.valeurAvant || '';
+  const apres = ctrl.value;
+  if (avant === apres) return;
+  if (avant) {
+    const tr = ctrl.closest('tr');
+    const p = parcelles.find((x) => x.id === (tr && tr.dataset.id));
+    const nomParcelle = p ? (p.nom || 'cette parcelle') : 'cette parcelle';
+    if (!confirm(`Confirmer le changement de culture sur ${nomParcelle} ?`)) {
+      ctrl.value = avant;
+      return;
+    }
+  }
+  enregistrerCase(ctrl).then(() => { ctrl.dataset.valeurAvant = ctrl.value; });
 }
 
 async function enregistrerCase(ctrl) {
