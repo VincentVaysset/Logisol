@@ -11,7 +11,8 @@ import {
   ensureColzaFourrager
 } from './cultures-config.js';
 import {
-  watchImplantations, onImplantationsChange, implantationEnCours, migrerAnciensAssolements
+  watchImplantations, onImplantationsChange, implantationEnCours, migrerAnciensAssolements,
+  migrerImplantationsNonCloturees
 } from './implantations.js';
 import { ensureSeeded as ensureTypesSeeded, watchTypes, onTypesChange } from './interventions-types.js';
 import { watchInterventions } from './interventions.js';
@@ -67,6 +68,7 @@ import { verifierRegles } from './diagnostic-regles.js';
 import { watchMateriels, onMaterielsChange, ensureSeeded as ensureMaterielSeeded } from './materiel.js';
 import { initMateriel, renderMateriels } from './ui-materiel.js';
 import { initRapports, setParcellesRapports } from './ui-rapports.js';
+import { initParametresCultures } from './ui-parametres.js';
 
 let booted = false;
 let centrageInitialFait = false;
@@ -517,6 +519,7 @@ function initParametres() {
     v.build && v.build !== 'local' ? `${v.build}${v.date ? ' · ' + v.date : ''}` : 'Build local (dev)';
   document.getElementById('btn-parametres').addEventListener('click', () => { panel.hidden = false; });
   document.getElementById('parametres-fermer').addEventListener('click', () => { panel.hidden = true; });
+  initParametresCultures();
 }
 
 // --- Navigation entre les trois vues --------------------------------------
@@ -741,6 +744,12 @@ async function boot() {
 
     const reprises = await migrerAnciensAssolements();
     if (reprises) log(reprises + ' ancien(s) assolement(s) repris en implantations');
+    // Après ensureTypesSeeded() ci-dessus, qui vient de corriger les types
+    // Moisson/Déchaumage/Labour/Vibroculteur mal reconnus (casse/espaces) :
+    // reprend les clôtures d'implantation que ces activités auraient dû
+    // faire à l'époque, sans jamais retoucher celles déjà fermées.
+    const reprisesCloture = await migrerImplantationsNonCloturees();
+    if (reprisesCloture) log(reprisesCloture + ' implantation(s) clôturée(s) a posteriori (interculture)');
     const reprisesPrairie = await migrerFamillesPrairie();
     if (reprisesPrairie) log(reprisesPrairie + ' culture(s) « prairie » reclassée(s) en PP/PT');
     if (await ensureColzaFourrager()) log('culture "Colza fourrager" (dérobée) ajoutée');

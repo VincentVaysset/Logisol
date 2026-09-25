@@ -192,9 +192,33 @@
         <div class="parametres-label">Version installée</div>
         <div id="parametres-version" class="parametres-valeur"></div>
       </div>
+      <div class="parametres-bloc">
+        <div class="parametres-label">Configuration</div>
+        <button type="button" id="btn-cultures-panel" class="btn btn-secondary" style="margin-top:8px">🌾 Gérer le référentiel Cultures</button>
+      </div>
       <div class="fiche-actions">
         <button type="button" id="btn-logout" class="btn btn-danger">Déconnexion</button>
         <button type="button" id="parametres-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Référentiel Cultures (catalogue RÉEL : nom/couleur/famille utilisés
+       par la carte, la fiche parcelle et le semis) — séparé du référentiel
+       prévisionnel indexé par âge (Luz 0, RG trèfle 1...), qui reste géré
+       depuis l'onglet Parcelles > Assolement prévisionnel. -->
+  <div id="cultures-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>Référentiel Cultures</h2>
+      <p class="apercu-sous-titre">Ajoute, renomme ou supprime une culture. Une culture encore utilisée par une implantation ne peut pas être supprimée — renomme-la plutôt.</p>
+      <div id="cultures-liste"></div>
+      <div class="fiche-newtype">
+        <label for="cultures-nouveau-nom">Nouvelle culture</label>
+        <input type="text" id="cultures-nouveau-nom" placeholder="ex: Sainfoin">
+        <button type="button" id="cultures-nouveau-add" class="btn btn-secondary btn-mini">➕ Ajouter</button>
+      </div>
+      <div class="fiche-actions">
+        <button type="button" id="cultures-panel-fermer" class="btn btn-secondary">Fermer</button>
       </div>
     </div>
   </div>

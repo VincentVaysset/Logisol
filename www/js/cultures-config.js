@@ -4,7 +4,7 @@
 // référencé par assolements.cultureId.
 import { db } from './firebase-config.js';
 import {
-  collection, doc, addDoc, getDocs, onSnapshot, setDoc, serverTimestamp
+  collection, doc, addDoc, deleteDoc, getDocs, onSnapshot, setDoc, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 
 const COL = collection(db, 'cultures_config');
@@ -73,6 +73,26 @@ export function watchCultures() {
 export async function addCulture(nom, couleur, famille) {
   const ref = await addDoc(COL, { nom, couleur, famille: famille || 'autre' });
   return ref.id;
+}
+
+// Renomme une culture existante — écran Paramètres / Référentiel Cultures.
+// Ne touche ni sa couleur ni sa famille : seul le libellé change, les
+// implantations qui la référencent (par id, jamais par nom) suivent
+// automatiquement, sans ré-écriture ailleurs.
+export async function renameCulture(id, nom) {
+  const propre = String(nom || '').trim();
+  if (!id || !propre) throw new Error('Donne un nom à la culture.');
+  await setDoc(doc(db, 'cultures_config', id), { nom: propre, majLe: serverTimestamp() }, { merge: true });
+}
+
+// Suppression définitive — réservée à l'écran Paramètres / Référentiel
+// Cultures, qui vérifie AVANT d'appeler ceci qu'aucune implantation
+// n'y fait référence (cf. ui-parametres.js) : supprimer une culture encore
+// utilisée transformerait silencieusement son libellé en "À renseigner"
+// partout où elle apparaît (carte, liste, assolement).
+export async function deleteCulture(id) {
+  if (!id) return;
+  await deleteDoc(doc(db, 'cultures_config', id));
 }
 
 // Reclasse une culture existante (PP/PT/Céréale/Dérobée/...) depuis la fiche

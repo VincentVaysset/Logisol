@@ -209,3 +209,63 @@ export async function migrerAnciensAssolements() {
   }
   return reprises;
 }
+
+// Reprise des implantations qu'une activité DETRUIT (Moisson, Déchaumage,
+// Labour, Vibroculteur) aurait dû clôturer mais n'a jamais fermées — le cas
+// vécu par la parcelle "Celies" : son type d'intervention portait, au
+// moment de la saisie, un nom légèrement différent du type par défaut (ex.
+// une casse ou un espace différents) et n'avait donc pas encore
+// effetCulture: 'DETRUIT' (cf. interventions-types.js/ensureSeeded, corrigé
+// pour reconnaître ces doublons). La correction du type ne rouvre pas le
+// passé tout seul : les activités DÉJÀ enregistrées avant ce correctif
+// n'ont jamais appelé cloturerImplantation. Cette reprise le fait a
+// posteriori, à la date exacte de l'activité qui aurait dû le faire.
+// Idempotente : une implantation déjà fermée (par cette reprise, par une
+// activité plus récente, ou manuellement) n'est plus jamais retouchée.
+export async function migrerImplantationsNonCloturees() {
+  const [snapImpl, snapItv, snapTypes] = await Promise.all([
+    getDocs(COL).catch(() => null),
+    getDocs(collection(db, 'interventions')).catch(() => null),
+    getDocs(collection(db, 'interventions_types')).catch(() => null)
+  ]);
+  if (!snapImpl || !snapItv || !snapTypes) return 0;
+
+  const typesDetruit = new Set(
+    snapTypes.docs.filter((d) => d.data().effetCulture === 'DETRUIT').map((d) => d.id)
+  );
+  // Les interventions déjà closes par le premier passage de cette boucle
+  // doivent compter pour les suivantes (même parcelle, plusieurs activités
+  // DETRUIT successives) : liste locale, mise à jour au fil de l'eau plutôt
+  // que rechargée depuis Firestore à chaque itération.
+  let implantationsLocales = snapImpl.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const enCoursLocal = (parcelleId, date) => {
+    const cible = String(parcelleId);
+    const candidats = implantationsLocales.filter(
+      (i) => String(i.parcelleId) === cible && i.dateSemis && i.dateSemis <= date && !i.dateFin
+    );
+    if (!candidats.length) return null;
+    return candidats.sort((a, b) => (a.dateSemis < b.dateSemis ? 1 : -1))[0];
+  };
+
+  // Traitées de la plus ancienne à la plus récente : c'est la PREMIÈRE
+  // activité DETRUIT qui doit clôturer une implantation encore ouverte, pas
+  // la dernière — sinon une série (déchaumage puis labour, par exemple)
+  // fermerait l'implantation trop tard.
+  const detruitTriees = snapItv.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((itv) => itv.cibleType === 'PARCELLE' && itv.statut === 'TERMINE' &&
+      itv.date && typesDetruit.has(itv.typeId))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+  let corrigees = 0;
+  for (const itv of detruitTriees) {
+    for (const parcelleId of itv.parcelleIds || []) {
+      const impl = enCoursLocal(parcelleId, itv.date);
+      if (!impl) continue;
+      await cloturerImplantation(impl.id, itv.date);
+      impl.dateFin = itv.date; // reflété localement pour les itérations suivantes
+      corrigees++;
+    }
+  }
+  return corrigees;
+}
