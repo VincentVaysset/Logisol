@@ -79,19 +79,46 @@ jobs:
           # GitHub Actions) — voir android/app/build.gradle.
           VERSION_CODE: ${{ github.run_number }}
           VERSION_NAME: "1.0.${{ github.run_number }}"
-          LOGISOL_KEYSTORE_PATH: app/logisol-release.keystore
+          # RELATIF AU MODULE :app (android/app/), pas à `working-directory`
+          # ci-dessus : file(ksPath), appelé DANS android/app/build.gradle,
+          # résout toujours par rapport au dossier de CE module Gradle,
+          # jamais par rapport à l'endroit d'où ./gradlew est invoqué. Avec
+          # un "app/" en préfixe ici (résolvant alors vers l'inexistant
+          # android/app/app/logisol-release.keystore), file(ksPath).exists()
+          # renvoyait faux en silence : aucune erreur, mais signingConfig
+          # jamais appliqué — Gradle produisait un app-release-unsigned.apk
+          # (build "réussi", APK impossible à installer par-dessus
+          # l'existant, signalé par Vincent sur la release v53).
+          LOGISOL_KEYSTORE_PATH: logisol-release.keystore
           LOGISOL_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           LOGISOL_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           LOGISOL_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --stacktrace
 
       - name: Lister l'APK produit (diagnostic)
-        # Le build précédent (run #52) a réussi ("BUILD SUCCESSFUL") mais
-        # l'étape d'upload suivante n'a trouvé aucun fichier au chemin figé
-        # attendu (android/app/build/outputs/apk/release/app-release.apk) —
-        # cette étape logue le contenu réel du dossier de sortie pour
+        # Le build #52 a réussi ("BUILD SUCCESSFUL") mais l'étape d'upload
+        # suivante n'a trouvé aucun fichier au chemin figé attendu — cette
+        # étape logue le contenu réel du dossier de sortie pour
         # diagnostiquer si ça se reproduit, sans faire échouer le job.
         run: find android/app/build/outputs/apk -type f 2>&1 || true
+
+      - name: Vérifier que l'APK est réellement signé
+        # Un keystore mal résolu (chemin relatif faux, ex. la régression du
+        # run #53 : LOGISOL_KEYSTORE_PATH pointait vers un fichier
+        # inexistant) ne fait PAS échouer `assembleRelease` — Gradle
+        # retombe silencieusement sur un app-release-UNSIGNED.apk, "build
+        # réussi" en apparence, mais impossible à installer par-dessus
+        # l'existant (constaté en usage réel sur la release v53). Dès que
+        # le secret keystore est censé être disponible, cette étape
+        # échoue explicitement si le seul .apk produit porte encore ce
+        # suffixe, plutôt que de laisser un APK non installable partir en
+        # Release comme si de rien n'était.
+        if: ${{ env.HAS_KEYSTORE_SECRET == 'true' }}
+        run: |
+          if ls android/app/build/outputs/apk/release/*unsigned*.apk >/dev/null 2>&1; then
+            echo "::error::APK non signé produit alors qu'un keystore était attendu — LOGISOL_KEYSTORE_PATH ne résout probablement pas vers le bon fichier (voir commentaire dans ce workflow)."
+            exit 1
+          fi
 
       - name: Upload release APK (artefact)
         uses: actions/upload-artifact@v4
