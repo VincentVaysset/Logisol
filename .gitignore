@@ -9,5 +9,10 @@ android/captures/
 android/.idea/
 *.iml
 
+# Keystore de RELEASE (décodé depuis le secret GitHub KEYSTORE_BASE64 en CI,
+# voir .github/workflows/build-android.yml) — jamais commité, contrairement
+# à android/app/debug.keystore qui, lui, est volontairement public.
+android/app/logisol-release.keystore
+
 # OS / editor
 .DS_Store

@@ -20,7 +20,7 @@ import { resolveCouleur, resolveLabel } from './vocation.js';
 import { getVueLegende, onVueLegendeChange } from './vue-legende.js';
 import { watchParcelles } from './parcelles.js';
 import { initSyncStatus, onSyncStatusChange } from './sync-status.js';
-import { initMajDisponible } from './maj-disponible.js';
+import { initMajApk } from './maj-apk.js';
 import {
   initMap, renderParcelles, renderLegend, refreshMapSize,
   fitToParcelles, centrerSurMaPosition, vueARestaurer,
@@ -602,7 +602,7 @@ async function boot() {
     initModifContour();
     initRapports();
     initParametres();
-    initMajDisponible();
+    initMajApk();
     initSyncStatus();
     const syncStatusEl = document.getElementById('sync-status');
     onSyncStatusChange((etat) => {

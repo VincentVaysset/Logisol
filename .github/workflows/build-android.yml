@@ -9,6 +9,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Nécessaire pour que l'étape "Publier la Release GitHub" ci-dessous
+    # puisse créer une release + y attacher l'APK avec le GITHUB_TOKEN
+    # fourni automatiquement par Actions (voir "Mises à jour automatiques
+    # In-App", portées depuis Ovilog/claude/sheep-herd-android-app-7tlcq1).
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,18 +56,61 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
-      - name: Build debug APK
+      - name: Décoder le keystore de signature (secret GitHub)
+        # Absent sur une PR venant d'un fork (les secrets n'y sont jamais
+        # exposés) : le fichier n'est alors simplement pas créé, et
+        # build.gradle retombe sur un build non signé (cf. commentaire dans
+        # android/app/build.gradle) plutôt que d'échouer.
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        working-directory: android/app
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > logisol-release.keystore
+
+      - name: Build release APK (signé)
         working-directory: android
         env:
           # versionCode strictement croissant à chaque build (numéro de run
           # GitHub Actions) — voir android/app/build.gradle.
           VERSION_CODE: ${{ github.run_number }}
           VERSION_NAME: "1.0.${{ github.run_number }}"
-        run: ./gradlew assembleDebug
+          LOGISOL_KEYSTORE_PATH: app/logisol-release.keystore
+          LOGISOL_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          LOGISOL_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          LOGISOL_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --stacktrace
 
-      - name: Upload debug APK
+      - name: Upload release APK (artefact)
         uses: actions/upload-artifact@v4
         with:
-          name: logisol-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: logisol-release-apk-v1.0.${{ github.run_number }}
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Publier la Release GitHub (source de la mise à jour in-app)
+        # Seulement sur un vrai push (jamais sur une pull_request, qui ne
+        # doit ni créer de tag ni publier de release). Contrairement à
+        # l'artefact ci-dessus (privé, expire au bout de 30 jours,
+        # nécessite une authentification GitHub pour être téléchargé), une
+        # vraie Release est publique et permanente : c'est elle qu'interroge
+        # le mécanisme de mise à jour in-app (voir verifierMiseAJourDisponible
+        # dans www/js/maj-apk.js). Le tag "v<n>" (n = numéro de run,
+        # identique au versionCode Android déjà strictement croissant)
+        # permet la comparaison numérique côté appli sans fichier de
+        # métadonnées séparé. Hors main (branches claude/**, builds de
+        # développement), la release est marquée "prerelease" — purement
+        # indicatif sur GitHub, elle reste bien détectée par l'appli comme
+        # n'importe quelle autre release (même mécanisme qu'Ovilog).
+        if: ${{ github.event_name == 'push' && secrets.KEYSTORE_BASE64 != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          # Sans ceci, l'action crée le tag contre la branche par défaut
+          # (main) au lieu du commit réellement buildé.
+          target_commitish: ${{ github.sha }}
+          name: Logisol 1.0.${{ github.run_number }}
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
+          body: |
+            Build automatique — ${{ github.ref_name }}@${{ github.sha }}
+
+            ${{ github.event.head_commit.message }}
+          files: android/app/build/outputs/apk/release/app-release.apk

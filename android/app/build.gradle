@@ -33,6 +33,23 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Keystore de RELEASE, dédié à Logisol (jamais celui d'Ovilog, ni
+        // committé dans le dépôt) : c'est lui qui signe l'APK distribué aux
+        // exploitants et vérifié par la mise à jour in-app (voir
+        // www/js/maj-apk.js et .github/workflows/build-android.yml).
+        // Alimenté par des variables d'environnement, elles-mêmes issues de
+        // secrets GitHub — jamais de mot de passe en clair ici. Absent en
+        // local (pas de LOGISOL_KEYSTORE_PATH) : buildTypes.release retombe
+        // alors sur le comportement par défaut de Gradle, non signé.
+        release {
+            def ksPath = System.getenv('LOGISOL_KEYSTORE_PATH')
+            if (ksPath != null && file(ksPath).exists()) {
+                storeFile file(ksPath)
+                storePassword System.getenv('LOGISOL_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('LOGISOL_KEY_ALIAS')
+                keyPassword System.getenv('LOGISOL_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
@@ -41,6 +58,10 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            def ksPath = System.getenv('LOGISOL_KEYSTORE_PATH')
+            if (ksPath != null && file(ksPath).exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

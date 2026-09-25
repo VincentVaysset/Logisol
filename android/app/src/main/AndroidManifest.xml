@@ -39,6 +39,16 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Mises à jour automatiques In-App (www/js/maj-apk.js, distribution
+         hors Play Store via GitHub Releases) : nécessaire pour qu'Android
+         autorise le lancement de son installeur système sur l'APK
+         téléchargé (voir ApkInstallerPlugin). Sur Android 8+, l'utilisateur
+         doit en plus activer explicitement "Installer des applications
+         inconnues" pour Logisol, ce réglage supplémentaire ne pouvant pas
+         être accordé par cette permission seule (voir
+         ApkInstallerPlugin.canRequestInstall/openInstallPermissionSettings). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Géolocalisation : utilisée par le bouton 📍 et par le centrage
          automatique au tout premier lancement (aucune parcelle enregistrée),
          via navigator.geolocation dans la WebView. Capacitor

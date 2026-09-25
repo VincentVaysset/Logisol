@@ -191,6 +191,8 @@
       <div class="parametres-bloc">
         <div class="parametres-label">Version installée</div>
         <div id="parametres-version" class="parametres-valeur"></div>
+        <button type="button" id="btn-verifier-maj" class="btn btn-secondary btn-mini" style="margin-top:8px" disabled>🔄 Vérifier les mises à jour</button>
+        <p id="maj-verif-statut" class="champ-aide"></p>
       </div>
       <div class="parametres-bloc">
         <div class="parametres-label">Configuration</div>
@@ -219,6 +221,28 @@
       </div>
       <div class="fiche-actions">
         <button type="button" id="cultures-panel-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup "Nouvelle version disponible" (www/js/maj-apk.js) — porté
+       depuis Ovilog (VincentVaysset/Ovilog, branche
+       claude/sheep-herd-android-app-7tlcq1). L'appli n'étant pas
+       distribuée via le Play Store, elle interroge directement les
+       Releases du dépôt GitHub public pour savoir si une version plus
+       récente existe, propose de la télécharger, puis relance l'installeur
+       système Android (voir ApkInstallerPlugin côté natif). Le
+       téléchargement ne démarre jamais tout seul : uniquement sur un clic
+       explicite de l'exploitant. -->
+  <div id="maj-popup" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>Nouvelle version disponible</h2>
+      <p class="apercu-sous-titre" id="maj-popup-nom"></p>
+      <div id="maj-popup-notes" class="champ-aide" style="white-space:pre-wrap;max-height:160px;overflow-y:auto;"></div>
+      <p id="maj-popup-statut" class="champ-aide"></p>
+      <div class="fiche-actions">
+        <button type="button" id="maj-popup-installer" class="btn btn-primary">Télécharger et installer</button>
+        <button type="button" id="maj-popup-plus-tard" class="btn btn-secondary">Plus tard</button>
       </div>
     </div>
   </div>
