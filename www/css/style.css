@@ -204,11 +204,10 @@ header button {
 }
 
 /* --- Hub de rapports PDF --- */
-.rapport-liste { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
 .rapport-card {
   display: flex; align-items: center; gap: 11px;
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 11px 13px;
+  padding: 11px 13px; margin: 18px 0;
 }
 .rapport-icone { font-size: 20px; flex: 0 0 26px; text-align: center; }
 .rapport-body { flex: 1; min-width: 0; }
@@ -218,6 +217,41 @@ header button {
   flex: 0 0 auto; font-size: 10px; font-weight: 700; text-transform: uppercase;
   color: var(--text-muted); background: var(--bg); border: 1px solid var(--border);
   border-radius: 6px; padding: 3px 7px;
+}
+
+/* Cartes indicateurs (KPI) des rapports : chiffre en avant, détail discret
+   en dessous — même esprit que .cat-card mais empilé verticalement, pour un
+   nombre qu'on doit pouvoir lire de loin sur tablette. */
+.rapport-kpi-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 16px; }
+.rapport-kpi {
+  flex: 1 1 150px; background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+}
+.rapport-kpi-valeur { font-size: 21px; font-weight: 700; color: var(--primary); }
+.rapport-kpi-label { font-size: 12px; font-weight: 600; margin-top: 2px; }
+.rapport-kpi-detail { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+.rapport-validation-ok th { color: var(--success); font-weight: 600; }
+.rapport-validation-ko th { color: var(--warning); font-weight: 600; }
+
+/* En-têtes de colonne triables (plan de fertilisation) : la flèche active
+   suffit à indiquer le tri en cours, pas besoin d'un contrôle séparé. */
+.th-tri { cursor: pointer; user-select: none; }
+.th-tri.is-active { color: var(--primary); }
+
+/* Impression / export PDF : uniquement le contenu du rapport, en flux normal
+   plutôt qu'en overlay plein écran (position:fixed imprime mal sur
+   plusieurs pages) — tout le reste de l'appli disparaît. */
+@media print {
+  .no-print { display: none !important; }
+  #screen-app > *:not(#rapports-panel) { display: none !important; }
+  #rapports-panel {
+    position: static; inset: auto; background: none; display: block; z-index: auto;
+  }
+  #rapports-imprimable {
+    width: 100%; max-height: none; overflow: visible; border-radius: 0;
+    box-shadow: none; padding: 0;
+  }
 }
 
 #map {

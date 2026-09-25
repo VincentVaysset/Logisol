@@ -66,6 +66,7 @@ import {
 import { verifierRegles } from './diagnostic-regles.js';
 import { watchMateriels, onMaterielsChange, ensureSeeded as ensureMaterielSeeded } from './materiel.js';
 import { initMateriel, renderMateriels } from './ui-materiel.js';
+import { initRapports, setParcellesRapports } from './ui-rapports.js';
 
 let booted = false;
 let centrageInitialFait = false;
@@ -158,6 +159,7 @@ function recomputeAndRender() {
   setParcellesBatiments(enriched);
   setParcellesMouvements(enriched);
   setParcellesAssolement(enriched);
+  setParcellesRapports(enriched);
 
   majEtat({
     parcelles: enriched,
@@ -503,13 +505,6 @@ function terminerModifContour(valider) {
   if (!opts) return;
   if (valider && resultat) opts.onValider(resultat.geometry, resultat.surfaceHa);
   else opts.onAnnuler();
-}
-
-// --- Hub de rapports PDF (préparation d'UI) -------------------------------
-function initRapports() {
-  const panel = document.getElementById('rapports-panel');
-  document.getElementById('btn-rapports').addEventListener('click', () => { panel.hidden = false; });
-  document.getElementById('rapports-fermer').addEventListener('click', () => { panel.hidden = true; });
 }
 
 // --- Navigation entre les trois vues --------------------------------------

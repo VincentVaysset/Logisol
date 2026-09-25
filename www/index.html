@@ -1255,49 +1255,47 @@
     </div>
   </div>
 
-  <!-- Hub de synthèses PDF — préparation d'UI seule pour l'instant (demande
-       explicite) : un seul endroit pour retrouver tous les bilans à venir,
-       chacun branché à son propre générateur plus tard sans changer cet
-       écran d'accueil. -->
+  <!-- Hub de rapports & synthèses : un seul écran, imprimable en l'état
+       (bouton PDF = window.print(), pas de librairie PDF à vendoriser),
+       construit à partir de l'assolement prévisionnel déjà saisi. Le Bilan
+       Stocks reste "Bientôt" — hors périmètre de ce module. -->
   <div id="rapports-panel" class="fiche-overlay" hidden>
-    <div class="fiche-panel">
-      <h2>Rapports &amp; Synthèses</h2>
-      <p class="apercu-sous-titre">Génération PDF à venir — chaque bilan s'appuiera sur les données déjà saisies dans l'appli.</p>
-      <div class="rapport-liste">
-        <div class="rapport-card">
-          <span class="rapport-icone">🌾</span>
-          <div class="rapport-body">
-            <div class="rapport-nom">Bilan Stocks</div>
-            <div class="rapport-sub">Tonnages récoltés, consommés et restants par catégorie</div>
-          </div>
-          <span class="badge-bientot">Bientôt</span>
-        </div>
-        <div class="rapport-card">
-          <span class="rapport-icone">💩</span>
-          <div class="rapport-body">
-            <div class="rapport-nom">Fumier &amp; Épandages</div>
-            <div class="rapport-sub">Doses prévues par parcelle, tonnage total à épandre</div>
-          </div>
-          <span class="badge-bientot">Bientôt</span>
-        </div>
-        <div class="rapport-card">
-          <span class="rapport-icone">🪨</span>
-          <div class="rapport-body">
-            <div class="rapport-nom">Chaux</div>
-            <div class="rapport-sub">Doses t/ha et tonnage à commander par campagne</div>
-          </div>
-          <span class="badge-bientot">Bientôt</span>
-        </div>
-        <div class="rapport-card">
-          <span class="rapport-icone">📋</span>
-          <div class="rapport-body">
-            <div class="rapport-nom">Assolement prévisionnel</div>
-            <div class="rapport-sub">Surfaces par famille et par campagne, prêtes à imprimer</div>
-          </div>
-          <span class="badge-bientot">Bientôt</span>
-        </div>
+    <div class="fiche-panel" id="rapports-imprimable">
+      <div class="vue-head no-print">
+        <h2>Rapports &amp; Synthèses</h2>
+        <button type="button" id="rapports-imprimer" class="btn btn-secondary btn-mini">🖨️ Imprimer / PDF</button>
       </div>
-      <div class="fiche-actions">
+      <p class="apercu-sous-titre">Bilans construits à partir de l'assolement prévisionnel et des fiches parcelles.</p>
+
+      <div class="prev-entete no-print">
+        <button type="button" id="rap-campagne-moins" class="btn btn-secondary btn-mini" aria-label="Campagne précédente">◀</button>
+        <div class="prev-annees" id="rap-campagne-label">Campagne 2026</div>
+        <button type="button" id="rap-campagne-plus" class="btn btn-secondary btn-mini" aria-label="Campagne suivante">▶</button>
+      </div>
+
+      <h3 class="section-titre">📋 Assolement &amp; calendrier des semis</h3>
+      <div id="rap-semis-kpis" class="rapport-kpi-row"></div>
+      <div class="table-scroll">
+        <table class="tableau tableau-synthese" id="rap-synthese"></table>
+      </div>
+
+      <h3 class="section-titre">Plan de fertilisation</h3>
+      <div id="rap-ferti-kpis" class="rapport-kpi-row"></div>
+      <div class="filtre-chips no-print" id="rap-ferti-filtre"></div>
+      <div class="table-scroll">
+        <table class="tableau" id="rap-ferti-tableau"></table>
+      </div>
+
+      <div class="rapport-card">
+        <span class="rapport-icone">🌾</span>
+        <div class="rapport-body">
+          <div class="rapport-nom">Bilan Stocks</div>
+          <div class="rapport-sub">Tonnages récoltés, consommés et restants par catégorie</div>
+        </div>
+        <span class="badge-bientot">Bientôt</span>
+      </div>
+
+      <div class="fiche-actions no-print">
         <button type="button" id="rapports-fermer" class="btn btn-secondary">Fermer</button>
       </div>
     </div>
