@@ -232,7 +232,8 @@ function correspond(culture, nomReel) {
 //    appartiennent explicitement ailleurs et ne doivent jamais s'afficher ici.
 function cultureReelle(parcelleId, campagne) {
   const cible = String(campagne);
-  const implsParcelle = getImplantations().filter((i) => i.parcelleId === parcelleId);
+  const idParcelle = String(parcelleId);
+  const implsParcelle = getImplantations().filter((i) => String(i.parcelleId) === idParcelle);
 
   let pool = implsParcelle.filter((i) => i.campagneVisee && String(i.campagneVisee) === cible);
   let taguee = true;

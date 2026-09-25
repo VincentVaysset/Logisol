@@ -67,9 +67,14 @@ export function watchImplantations() {
 // défaut) : celle dont la période encadre la date. S'il y en a plusieurs
 // (saisie qui se chevauche), on garde la plus récemment semée.
 export function implantationEnCours(parcelleId, date = aujourdhui(), liste = courantes) {
+  // Comparaison stricte mais forcée en chaîne : un id de parcelle est
+  // toujours une chaîne côté Firestore, mais un appelant qui l'aurait fait
+  // transiter par un attribut DOM ou un paramètre numérique ne doit jamais
+  // silencieusement échouer à retrouver l'implantation en cours.
+  const cible = String(parcelleId);
   const candidates = liste.filter(
     (i) =>
-      i.parcelleId === parcelleId &&
+      String(i.parcelleId) === cible &&
       i.dateSemis &&
       i.dateSemis <= date &&
       (!i.dateFin || i.dateFin >= date)
@@ -103,8 +108,9 @@ export function dureeLisible(implantation, date = aujourdhui()) {
 
 // Toutes les implantations d'une parcelle, de la plus récente à la plus ancienne.
 export function historiqueParcelle(parcelleId, liste = courantes) {
+  const cible = String(parcelleId);
   return liste
-    .filter((i) => i.parcelleId === parcelleId)
+    .filter((i) => String(i.parcelleId) === cible)
     .sort((a, b) => (a.dateSemis < b.dateSemis ? 1 : -1));
 }
 

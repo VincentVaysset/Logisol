@@ -165,7 +165,8 @@ export function watchPrevisions() {
 }
 
 export function prevision(parcelleId, campagne, liste = courants) {
-  return liste.find((p) => p.parcelleId === parcelleId && String(p.campagne) === String(campagne)) || null;
+  const idParcelle = String(parcelleId);
+  return liste.find((p) => String(p.parcelleId) === idParcelle && String(p.campagne) === String(campagne)) || null;
 }
 
 export function campagneCourante() {

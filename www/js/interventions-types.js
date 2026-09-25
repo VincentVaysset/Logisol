@@ -187,53 +187,77 @@ export function typesPourCible(cible, liste = courants) {
   });
 }
 
+// Clé de recherche insensible à la casse et aux espaces parasites — sans
+// ça, un type saisi un jour "Moisson " (espace final) ou "moisson"
+// (minuscule), par exemple via "+ Action sur mesure" ou une ancienne
+// version, ne se reconnaît jamais comme le "Moisson" par défaut : deux
+// documents coexistent, celui qu'on met à niveau ici (effetCulture: DETRUIT
+// compris) et un doublon oublié sans effet sur la culture — la parcelle
+// choisie via ce doublon reste alors bloquée sur son ancienne céréale au
+// lieu de basculer en Interculture (chaumes), quelle que soit celle-ci.
+function cleNom(nom) {
+  return String(nom || '').trim().toLowerCase();
+}
+
 /**
  * Amorce et met à niveau la liste des types.
  * Idempotent : les documents existants sont retrouvés par leur nom (ancien ou
- * nouveau) et complétés, les manquants créés. Aucun type n'est supprimé, y
- * compris ceux créés à la main depuis l'appli.
+ * nouveau, comparé sans casse ni espaces) et complétés, les manquants créés.
+ * Aucun type n'est supprimé, y compris ceux créés à la main depuis l'appli.
+ * Si plusieurs documents partagent le même nom normalisé (doublon issu d'une
+ * saisie à la casse différente), TOUS sont mis à niveau, pas seulement le
+ * premier trouvé — sinon le doublon resterait sans effet sur la culture.
  */
 export async function ensureSeeded() {
   const snap = await getDocs(COL);
-  const parNom = new Map();
-  snap.docs.forEach((d) => parNom.set(String(d.data().nom || ''), { id: d.id, ...d.data() }));
+  const parNom = new Map(); // clé normalisée -> [{id, ...}]
+  snap.docs.forEach((d) => {
+    const k = cleNom(d.data().nom);
+    if (!parNom.has(k)) parNom.set(k, []);
+    parNom.get(k).push({ id: d.id, ...d.data() });
+  });
 
   // Les anciens types génériques sont rétrogradés dans « Divers » plutôt que
   // laissés dans des catégories qui n'existent plus.
   for (const nom of HERITAGE) {
-    const h = parNom.get(nom);
-    if (h && (h.categorie !== 'AUTRE' || !h.heritage)) {
-      await setDoc(doc(db, 'interventions_types', h.id), { categorie: 'AUTRE', heritage: true }, { merge: true });
+    for (const h of parNom.get(cleNom(nom)) || []) {
+      if (h.categorie !== 'AUTRE' || !h.heritage) {
+        await setDoc(doc(db, 'interventions_types', h.id), { categorie: 'AUTRE', heritage: true }, { merge: true });
+      }
     }
   }
 
   // Traitements de culture : masqués, pas effacés.
   for (const nom of MASQUES) {
-    const m = parNom.get(nom);
-    if (m && !m.masque) {
-      await setDoc(doc(db, 'interventions_types', m.id), { masque: true, heritage: true, categorie: 'AUTRE' }, { merge: true });
+    for (const m of parNom.get(cleNom(nom)) || []) {
+      if (!m.masque) {
+        await setDoc(doc(db, 'interventions_types', m.id), { masque: true, heritage: true, categorie: 'AUTRE' }, { merge: true });
+      }
     }
   }
 
   for (const t of TYPES_PAR_DEFAUT) {
     const ancienNom = Object.keys(RENOMMAGES).find((k) => RENOMMAGES[k] === t.nom);
-    const existant = parNom.get(t.nom) || (ancienNom ? parNom.get(ancienNom) : null);
-    if (existant) {
-      // Mise à niveau : on n'écrase QUE les métadonnées de classement et de
-      // formulaire, pas la couleur ni l'icône que l'exploitant aurait pu
-      // personnaliser. « champs » en fait partie : c'est lui qui retire le
-      // champ engrais/amendement du semis, il doit donc être resynchronisé.
-      const maj = {};
-      if (existant.nom !== t.nom) maj.nom = t.nom;
-      if (existant.categorie !== t.categorie) maj.categorie = t.categorie;
-      if (existant.cible !== t.cible) maj.cible = t.cible;
-      if ((existant.flux || null) !== (t.flux || null)) maj.flux = t.flux;
-      if ((existant.formulaire || null) !== (t.formulaire || null)) maj.formulaire = t.formulaire;
-      if ((existant.effetCulture || null) !== (t.effetCulture || null)) maj.effetCulture = t.effetCulture || null;
-      if (!memesChamps(existant.champs, t.champs)) maj.champs = t.champs;
-      if (existant.masque) maj.masque = false;
-      if (existant.heritage) maj.heritage = false;
-      if (Object.keys(maj).length) await setDoc(doc(db, 'interventions_types', existant.id), maj, { merge: true });
+    const existants = (parNom.get(cleNom(t.nom)) || [])
+      .concat(ancienNom ? (parNom.get(cleNom(ancienNom)) || []) : []);
+    if (existants.length) {
+      for (const existant of existants) {
+        // Mise à niveau : on n'écrase QUE les métadonnées de classement et de
+        // formulaire, pas la couleur ni l'icône que l'exploitant aurait pu
+        // personnaliser. « champs » en fait partie : c'est lui qui retire le
+        // champ engrais/amendement du semis, il doit donc être resynchronisé.
+        const maj = {};
+        if (existant.nom !== t.nom) maj.nom = t.nom;
+        if (existant.categorie !== t.categorie) maj.categorie = t.categorie;
+        if (existant.cible !== t.cible) maj.cible = t.cible;
+        if ((existant.flux || null) !== (t.flux || null)) maj.flux = t.flux;
+        if ((existant.formulaire || null) !== (t.formulaire || null)) maj.formulaire = t.formulaire;
+        if ((existant.effetCulture || null) !== (t.effetCulture || null)) maj.effetCulture = t.effetCulture || null;
+        if (!memesChamps(existant.champs, t.champs)) maj.champs = t.champs;
+        if (existant.masque) maj.masque = false;
+        if (existant.heritage) maj.heritage = false;
+        if (Object.keys(maj).length) await setDoc(doc(db, 'interventions_types', existant.id), maj, { merge: true });
+      }
     } else {
       await addDoc(COL, t);
     }
