@@ -956,14 +956,28 @@ header button {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;
 }
 .prev-actions .champ-aide { margin: 0; }
-.tableau-prev { min-width: 720px; }
-.tableau-prev th, .tableau-prev td { padding: 6px 7px; vertical-align: middle; position: relative; }
+/* table-layout: fixed + largeurs figées par colonne : sans ça, un badge de
+   statut un peu long (ex. l'enchaînement dérobée -> culture suivante) élargit
+   la colonne Culture en layout auto, ce qui COMPRESSE les colonnes voisines —
+   et l'input fumier/chaux, lui, garde sa largeur fixe (72px) et déborde de sa
+   cellule rétrécie par-dessus la colonne suivante. Une largeur garantie par
+   colonne élimine ce chevauchement : un badge trop long s'enroule sur
+   plusieurs lignes DANS sa cellule au lieu de pousser les autres. Choisi pour
+   rester lisible au doigt sur une tablette 10.1" (paysage ~1280px). */
+.tableau-prev { min-width: 850px; width: 100%; table-layout: fixed; }
+.tableau-prev th:nth-child(1), .tableau-prev td:nth-child(1) { width: 50px; }
+.tableau-prev th:nth-child(3), .tableau-prev td:nth-child(3) { width: 62px; }
+.tableau-prev th:nth-child(4), .tableau-prev td:nth-child(4),
+.tableau-prev th:nth-child(7), .tableau-prev td:nth-child(7) { width: 190px; }
+.tableau-prev th:nth-child(5), .tableau-prev td:nth-child(5),
+.tableau-prev th:nth-child(6), .tableau-prev td:nth-child(6) { width: 100px; }
+.tableau-prev th, .tableau-prev td { padding: 6px 7px; vertical-align: middle; position: relative; overflow: hidden; }
 .tableau-prev thead th { text-align: center; white-space: normal; line-height: 1.2; }
 /* La colonne du nom reste visible pendant qu'on fait défiler le tableau vers
    les colonnes de droite : sinon on ne sait plus quelle ligne on modifie. */
 .tableau-prev .col-nom-parcelle {
   position: sticky; left: 0; z-index: 1; background: var(--card);
-  text-align: left; white-space: normal; min-width: 120px; max-width: 170px;
+  text-align: left; white-space: normal; width: 150px;
 }
 /* Fonds OPAQUES équivalents aux teintes translucides de l'en-tête et du pied :
    une cellule figée translucide laisserait voir défiler les colonnes dessous. */
@@ -993,8 +1007,13 @@ header button {
    l'alerte d'écart (.reel.ecart, ambre) — un « Semé »/« En place » n'est pas
    une anomalie à signaler, juste un rappel de ce qui est vraiment planté. */
 .reel-statut {
-  display: inline-block; margin-top: 3px; font-size: 10px; font-weight: 600;
-  border-radius: 5px; padding: 1px 5px;
+  /* display:block (pas inline-block) : garantit que le badge tombe TOUJOURS
+     sous le <select> de culture, jamais à côté sur la même ligne — c'est ce
+     qui, combiné aux largeurs de colonne figées ci-dessus, le maintient dans
+     sa cellule Culture au lieu d'empiéter sur les colonnes fumier/chaux. */
+  display: block; width: fit-content; max-width: 100%; margin-top: 3px;
+  font-size: 10px; font-weight: 600; border-radius: 5px; padding: 1px 5px;
+  white-space: normal; word-break: break-word;
 }
 .reel-statut.seme, .reel-statut.enplace {
   color: var(--primary); background: rgba(5,150,105,0.12);
@@ -1021,7 +1040,8 @@ header button {
    filtre associé : masque les autres lignes SANS reconstruire le tableau,
    pour ne jamais couper une saisie en cours (cf. rafraichirAssolement). */
 .badge-semis0 {
-  display: inline-block; margin-top: 3px; font-size: 9px; font-weight: 700;
+  display: block; width: fit-content; max-width: 100%; margin-top: 3px;
+  font-size: 9px; font-weight: 700;
   color: var(--primary); background: rgba(5,150,105,0.12);
   border-radius: 5px; padding: 1px 5px;
 }
