@@ -17,6 +17,7 @@ import { watchInterventions } from './interventions.js';
 import { resolveCouleur, resolveLabel } from './vocation.js';
 import { getVueLegende, onVueLegendeChange } from './vue-legende.js';
 import { watchParcelles } from './parcelles.js';
+import { initSyncStatus, onSyncStatusChange } from './sync-status.js';
 import {
   initMap, renderParcelles, renderLegend, refreshMapSize,
   fitToParcelles, centrerSurMaPosition, vueARestaurer,
@@ -588,6 +589,14 @@ async function boot() {
     initPlacement();
     initModifContour();
     initRapports();
+    initSyncStatus();
+    const syncStatusEl = document.getElementById('sync-status');
+    onSyncStatusChange((etat) => {
+      syncStatusEl.textContent = etat === 'synced' ? '🟢 Synchro à jour' : '🟠 Hors-ligne';
+      syncStatusEl.title = etat === 'synced'
+        ? 'Dernières données confirmées par le serveur.'
+        : 'Pas de confirmation serveur récente — les données affichées peuvent dater du dernier passage en ligne.';
+    });
     document.getElementById('alerte-regles-close').addEventListener('click', () => {
       document.getElementById('alerte-regles').hidden = true;
     });

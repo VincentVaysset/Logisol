@@ -164,6 +164,12 @@
       </div>
     </div>
     <div class="header-compte">
+      <!-- Voyant de synchro (sync-status.js) : 🟢 dès qu'un aller-retour
+           Firestore a touché le serveur (pas seulement le cache local),
+           🟠 sinon (pas de réseau, ou pas encore de confirmation serveur —
+           ex. juste après l'ouverture sur un nouvel appareil, le temps que
+           le premier téléchargement complet arrive). -->
+      <span id="sync-status" class="sync-status" title="État de la synchronisation">🟠 Hors-ligne</span>
       <button id="btn-rapports" type="button" class="header-icon-btn" aria-label="Rapports et synthèses PDF">📄</button>
       <span id="user-email" class="user-email"></span>
       <button id="btn-logout" type="button">Déconnexion</button>

@@ -194,6 +194,15 @@ header button {
 }
 .header-icon-btn { padding: 8px 10px; font-size: 15px; line-height: 1; }
 
+/* Voyant de synchro (sync-status.js) : discret, dans le ton du header sombre
+   plutôt qu'un badge coloré qui accrocherait l'œil en permanence. */
+.sync-status {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--chrome-text-muted);
+  white-space: nowrap;
+}
+
 /* --- Hub de rapports PDF --- */
 .rapport-liste { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
 .rapport-card {
