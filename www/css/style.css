@@ -1002,6 +1002,13 @@ header button {
 .reel-statut.prevu {
   color: var(--text-muted); background: rgba(0,0,0,0.05);
 }
+/* Dérobée (colza fourrager...) et enchaînement dérobée -> culture suivante :
+   violet, cohérent avec le liseré dérobée de la carte (map.js, #8b5cf6) et
+   FAMILLE_COULEUR.derobee (vocation.js) — jamais confondu avec le vert
+   émeraude des prairies/luzerne. */
+.reel-statut.derobee, .reel-statut.chaine {
+  color: #7c3aed; background: rgba(139,92,246,0.14);
+}
 .tableau-prev td.saved { animation: cell-saved 1.1s ease-out; }
 @keyframes cell-saved { from { background: rgba(5,150,105,0.28); } to { background: transparent; } }
 

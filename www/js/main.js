@@ -7,7 +7,8 @@
 // et Parcelles (liste). Les trois PARTAGENT la même carte Leaflet, qui change
 // seulement de hauteur.
 import {
-  ensureSeeded as ensureCulturesSeeded, watchCultures, onCulturesChange, migrerFamillesPrairie
+  ensureSeeded as ensureCulturesSeeded, watchCultures, onCulturesChange, migrerFamillesPrairie,
+  ensureColzaFourrager
 } from './cultures-config.js';
 import {
   watchImplantations, onImplantationsChange, implantationEnCours, migrerAnciensAssolements
@@ -734,6 +735,7 @@ async function boot() {
     if (reprises) log(reprises + ' ancien(s) assolement(s) repris en implantations');
     const reprisesPrairie = await migrerFamillesPrairie();
     if (reprisesPrairie) log(reprisesPrairie + ' culture(s) « prairie » reclassée(s) en PP/PT');
+    if (await ensureColzaFourrager()) log('culture "Colza fourrager" (dérobée) ajoutée');
 
     // Diagnostic des règles, en dernier et sans bloquer : il transforme un
     // « permission-denied » muet en message qui dit quelle collection est

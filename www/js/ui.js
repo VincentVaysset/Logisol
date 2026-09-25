@@ -26,6 +26,7 @@ const inputNewCultureCouleur = document.getElementById('fiche-newculture-couleur
 const inputNewCultureFamille = document.getElementById('fiche-newculture-famille');
 const inputDateSemis = document.getElementById('fiche-datesemis');
 const dureeInfo = document.getElementById('fiche-duree-info');
+const colzaHint = document.getElementById('fiche-colza-hint');
 const numeroBadge = document.getElementById('fiche-numero');
 const surfaceBadge = document.getElementById('fiche-surface-badge');
 const inputNom = document.getElementById('fiche-nom');
@@ -120,7 +121,34 @@ selectCulture.addEventListener('change', () => {
   const culture = valeur && valeur !== '__new__' ? getCultureById(valeur) : null;
   cultureFamilleWrap.hidden = !culture;
   if (culture) peuplerFamilleCulture(culture.famille);
+  majDetectionColza();
 });
+
+// --- Colza fourrager / dérobée : détection automatique ---------------------
+// Un colza semé en été/automne (août-octobre) est presque toujours une
+// dérobée destinée à être détruite au printemps avant la culture suivante —
+// pas le colza grain, semé au printemps pour une récolte en juillet. Pure
+// suggestion : préremplit la famille d'une NOUVELLE culture (sans écraser un
+// choix déjà fait), et se contente d'un avertissement si une culture
+// "Colza" existante est choisie sur une date d'automne — sa famille reste
+// celle qu'elle a toujours eue, elle peut servir ailleurs pour l'autre usage.
+function moisDe(dateIso) {
+  return dateIso && dateIso.length >= 7 ? Number(dateIso.slice(5, 7)) : null;
+}
+function semisAutomneDeColza(nom, dateSemis) {
+  const mois = moisDe(dateSemis);
+  return /colza/i.test(nom || '') && mois >= 8 && mois <= 10;
+}
+function majDetectionColza() {
+  if (!newCultureWrap.hidden && semisAutomneDeColza(inputNewCultureNom.value, inputDateSemis.value)) {
+    if (!inputNewCultureFamille.value) inputNewCultureFamille.value = 'derobee';
+  }
+  const culture = selectCulture.value && selectCulture.value !== '__new__'
+    ? getCultureById(selectCulture.value) : null;
+  colzaHint.hidden = !(culture && semisAutomneDeColza(culture.nom, inputDateSemis.value));
+}
+inputNewCultureNom.addEventListener('input', majDetectionColza);
+inputDateSemis.addEventListener('change', majDetectionColza);
 
 // --- Secteur / zone (texte libre avec suggestion) --------------------------
 // Pas de collection de config séparée pour un champ aussi simple : la liste
@@ -196,6 +224,7 @@ export function openCreate({ geometry, surfaceHa, croise }) {
     cultureWrap.hidden = false;
     newCultureWrap.hidden = true;
     cultureFamilleWrap.hidden = true;
+    colzaHint.hidden = true;
     implantationCourante = null;
     inputDateSemis.value = aujourdhui();
     dureeInfo.hidden = true;
@@ -251,6 +280,7 @@ export function openEdit(parcelle, implantation) {
   cultureFamilleWrap.hidden = !cultureActuelle;
   if (cultureActuelle) peuplerFamilleCulture(cultureActuelle.famille);
   populateCultureSelect(getCultures(), (implantation && implantation.cultureId) || '');
+  majDetectionColza();
   majSurfaceBadge();
   panel.hidden = false;
 }

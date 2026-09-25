@@ -1189,6 +1189,16 @@
           <input type="date" id="fiche-datesemis">
           <p id="fiche-duree-info" class="champ-aide" hidden></p>
 
+          <!-- Détection colza fourrager/dérobée : un colza semé en été/automne
+               n'est presque jamais un colza grain (semé au printemps) — c'est
+               une dérobée destinée à être détruite avant la culture de
+               printemps suivante, pas récoltée en juillet. Suggestion, jamais
+               un blocage : l'exploitant garde la main. -->
+          <p id="fiche-colza-hint" class="champ-aide" hidden>
+            🟣 Colza semé en été/automne : proposé en Dérobée / Couvert plutôt
+            qu'en Céréale/Oléagineux grain (pas de récolte grain l'an prochain).
+          </p>
+
           <div id="fiche-newculture-wrap" class="fiche-newtype" hidden>
             <label for="fiche-newculture-nom">Nom de la nouvelle culture</label>
             <input type="text" id="fiche-newculture-nom" placeholder="ex: Tournesol">

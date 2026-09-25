@@ -91,8 +91,11 @@ export function renderAssolement() {
     const reel = cultureReelle(p.id, N);
     const cN = culturePrev(prevN.cultureCode);
     // Le réel est rappelé sous le prévu : une luzerne retournée plus tôt que
-    // prévu doit se voir ici, pas seulement sur le terrain.
-    const ecart = reel && cN && !correspond(cN, reel.nom);
+    // prévu doit se voir ici, pas seulement sur le terrain. Une implantation
+    // déjà DÉTRUITE (dérobée détruite au printemps, culture retournée...)
+    // n'est jamais un écart : c'est une étape de vie normale, affichée par
+    // statutReel() sous forme d'enchaînement plutôt que d'alerte.
+    const ecart = reel && !reel.dateFin && cN && !correspond(cN, reel.nom);
     const suggestion = !prevN1.cultureCode ? suiteNaturelle(prevN.cultureCode) : null;
     const semis0 = estSemisDeLAnnee(prevN.cultureCode);
     return `<tr data-id="${esc(p.id)}"${semis0 ? ' data-semis0="1"' : ''}>
@@ -197,15 +200,20 @@ function correspond(culture, nomReel) {
   return !!ref && n.indexOf(ref) !== -1;
 }
 
-// Quelle implantation représente le réel d'une PARCELLE pour une CAMPAGNE
-// donnée. Deux façons de le savoir, dans cet ordre :
+// Quelle(s) implantation(s) représentent le réel d'une PARCELLE pour une
+// CAMPAGNE donnée. Deux façons de savoir quelles implantations regarder,
+// dans cet ordre :
 //
-// 1) Une implantation rattachée à cette campagne (campagneVisee, déduite
-//    automatiquement de sa date de semis par implantations.js/
+// 1) Toutes les implantations rattachées à cette campagne (campagneVisee,
+//    déduite automatiquement de la date de semis par implantations.js/
 //    campagneDeSemis — jamais demandée à l'exploitant). C'est la seule
 //    source fiable pour un semis d'automne : sa dateSemis tombe dans l'année
 //    civile de la campagne EN COURS, pas de celle qu'il vise, donc une
-//    lecture par date seule le rattacherait à la mauvaise case.
+//    lecture par date seule le rattacherait à la mauvaise case. PLUSIEURS
+//    implantations peuvent partager la même campagne : une dérobée d'été
+//    (colza fourrager, détruite au printemps) suivie de la culture qui lui
+//    succède (luzerne...) visent toutes deux la même campagne — c'est la
+//    chaîne qu'affiche statutReel().
 // 2) À défaut (implantation antérieure à l'ajout de ce champ) : l'ancienne
 //    heuristique par date — aujourd'hui pour la campagne en cours, le 1er
 //    juin pour une autre. Les implantations rattachées à une AUTRE campagne
@@ -216,34 +224,77 @@ function cultureReelle(parcelleId, campagne) {
   const cible = String(campagne);
   const implsParcelle = getImplantations().filter((i) => i.parcelleId === parcelleId);
 
-  const taguee = implsParcelle.find((i) => i.campagneVisee && String(i.campagneVisee) === cible);
-  if (taguee) {
-    const c = getCultureById(taguee.cultureId);
-    return c ? { nom: c.nom, dateSemis: taguee.dateSemis, taguee: true } : null;
+  let pool = implsParcelle.filter((i) => i.campagneVisee && String(i.campagneVisee) === cible);
+  let taguee = true;
+  if (!pool.length) {
+    taguee = false;
+    const date = cible === campagneCourante()
+      ? new Date().toISOString().slice(0, 10)
+      : `${cible}-06-01`;
+    const candidats = implsParcelle.filter((i) => !i.campagneVisee || String(i.campagneVisee) === cible);
+    const impl = implantationEnCours(parcelleId, date, candidats);
+    if (impl) pool = [impl];
   }
+  if (!pool.length) return null;
 
-  const date = cible === campagneCourante()
-    ? new Date().toISOString().slice(0, 10)
-    : `${cible}-06-01`;
-  const pool = implsParcelle.filter((i) => !i.campagneVisee || String(i.campagneVisee) === cible);
-  const impl = implantationEnCours(parcelleId, date, pool);
-  const c = impl ? getCultureById(impl.cultureId) : null;
-  return c ? { nom: c.nom, dateSemis: impl.dateSemis, taguee: false } : null;
+  const chaine = pool
+    .slice()
+    .sort((a, b) => (a.dateSemis < b.dateSemis ? -1 : 1))
+    .map((i) => {
+      const c = getCultureById(i.cultureId);
+      return c ? { nom: c.nom, famille: c.famille, dateSemis: i.dateSemis, dateFin: i.dateFin || null } : null;
+    })
+    .filter(Boolean);
+  if (!chaine.length) return null;
+
+  const derniere = chaine[chaine.length - 1];
+  return {
+    nom: derniere.nom, famille: derniere.famille,
+    dateSemis: derniere.dateSemis, dateFin: derniere.dateFin,
+    taguee, chaine
+  };
 }
 
-// Badge sous la case Culture : distingue une culture SEMÉE pour cette
-// campagne (rattachée explicitement, donc fraîchement implantée à cette fin)
-// d'une culture déjà EN PLACE depuis une campagne antérieure (luzerne an 2,
-// PN...), et une culture PRÉVUE mais pas encore semée (culture de printemps
-// à venir). L'écart garde son alerte propre, prioritaire sur ce badge.
+// Un maillon de la chaîne réelle : "🟣 Colza fourrager (Détruit)" ou
+// "Luzerne (Semé le 12/03)". Le violet ne marque QUE la dérobée — les
+// prairies/céréales gardent un badge neutre, la couleur distinctive de la
+// famille reste celle de la carte/légende (vocation.js).
+function etapeChaine(etape) {
+  const prefixe = etape.famille === 'derobee' ? '🟣 ' : '';
+  const statut = etape.dateFin ? 'Détruit' : `Semé le ${dateCourte(etape.dateSemis)}`;
+  return `${prefixe}${etape.nom} (${statut})`;
+}
+
+// Badge sous la case Culture. Trois situations, en plus de l'écart (qui garde
+// sa propre alerte, prioritaire, et ne se déclenche jamais sur une étape déjà
+// détruite — cf. l'appelant qui calcule "ecart") :
+//   - une SEULE implantation encore active pour cette campagne : badge simple
+//     ("Semé le ..." si rattachée à cette campagne, "En place" sinon — une
+//     prairie pluriannuelle en place depuis une campagne antérieure) ;
+//   - une implantation détruite SANS successeur encore semé, mais avec une
+//     culture déjà choisie au prévisionnel : l'enchaînement se montre quand
+//     même, la suite annoncée plutôt que constatée ("Colza (Détruit) ➔
+//     Luzerne (Prévue)") ;
+//   - une VRAIE chaîne (dérobée détruite + culture suivante déjà semée) :
+//     "Colza fourrager (Détruit) ➔ Luzerne (Semé le ...)".
 function statutReel(reel, ecart, cultureCodePrevue) {
   if (reel && ecart) {
     return `<span class="reel ecart">⚠ en place : ${esc(reel.nom)}</span>`;
   }
   if (reel) {
+    const etapes = reel.chaine.map(etapeChaine);
+    if (reel.dateFin) {
+      const cp = cultureCodePrevue ? culturePrev(cultureCodePrevue) : null;
+      if (cp && !correspond(cp, reel.nom)) etapes.push(`${cp.label} (Prévue)`);
+    }
+    if (etapes.length > 1) {
+      return `<span class="reel-statut chaine">${esc(etapes.join(' ➔ '))}</span>`;
+    }
+    const derobee = reel.famille === 'derobee';
+    const prefixe = derobee ? '🟣 ' : '';
     return reel.taguee
-      ? `<span class="reel-statut seme">Semé le ${esc(dateCourte(reel.dateSemis))}</span>`
-      : '<span class="reel-statut enplace">En place</span>';
+      ? `<span class="reel-statut ${derobee ? 'derobee' : 'seme'}">${prefixe}Semé le ${esc(dateCourte(reel.dateSemis))}</span>`
+      : `<span class="reel-statut ${derobee ? 'derobee' : 'enplace'}">${prefixe}En place</span>`;
   }
   return cultureCodePrevue ? '<span class="reel-statut prevu">Prévu</span>' : '';
 }

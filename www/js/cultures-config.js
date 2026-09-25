@@ -18,6 +18,12 @@ const COL = collection(db, 'cultures_config');
 // vraie question d'assolement (combien de PT à ressemer cette année ?). Les
 // céréales partagent une seule teinte ambre : leur distinction utile se fait
 // par le nom, pas par la couleur.
+// 'Colza' (oléagineux) reste le colza grain semé au printemps, récolté l'été
+// suivant — sans lien avec 'Colza fourrager' (dérobée), semé en été/automne
+// pour être détruit au printemps avant la culture suivante. Même nom de
+// plante, deux usages agronomiques différents : deux cultures distinctes,
+// jamais une seule qu'on retagguerait au gré des saisons (une exploitation
+// qui ferait les deux la même année aurait besoin des deux en même temps).
 const DEFAULT_CULTURES = [
   { nom: 'RG Trèfle',              couleur: '#059669', famille: 'prairie_temporaire' },  // vert émeraude
   { nom: 'Luzerne',                couleur: '#10b981', famille: 'prairie_temporaire' },  // vert jade / anis
@@ -26,6 +32,7 @@ const DEFAULT_CULTURES = [
   { nom: 'Blé tendre',             couleur: '#d97706', famille: 'cereale' },  // jaune ambre
   { nom: 'Orge',                   couleur: '#d97706', famille: 'cereale' },
   { nom: 'Colza',                  couleur: '#a8b83f', famille: 'oleagineux' },
+  { nom: 'Colza fourrager',        couleur: '#8b5cf6', famille: 'derobee' },  // violet dérobée
   { nom: 'Autre',                  couleur: '#9a988f', famille: 'autre' }
 ];
 
@@ -97,4 +104,15 @@ export async function migrerFamillesPrairie() {
     repris++;
   }
   return repris;
+}
+
+// Ajoute "Colza fourrager" (dérobée) s'il n'existe pas déjà — pour une base
+// déjà seedée avant l'ajout de cette culture (ensureSeeded ne seede que sur
+// collection vide). Idempotent par nom : relancer ne crée pas de doublon.
+export async function ensureColzaFourrager() {
+  const snap = await getDocs(COL);
+  const cible = 'colza fourrager';
+  if (snap.docs.some((d) => String(d.data().nom || '').trim().toLowerCase() === cible)) return false;
+  await addDoc(COL, { nom: 'Colza fourrager', couleur: '#8b5cf6', famille: 'derobee' });
+  return true;
 }
