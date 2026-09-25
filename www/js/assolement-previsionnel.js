@@ -217,15 +217,30 @@ export async function migrerRGT0() {
  * Surfaces par famille et par culture pour une campagne.
  * @param {Array<{id:string, surfaceHa:number}>} parcelles
  * @returns {{parCode:Map<string,number>, parFamille:Map<string,number>,
- *            nonRenseigne:number, total:number}}
+ *            parGroupe:Map<string,number>, parGroupeRecoltable:Map<string,number>,
+ *            enImplantationHa:number, nonRenseigne:number, total:number}}
  */
 export function syntheseSurfaces(parcelles, campagne, liste = courants) {
   const parCode = new Map();
   const parFamille = new Map();
   const parGroupe = new Map();
+  // Comme parGroupe, mais une culture en indice 0 (Luz 0 — implantation en
+  // cours, aucune fauche possible cette campagne) n'y entre pas : la vue
+  // macro/PAC (Regroupée) ne doit jamais annoncer une surface fourragère
+  // disponible plus grande que ce qui est réellement récoltable.
+  const parGroupeRecoltable = new Map();
   let nonRenseigne = 0;
   let total = 0;
+  let enImplantationHa = 0;
+  // Une parcelle (par id) ne compte qu'une fois, même si la liste transmise
+  // en contenait un doublon — le total de surface doit toujours coller au
+  // registre PAC, jamais gonflé par une entrée répétée.
+  const dejaVues = new Set();
   parcelles.forEach((p) => {
+    if (p && p.id != null) {
+      if (dejaVues.has(p.id)) return;
+      dejaVues.add(p.id);
+    }
     const ha = Number(p.surfaceHa) || 0;
     total += ha;
     const prev = prevision(p.id, campagne, liste);
@@ -235,10 +250,19 @@ export function syntheseSurfaces(parcelles, campagne, liste = courants) {
     parFamille.set(c.famille, (parFamille.get(c.famille) || 0) + ha);
     const groupe = GROUPE_DE_FAMILLE[c.famille] || 'AUTRE';
     parGroupe.set(groupe, (parGroupe.get(groupe) || 0) + ha);
+    if (indiceCulture(c.code) === 0) {
+      enImplantationHa += ha;
+    } else {
+      parGroupeRecoltable.set(groupe, (parGroupeRecoltable.get(groupe) || 0) + ha);
+    }
   });
   const r = (v) => Math.round(v * 100) / 100;
   parCode.forEach((v, k) => parCode.set(k, r(v)));
   parFamille.forEach((v, k) => parFamille.set(k, r(v)));
   parGroupe.forEach((v, k) => parGroupe.set(k, r(v)));
-  return { parCode, parFamille, parGroupe, nonRenseigne: r(nonRenseigne), total: r(total) };
+  parGroupeRecoltable.forEach((v, k) => parGroupeRecoltable.set(k, r(v)));
+  return {
+    parCode, parFamille, parGroupe, parGroupeRecoltable,
+    enImplantationHa: r(enImplantationHa), nonRenseigne: r(nonRenseigne), total: r(total)
+  };
 }

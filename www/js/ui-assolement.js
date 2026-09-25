@@ -418,11 +418,21 @@ function renderSynthese() {
     // Céréales, Autre), le détail des espèces disparaît des colonnes mais
     // reste accessible dans la liste nominative dépliée.
     Object.keys(LABEL_GROUPE).forEach((groupe) => {
-      const haN = sN.parGroupe.get(groupe);
-      const haN1 = sN1.parGroupe.get(groupe);
-      if (!haN && !haN1) return;
+      // Prairie Temporaire : une luzerne en implantation (Luz 0) ne fauche
+      // rien la campagne de son semis — la compter dans le même total que
+      // les surfaces réellement récoltables gonflerait le bilan fourrager
+      // (ex. 59,14 ha affichés pour ~53,77 ha vraiment exploitables). La
+      // ligne montre donc le total RÉCOLTABLE, et rappelle à côté ce qui est
+      // en implantation plutôt que de le faire disparaître silencieusement.
+      const recoltable = groupe === 'PRAIRIE_TEMPORAIRE';
+      const haN = recoltable ? sN.parGroupeRecoltable.get(groupe) : sN.parGroupe.get(groupe);
+      const haN1 = recoltable ? sN1.parGroupeRecoltable.get(groupe) : sN1.parGroupe.get(groupe);
+      if (!haN && !haN1 && !(recoltable && (sN.enImplantationHa || sN1.enImplantationHa))) return;
       const detailId = `syn-groupe-${groupe}-${campagneN}`;
-      lignes.push(`<tr class="sous-total detail-cliquable" data-detail="${detailId}"><th>${esc(LABEL_GROUPE[groupe])}</th>${cell(haN)}${cell(haN1)}</tr>`);
+      const note = recoltable && (sN.enImplantationHa || sN1.enImplantationHa)
+        ? `<br><span class="reel-statut implantation">🌱 + ${formatHa(sN.enImplantationHa)} ha (${N}) / ${formatHa(sN1.enImplantationHa)} ha (${N1}) en implantation — non récoltable</span>`
+        : '';
+      lignes.push(`<tr class="sous-total detail-cliquable" data-detail="${detailId}"><th>${esc(LABEL_GROUPE[groupe])}${note}</th>${cell(haN)}${cell(haN1)}</tr>`);
       lignes.push(`<tr class="detail-parcelles" id="${detailId}" hidden><td colspan="3">
         <strong>${N} :</strong> ${listeParcellesGroupe(N, groupe)}<br>
         <strong>${N1} :</strong> ${listeParcellesGroupe(N1, groupe)}
@@ -444,7 +454,12 @@ function renderSynthese() {
         const haN1 = sN1.parCode.get(code);
         const cliquable = haN || haN1;
         const detailId = `syn-detail-${code}-${campagneN}`;
-        lignes.push(`<tr class="detail${cliquable ? ' detail-cliquable' : ''}"${cliquable ? ` data-detail="${detailId}"` : ''}><th>${esc(culturePrev(code).label)}</th>${cell(haN)}${cell(haN1)}</tr>`);
+        // Luz 0 : implantation en cours, pas de fauche possible cette
+        // campagne — rappelé ici pour que le chiffre ne soit jamais lu
+        // comme une surface fourragère disponible.
+        const noteImplantation = code === 'LUZ0'
+          ? '<br><span class="reel-statut implantation">🌱 En implantation / Non récoltée</span>' : '';
+        lignes.push(`<tr class="detail${cliquable ? ' detail-cliquable' : ''}"${cliquable ? ` data-detail="${detailId}"` : ''}><th>${esc(culturePrev(code).label)}${noteImplantation}</th>${cell(haN)}${cell(haN1)}</tr>`);
         if (cliquable) {
           lignes.push(`<tr class="detail-parcelles" id="${detailId}" hidden><td colspan="3">
             <strong>${N} :</strong> ${listeParcelles(N, code)}<br>
