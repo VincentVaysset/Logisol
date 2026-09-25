@@ -57,7 +57,7 @@ const el = {};
   'duree','champ-meteo','meteo-text','meteo-refresh','photo-btn','photo-clear','photo-input',
   'photo-preview','photo-info',
   'groupe','groupe-titre','groupe-total',
-  'g-semis','culture','culture-toggle','culture-new','culture-nom','culture-add',
+  'g-semis','culture','culture-aide','culture-toggle','culture-new','culture-nom','culture-add',
   'semence','melange','melange-toggle','melange-rows','melange-add','melange-total',
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
   'g-surface','surface','surface-tout','surface-aide',
@@ -407,6 +407,7 @@ function appliquerGroupe() {
   const fourrage = f === 'PRESSAGE' || f === 'SECHAGE';
   el['g-fourrage'].hidden = !fourrage;
   if (fourrage) injecterFourrageDeLaParcelle();
+  if (f === 'SEMIS') injecterCultureSemisDeLaParcelle();
   if (!g) { el['groupe-total'].hidden = true; return; }
   el[g.bloc].hidden = false;
   el['groupe-titre'].textContent = g.titre;
@@ -500,6 +501,8 @@ function ecrireSaisie(s) {
   const v = (k, val) => { el[k].value = val == null ? '' : val; };
   v('semence', s.semence);
   peuplerCultures(s.cultureId || '');
+  delete el.culture.dataset.saisi;
+  if (s.cultureId) el.culture.dataset.saisi = '1';
   v('dose-semis', s.doseKgHa);
   v('surface', s.surfaceHa);
   v('nb-bottes', s.nbBottes);
@@ -534,6 +537,8 @@ function peuplerCultures(valeur) {
   if (valeur && liste.some((c) => c.id === valeur)) el.culture.value = valeur;
 }
 
+el.culture.addEventListener('change', () => { el.culture.dataset.saisi = '1'; });
+
 el['culture-toggle'].addEventListener('click', () => {
   el['culture-new'].hidden = !el['culture-new'].hidden;
   el['culture-toggle'].textContent = el['culture-new'].hidden ? '＋ Nouvelle culture' : '− Annuler';
@@ -545,6 +550,7 @@ el['culture-add'].addEventListener('click', async () => {
   try {
     const id = await addCulture(nom, '#5b8c5a', '');
     peuplerCultures(id);
+    el.culture.dataset.saisi = '1';
     el['culture-nom'].value = '';
     el['culture-new'].hidden = true;
     el['culture-toggle'].textContent = '＋ Nouvelle culture';
@@ -553,6 +559,64 @@ el['culture-add'].addEventListener('click', async () => {
     showError('Culture non créée : ' + ((err && err.message) || err));
   } finally { el['culture-add'].disabled = false; }
 });
+
+// Le référentiel réel (cultures_config, coloré sur la carte) et le
+// référentiel prévisionnel (assolement-previsionnel.js, indexé par âge —
+// « RG trèfle 1 », « Blé 2 »...) restent deux catalogues séparés, comme
+// l'exige CLAUDE.md (réel et prévu ne se mélangent jamais) : l'un n'a pas de
+// notion d'âge, l'autre en vit. Le point de rupture n'était pas l'existence
+// de deux catalogues, mais la SAISIE : rien ne reliait "RGA trèfle" (tapé un
+// jour dans la liste réelle) à "RG trèfle 1" (choisi au prévisionnel), donc
+// le badge Prévu ne passait jamais à Semé (cf. ui-assolement.js/correspond).
+// La proposition automatique ci-dessous ferme cet écart à la source.
+function normaliserNom(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+function memeCulture(nomReel, nomAttendu) {
+  const n = normaliserNom(nomReel);
+  const ref = normaliserNom(nomAttendu).split(' ')[0];
+  return !!ref && n.indexOf(ref) !== -1;
+}
+
+/** Culture attendue par l'assolement prévisionnel de la campagne en cours
+ * (celle de la date du semis — cf. campagneDeLaDate, qui bascule déjà en
+ * N+1 pour un semis d'automne), pour la première parcelle cochée qui en
+ * porte une. */
+function cultureAttendueDuSemis() {
+  const campagne = el.campagne.value || campagneDeLaDate();
+  for (const id of selection) {
+    const p = parcelles.find((x) => x.id === id);
+    const prev = prevision(id, campagne);
+    const cp = prev && prev.cultureCode ? culturePrev(prev.cultureCode) : null;
+    if (!cp) continue;
+    // Le nom "de fond" — Luzerne, RG trèfle, Fétuque trèfle — plutôt que le
+    // libellé indexé : un semis n'a pas d'âge, c'est le prévisionnel qui en
+    // tient le compte, pas l'implantation réelle.
+    const nomAttendu = cp.fourrage || String(cp.label).replace(/\s*\d+$/, '').trim();
+    if (!nomAttendu) continue;
+    return { nomAttendu, label: cp.label, campagne, parcelleNom: p ? p.nom : 'la parcelle' };
+  }
+  return null;
+}
+
+function injecterCultureSemisDeLaParcelle() {
+  const attendue = cultureAttendueDuSemis();
+  if (!attendue) { el['culture-aide'].hidden = true; return; }
+  const correspond = getCultures().find((c) => memeCulture(c.nom, attendue.nomAttendu));
+  if (correspond && !el.culture.dataset.saisi) {
+    el.culture.value = correspond.id;
+  }
+  if (!correspond && !el['culture-nom'].value.trim()) {
+    // Prêt à créer la culture manquante d'un tap, avec le nom exact attendu
+    // par le prévisionnel — c'est ça, "harmoniser" la liste, plutôt que
+    // deviner dans des libellés qui ont pu dériver au fil des saisies.
+    el['culture-nom'].value = attendue.nomAttendu;
+  }
+  el['culture-aide'].textContent = correspond
+    ? `Proposé d'après l'assolement ${attendue.campagne} de ${attendue.parcelleNom} : ${attendue.label}. Modifiable.`
+    : `L'assolement ${attendue.campagne} de ${attendue.parcelleNom} prévoit « ${attendue.label} » — crée la culture « ${attendue.nomAttendu} » ci-dessous pour que le semis soit reconnu automatiquement.`;
+  el['culture-aide'].hidden = false;
+}
 
 /** Implantations ouvertes que cette activité va clôturer. */
 function implantationsTouchees() {
@@ -759,10 +823,14 @@ el.campagne.addEventListener('input', () => {
     el.fourrage.value = '';
     injecterFourrageDeLaParcelle();
   }
+  if (!el['g-semis'].hidden) injecterCultureSemisDeLaParcelle();
 });
 el.date.addEventListener('change', () => {
-  // majEffetCulture() resynchronise déjà la campagne (cf. sa définition).
+  // majEffetCulture() resynchronise déjà la campagne (cf. sa définition) —
+  // mais silencieusement (écriture directe de .value, sans évènement
+  // "input"), donc la proposition de culture doit être recalculée ici.
   majEffetCulture();
+  if (!el['g-semis'].hidden) injecterCultureSemisDeLaParcelle();
   if (meteoCourante && meteoCourante.date === el.date.value) return;
   meteoCourante = null;
   afficherMeteo();
