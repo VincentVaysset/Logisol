@@ -4,6 +4,13 @@
 // C'est ICI, et nulle part ailleurs, que la géométrie change de forme :
 // l'appli manipule du GeoJSON standard, Firestore stocke une forme sans
 // tableaux imbriqués (voir geometrie.js pour le détail et la raison).
+//
+// Champ optionnel "releveGps" (préparation RTK, cf. gps.js/releveGpsDepuisFix) :
+// { accuracy, fixType, horodatage }, un objet plat — déjà compatible
+// Firestore sans rien à adapter ici, createParcelle/updateParcelle le
+// laissent simplement passer via "...reste". Absent sur toute parcelle
+// dessinée à la main comme aujourd'hui ; à renseigner par un futur écran de
+// relevé de contour au GPS/RTK (pas encore construit).
 import { db, auth } from './firebase-config.js';
 import { geoJsonVersFirestore, firestoreVersGeoJson } from './geometrie.js';
 import {

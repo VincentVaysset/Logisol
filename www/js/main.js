@@ -21,6 +21,7 @@ import { getVueLegende, onVueLegendeChange } from './vue-legende.js';
 import { watchParcelles } from './parcelles.js';
 import { initSyncStatus, onSyncStatusChange } from './sync-status.js';
 import { initMajApk } from './maj-apk.js';
+import { libelleBadge } from './gps.js';
 import {
   initMap, renderParcelles, renderLegend, refreshMapSize,
   fitToParcelles, centrerSurMaPosition, vueARestaurer,
@@ -395,6 +396,19 @@ function masquerIndice() {
   drawHint.hidden = true;
 }
 
+// Badge de précision GPS/RTK (cf. www/js/gps.js) affiché après une demande
+// de position réussie — reste affiché jusqu'à la prochaine demande (pas de
+// minuterie : contrairement à afficherIndice(), c'est un état, pas un
+// message ponctuel).
+const gpsBadgeEl = document.getElementById('gps-badge');
+function afficherBadgeGps(fix) {
+  if (!gpsBadgeEl) return;
+  const { texte, niveau } = libelleBadge(fix);
+  gpsBadgeEl.textContent = texte;
+  gpsBadgeEl.className = 'gps-badge gps-badge-' + niveau;
+  gpsBadgeEl.hidden = false;
+}
+
 // Reflète l'état du dessin dans l'interface. Appelé par draw.js à chaque
 // changement (sommet posé, annulé, tracé fermé ou abandonné).
 function majEtatDessin({ actif, sommets }) {
@@ -674,7 +688,10 @@ async function boot() {
       setView('carte');
       afficherIndice('Recherche de ta position...', 0);
       centrerSurMaPosition({
-        onSuccess: () => afficherIndice('Centré sur ta position.', 3000),
+        onSuccess: (fix) => {
+          afficherIndice('Centré sur ta position.', 3000);
+          afficherBadgeGps(fix);
+        },
         onError: (m) => afficherIndice('Position indisponible : ' + m, 7000)
       });
     });

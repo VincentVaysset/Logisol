@@ -3,6 +3,7 @@
 // Firestore/cultures : reçoit des parcelles déjà enrichies (_couleur, _label)
 // calculées par main.js.
 import { getVueLegende, toggleVueLegende } from './vue-legende.js';
+import { positionActuelle } from './gps.js';
 
 let map = null;
 const layers = new Map(); // id parcelle -> L.Polygon
@@ -209,28 +210,26 @@ export function fitToParcelles(list) {
 }
 
 // Centre sur la position GPS de l'appareil. Utilisé au tout premier lancement
-// (aucune parcelle, aucune vue enregistrée) et par le bouton 📍.
+// (aucune parcelle, aucune vue enregistrée) et par le bouton 📍. Passe par
+// gps.js (GpsService) plutôt que d'appeler navigator.geolocation ici
+// directement : mêmes options qu'avant (enableHighAccuracy/timeout/
+// maximumAge), comportement 100% inchangé, mais le "fix" complet (avec sa
+// précision) est maintenant transmis à onSuccess — onSuccess() sans
+// paramètre (tous les appelants existants) continue de fonctionner à
+// l'identique, l'argument supplémentaire étant simplement ignoré.
 export function centrerSurMaPosition(opts = {}) {
   if (!map) return;
-  if (!navigator.geolocation) {
-    log('Géolocalisation non disponible sur cet appareil');
-    if (opts.onError) opts.onError('Géolocalisation non disponible.');
-    return;
-  }
   log('Géolocalisation demandée...');
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const { latitude, longitude } = pos.coords;
-      map.setView([latitude, longitude], opts.zoom || ZOOM_FERME);
-      log('position GPS : ' + latitude.toFixed(4) + ', ' + longitude.toFixed(4));
-      if (opts.onSuccess) opts.onSuccess();
-    },
-    (err) => {
+  positionActuelle()
+    .then((fix) => {
+      map.setView([fix.lat, fix.lon], opts.zoom || ZOOM_FERME);
+      log('position GPS : ' + fix.lat.toFixed(4) + ', ' + fix.lon.toFixed(4) + ' (± ' + fix.accuracy + ' m)');
+      if (opts.onSuccess) opts.onSuccess(fix);
+    })
+    .catch((err) => {
       log('Géolocalisation refusée/indisponible : ' + (err && err.message ? err.message : err));
       if (opts.onError) opts.onError(err && err.message ? err.message : 'Position indisponible.');
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-  );
+    });
 }
 
 export function getZoom() {
