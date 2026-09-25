@@ -107,20 +107,22 @@ export function renderAssolement() {
         ${semis0 ? '<span class="badge-semis0">🌱 semis de l\'année</span>' : ''}
         ${statutReel(reel, ecart, prevN.cultureCode)}
       </td>
-      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierTHa" value="${nombre(prevN.fumierTHa)}" aria-label="Prévision fumier (t/ha)"></td>
-      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="chauxTHa" value="${nombre(prevN.chauxTHa)}" aria-label="Prévision chaux (t/ha)"></td>
+      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierTHa" value="${nombre(prevN.fumierTHa)}" aria-label="Prévision fumier ${N} (t/ha)"></td>
+      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="chauxTHa" value="${nombre(prevN.chauxTHa)}" aria-label="Prévision chaux ${N} (t/ha)"></td>
       <td class="${suggestion ? 'suggestion' : ''}">
         <select data-champ="cultureN1" data-valeur-avant="${esc(prevN1.cultureCode || '')}" aria-label="Culture ${N1}">${optionsCultures(prevN1.cultureCode)}</select>
         ${suggestion ? `<span class="reel">proposé : ${esc(culturePrev(suggestion).label)}</span>` : ''}
       </td>
+      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierTHaN1" value="${nombre(prevN1.fumierTHa)}" aria-label="Prévision fumier ${N1} (t/ha)"></td>
+      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="chauxTHaN1" value="${nombre(prevN1.chauxTHa)}" aria-label="Prévision chaux ${N1} (t/ha)"></td>
     </tr>`;
   }).join('');
 
   tableEl.innerHTML = `
     <thead><tr>
       <th>N°</th><th class="col-nom-parcelle">Parcelle</th><th>Surface<br>(ha)</th>
-      <th>Culture<br>${N}</th><th>Prévision<br>fumier (t/ha)</th><th>Prévision<br>chaux (t/ha)</th>
-      <th>Culture<br>${N1}</th>
+      <th>Culture<br>${N}</th><th>Prévision<br>fumier ${N} (t/ha)</th><th>Prévision<br>chaux ${N} (t/ha)</th>
+      <th>Culture<br>${N1}</th><th>Prévision<br>fumier ${N1} (t/ha)</th><th>Prévision<br>chaux ${N1} (t/ha)</th>
     </tr></thead>
     <tbody>${lignes}</tbody>
     <tfoot></tfoot>`;
@@ -149,22 +151,27 @@ function renderTotaux() {
   const tfoot = tableEl.querySelector('tfoot');
   if (!tfoot) return;
   const N = String(campagneN);
+  const N1 = String(campagneN + 1);
   const totHa = parcelles.reduce((n, p) => n + (Number(p.surfaceHa) || 0), 0);
   // Fumier et chaux : une dose par hectare chacun. Le total utile, c'est le
-  // tonnage à épandre — dose × surface, parcelle par parcelle.
-  const totFumier = parcelles.reduce((n, p) => {
-    const d = Number((prevision(p.id, N) || {}).fumierTHa) || 0;
+  // tonnage à épandre — dose × surface, parcelle par parcelle. Deux totaux
+  // séparés, un par campagne : additionner les deux colonnes ferait
+  // remonter un même tonnage sous la mauvaise campagne dans les Rapports.
+  const tonnage = (campagne, champ) => parcelles.reduce((n, p) => {
+    const d = Number((prevision(p.id, campagne) || {})[champ]) || 0;
     return n + d * (Number(p.surfaceHa) || 0);
   }, 0);
-  const totChaux = parcelles.reduce((n, p) => {
-    const d = Number((prevision(p.id, N) || {}).chauxTHa) || 0;
-    return n + d * (Number(p.surfaceHa) || 0);
-  }, 0);
+  const totFumierN = tonnage(N, 'fumierTHa');
+  const totChauxN = tonnage(N, 'chauxTHa');
+  const totFumierN1 = tonnage(N1, 'fumierTHa');
+  const totChauxN1 = tonnage(N1, 'chauxTHa');
   tfoot.innerHTML = `<tr>
       <th></th><th class="col-nom-parcelle">Total</th>
       <td>${formatHa(totHa)}</td><td></td>
-      <td>${arrondi(totFumier)} t à épandre</td>
-      <td>${arrondi(totChaux)} t à épandre</td><td></td>
+      <td>${arrondi(totFumierN)} t à épandre</td>
+      <td>${arrondi(totChauxN)} t à épandre</td><td></td>
+      <td>${arrondi(totFumierN1)} t à épandre</td>
+      <td>${arrondi(totChauxN1)} t à épandre</td>
     </tr>`;
 }
 
@@ -355,6 +362,14 @@ async function enregistrerCase(ctrl) {
       await setPrevision(parcelleId, campagneN, { cultureCode: ctrl.value });
     } else if (champ === 'cultureN1') {
       await setPrevision(parcelleId, campagneN + 1, { cultureCode: ctrl.value });
+    } else if (champ === 'fumierTHaN1') {
+      // Fumier/chaux saisis dans la colonne N+1 : imputés à la campagne DE LA
+      // CULTURE QU'ILS PRÉPARENT (ex. apport de fond fait cet automne pour le
+      // semis N+1), jamais à la campagne en cours — cf. la même règle déjà
+      // appliquée aux activités réelles (ui-intervention.js/campagneDeLaDate).
+      await setPrevision(parcelleId, campagneN + 1, { fumierTHa: ctrl.value });
+    } else if (champ === 'chauxTHaN1') {
+      await setPrevision(parcelleId, campagneN + 1, { chauxTHa: ctrl.value });
     } else {
       await setPrevision(parcelleId, campagneN, { [champ]: ctrl.value });
     }

@@ -1035,13 +1035,15 @@ header button {
    colonne élimine ce chevauchement : un badge trop long s'enroule sur
    plusieurs lignes DANS sa cellule au lieu de pousser les autres. Choisi pour
    rester lisible au doigt sur une tablette 10.1" (paysage ~1280px). */
-.tableau-prev { min-width: 850px; width: 100%; table-layout: fixed; }
+.tableau-prev { min-width: 1050px; width: 100%; table-layout: fixed; }
 .tableau-prev th:nth-child(1), .tableau-prev td:nth-child(1) { width: 50px; }
 .tableau-prev th:nth-child(3), .tableau-prev td:nth-child(3) { width: 62px; }
 .tableau-prev th:nth-child(4), .tableau-prev td:nth-child(4),
 .tableau-prev th:nth-child(7), .tableau-prev td:nth-child(7) { width: 190px; }
 .tableau-prev th:nth-child(5), .tableau-prev td:nth-child(5),
-.tableau-prev th:nth-child(6), .tableau-prev td:nth-child(6) { width: 100px; }
+.tableau-prev th:nth-child(6), .tableau-prev td:nth-child(6),
+.tableau-prev th:nth-child(8), .tableau-prev td:nth-child(8),
+.tableau-prev th:nth-child(9), .tableau-prev td:nth-child(9) { width: 100px; }
 .tableau-prev th, .tableau-prev td { padding: 6px 7px; vertical-align: middle; position: relative; overflow: hidden; }
 .tableau-prev thead th { text-align: center; white-space: normal; line-height: 1.2; }
 /* La colonne du nom reste visible pendant qu'on fait défiler le tableau vers
