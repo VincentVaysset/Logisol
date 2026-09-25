@@ -972,6 +972,20 @@ header button {
 }
 .tableau-prev .reel.ecart { color: #b5793a; font-weight: 700; }
 .tableau-prev .suggestion select { border-style: dashed; }
+
+/* Statut réel/prévu sous la case Culture : discret, jamais aussi voyant que
+   l'alerte d'écart (.reel.ecart, ambre) — un « Semé »/« En place » n'est pas
+   une anomalie à signaler, juste un rappel de ce qui est vraiment planté. */
+.reel-statut {
+  display: inline-block; margin-top: 3px; font-size: 10px; font-weight: 600;
+  border-radius: 5px; padding: 1px 5px;
+}
+.reel-statut.seme, .reel-statut.enplace {
+  color: var(--primary); background: rgba(5,150,105,0.12);
+}
+.reel-statut.prevu {
+  color: var(--text-muted); background: rgba(0,0,0,0.05);
+}
 .tableau-prev td.saved { animation: cell-saved 1.1s ease-out; }
 @keyframes cell-saved { from { background: rgba(5,150,105,0.28); } to { background: transparent; } }
 

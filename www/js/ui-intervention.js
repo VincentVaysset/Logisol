@@ -1270,8 +1270,12 @@ async function appliquerEffetCulture(data, precedent) {
         trace.cloturees.push({ id: precedente.id, finPrecedente: precedente.dateFin || null });
       }
       // setImplantation clôture la précédente la veille et ouvre la nouvelle.
+      // campagneVisee : la campagne choisie sur le tunnel (l'exploitant peut
+      // l'avoir avancée d'un an pour un semis d'automne) — sans elle,
+      // l'assolement prévisionnel de la campagne en cours ne peut pas
+      // distinguer ce semis de celui qu'il vient de remplacer.
       const id = await setImplantation(
-        { parcelleId, cultureId, dateSemis: data.date, notes: '' },
+        { parcelleId, cultureId, dateSemis: data.date, notes: '', campagneVisee: data.campagneId || null },
         { cloturerPrecedente: true }
       );
       trace.creees.push(id);

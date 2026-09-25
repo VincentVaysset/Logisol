@@ -10,7 +10,7 @@ import {
   GROUPE_DE_FAMILLE, LABEL_GROUPE, estSemisDeLAnnee
 } from './assolement-previsionnel.js';
 import { updateParcelle } from './parcelles.js';
-import { implantationEnCours } from './implantations.js';
+import { implantationEnCours, getImplantations } from './implantations.js';
 import { getCultureById } from './cultures-config.js';
 import { messagePermission } from './diagnostic-regles.js';
 import { getVueLegende, toggleVueLegende, onVueLegendeChange } from './vue-legende.js';
@@ -102,7 +102,7 @@ export function renderAssolement() {
       <td>
         <select data-champ="cultureN" aria-label="Culture ${N}">${optionsCultures(prevN.cultureCode)}</select>
         ${semis0 ? '<span class="badge-semis0">🌱 semis de l\'année</span>' : ''}
-        ${reel ? `<span class="reel${ecart ? ' ecart' : ''}">${ecart ? '⚠ ' : ''}en place : ${esc(reel.nom)}</span>` : ''}
+        ${statutReel(reel, ecart, prevN.cultureCode)}
       </td>
       <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierTHa" value="${nombre(prevN.fumierTHa)}" aria-label="Prévision fumier (t/ha)"></td>
       <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="chauxTHa" value="${nombre(prevN.chauxTHa)}" aria-label="Prévision chaux (t/ha)"></td>
@@ -197,15 +197,62 @@ function correspond(culture, nomReel) {
   return !!ref && n.indexOf(ref) !== -1;
 }
 
+// Quelle implantation représente le réel d'une PARCELLE pour une CAMPAGNE
+// donnée. Deux façons de le savoir, dans cet ordre :
+//
+// 1) Une implantation explicitement rattachée à cette campagne
+//    (campagneVisee, posée par le tunnel d'activité quand l'exploitant a
+//    choisi/avancé la campagne d'un semis d'automne). C'est la seule source
+//    fiable pour un semis d'automne : sa dateSemis tombe dans l'année civile
+//    de la campagne EN COURS, pas de celle qu'il vise, donc une lecture par
+//    date seule le rattacherait à la mauvaise case.
+// 2) À défaut (implantation antérieure à ce marquage, ou saisie depuis la
+//    fiche parcelle plutôt que le tunnel d'activité) : l'ancienne heuristique
+//    par date — aujourd'hui pour la campagne en cours, le 1er juin pour une
+//    autre. Les implantations rattachées à une AUTRE campagne sont exclues de
+//    cette recherche : même si leur date les rendrait "actives" techniquement
+//    (semées mais pas encore closes), elles appartiennent explicitement
+//    ailleurs et ne doivent jamais s'afficher ici.
 function cultureReelle(parcelleId, campagne) {
-  // Pour la campagne en cours : aujourd'hui. Pour une autre : le 1er juin,
-  // milieu de saison, qui tombe sur la culture qui fait l'année.
-  const date = String(campagne) === campagneCourante()
+  const cible = String(campagne);
+  const implsParcelle = getImplantations().filter((i) => i.parcelleId === parcelleId);
+
+  const taguee = implsParcelle.find((i) => i.campagneVisee && String(i.campagneVisee) === cible);
+  if (taguee) {
+    const c = getCultureById(taguee.cultureId);
+    return c ? { nom: c.nom, dateSemis: taguee.dateSemis, taguee: true } : null;
+  }
+
+  const date = cible === campagneCourante()
     ? new Date().toISOString().slice(0, 10)
-    : `${campagne}-06-01`;
-  const impl = implantationEnCours(parcelleId, date);
+    : `${cible}-06-01`;
+  const pool = implsParcelle.filter((i) => !i.campagneVisee || String(i.campagneVisee) === cible);
+  const impl = implantationEnCours(parcelleId, date, pool);
   const c = impl ? getCultureById(impl.cultureId) : null;
-  return c ? { nom: c.nom } : null;
+  return c ? { nom: c.nom, dateSemis: impl.dateSemis, taguee: false } : null;
+}
+
+// Badge sous la case Culture : distingue une culture SEMÉE pour cette
+// campagne (rattachée explicitement, donc fraîchement implantée à cette fin)
+// d'une culture déjà EN PLACE depuis une campagne antérieure (luzerne an 2,
+// PN...), et une culture PRÉVUE mais pas encore semée (culture de printemps
+// à venir). L'écart garde son alerte propre, prioritaire sur ce badge.
+function statutReel(reel, ecart, cultureCodePrevue) {
+  if (reel && ecart) {
+    return `<span class="reel ecart">⚠ en place : ${esc(reel.nom)}</span>`;
+  }
+  if (reel) {
+    return reel.taguee
+      ? `<span class="reel-statut seme">Semé le ${esc(dateCourte(reel.dateSemis))}</span>`
+      : '<span class="reel-statut enplace">En place</span>';
+  }
+  return cultureCodePrevue ? '<span class="reel-statut prevu">Prévu</span>' : '';
+}
+
+function dateCourte(iso) {
+  if (!iso || iso.length < 10) return iso || '';
+  const [, m, j] = iso.split('-');
+  return `${j}/${m}`;
 }
 
 async function enregistrerCase(ctrl) {

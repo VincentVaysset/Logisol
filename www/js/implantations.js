@@ -111,7 +111,17 @@ export function historiqueParcelle(parcelleId, liste = courantes) {
 // Enregistre une implantation. Si "cloturerPrecedente" est vrai, l'implantation
 // encore ouverte sur cette parcelle est fermée la veille du nouveau semis —
 // c'est le cas normal d'une rotation (on retourne pour ressemer).
-export async function setImplantation({ parcelleId, cultureId, dateSemis, dateFin = null, notes = '' }, { cloturerPrecedente = true } = {}) {
+// campagneVisee (optionnel) : la campagne choisie EXPLICITEMENT par
+// l'exploitant pour ce semis (champ « Campagne » du tunnel d'activité).
+// Sans elle, un semis d'automne (RG trèfle semé en septembre pour la
+// récolte/pâture de l'année suivante) ne se distingue pas — à la seule
+// lecture de sa date — d'un semis qui serait, lui, destiné à la campagne en
+// cours : les deux ont une dateSemis qui tombe dans la même année civile.
+// Cette étiquette lève l'ambiguïté sans rien changer au modèle "réel" —
+// l'implantation reste une période datée, l'assolement prévisionnel (lui,
+// bucketé par campagne) s'en sert juste pour savoir à quelle case la
+// rattacher (cf. ui-assolement.js/cultureReelle).
+export async function setImplantation({ parcelleId, cultureId, dateSemis, dateFin = null, notes = '', campagneVisee = null }, { cloturerPrecedente = true } = {}) {
   if (!parcelleId || !cultureId || !dateSemis) {
     throw new Error('Parcelle, culture et date de semis sont obligatoires.');
   }
@@ -133,7 +143,7 @@ export async function setImplantation({ parcelleId, cultureId, dateSemis, dateFi
   const id = implantationId(parcelleId, dateSemis);
   await setDoc(
     doc(db, COL_NAME, id),
-    { parcelleId, cultureId, dateSemis, dateFin, notes, majLe: serverTimestamp() },
+    { parcelleId, cultureId, dateSemis, dateFin, notes, campagneVisee: campagneVisee ? String(campagneVisee) : null, majLe: serverTimestamp() },
     { merge: true }
   );
   return id;
