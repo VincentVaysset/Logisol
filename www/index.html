@@ -1327,8 +1327,8 @@
     </div>
   </div>
 
-  <!-- Hub de rapports & synthèses : un seul écran, imprimable en l'état
-       (bouton PDF = window.print(), pas de librairie PDF à vendoriser),
+  <!-- Hub de rapports & synthèses : un seul écran, export PDF natif (Blob
+       local jsPDF + partage/téléchargement, cf. www/js/pdf-export.js),
        construit à partir de l'assolement prévisionnel déjà saisi. Le Bilan
        Stocks reste "Bientôt" — hors périmètre de ce module. -->
   <div id="rapports-panel" class="fiche-overlay" hidden>
@@ -1339,15 +1339,13 @@
       <p class="apercu-sous-titre">Bilans construits à partir de l'assolement prévisionnel et des fiches parcelles.<br>
         <span id="rapports-genere-le"></span>
       </p>
-      <!-- Export direct (Blob local + partage/téléchargement) en premier
-           recours : window.print()/window.open(), utilisés seuls
-           auparavant, restent peu fiables en WebView mobile (aucun moteur
-           d'impression système, popups bloquées) — cf. www/js/pdf-export.js.
-           L'impression navigateur reste disponible en repli, pour desktop
-           notamment. -->
+      <!-- Bouton unique, natif : Blob local (jsPDF) + Web Share API / <a
+           download> — cf. www/js/pdf-export.js. window.print()/window.open()
+           n'ont aucun moteur d'impression système à piloter dans la WebView
+           Capacitor mobile (silencieux : aucune erreur, aucun document) et ne
+           sont donc plus proposés ici. -->
       <div class="rapport-export no-print">
-        <button type="button" id="rapports-telecharger-pdf" class="btn btn-primary btn-mini">📄 Télécharger le PDF</button>
-        <button type="button" id="rapports-imprimer-navigateur" class="btn btn-secondary btn-mini">🖨️ Imprimer (aperçu navigateur)</button>
+        <button type="button" id="rapports-telecharger-pdf" class="btn btn-primary btn-mini">📄 Télécharger / Partager le PDF</button>
         <p id="rapports-export-statut" class="champ-aide"></p>
       </div>
 

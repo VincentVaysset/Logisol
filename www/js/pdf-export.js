@@ -1,14 +1,13 @@
 // Génération et remise du PDF "Rapports & Synthèses" — 100% local (jsPDF
 // vendorisé, aucun appel réseau), et surtout 100% fiable sur mobile.
 //
-// POURQUOI PAS window.print()/window.open() EN PREMIER RECOURS
+// POURQUOI PAS window.print()/window.open()
 // Dans la WebView Capacitor (pas un vrai navigateur), window.print() n'a
 // souvent aucun moteur d'impression système à piloter (silencieux : aucune
 // erreur, aucun document), et window.open() se heurte au bloqueur de
 // popups sur mobile. jsPDF construit le fichier .pdf lui-même, en mémoire
-// (Blob) : rien à ouvrir dans une fenêtre tierce. window.print() reste
-// disponible en repli manuel (bouton secondaire), utile sur desktop où il
-// fonctionne bien.
+// (Blob) : rien à ouvrir dans une fenêtre tierce — ni impression navigateur
+// ni fenêtre popup nulle part dans ce flux.
 import {
   calendrierSemis, syntheseCategories, planFertilisation
 } from './rapports.js';

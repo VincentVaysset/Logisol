@@ -53,7 +53,6 @@ export function initRapports() {
     panelEl.hidden = true;
   });
   btnTelechargerEl.addEventListener('click', telechargerPdf);
-  document.getElementById('rapports-imprimer-navigateur').addEventListener('click', () => window.print());
   document.getElementById('rap-campagne-moins').addEventListener('click', () => { campagneR--; render(); });
   document.getElementById('rap-campagne-plus').addEventListener('click', () => { campagneR++; render(); });
 

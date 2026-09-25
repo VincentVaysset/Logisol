@@ -6,6 +6,8 @@
 import {
   culturePrev, prevision, estSemisDeLAnnee, syntheseSurfaces
 } from './assolement-previsionnel.js';
+import { getImplantations, implantationEnCours } from './implantations.js';
+import { getCultureById } from './cultures-config.js';
 
 function r(v) { return Math.round((Number(v) || 0) * 100) / 100; }
 
@@ -33,7 +35,7 @@ const GROUPE_AUTOMNE = {
  * parcelle — jamais fondues dans le total prévisionnel, cf. CLAUDE.md : le
  * réel et le prévu ne se mélangent jamais).
  */
-export function calendrierSemis(parcelles, campagne, liste) {
+export function calendrierSemis(parcelles, campagne, liste, implantations = getImplantations()) {
   const automne = new Map();
   const printemps = new Map();
   const sousTotauxAutomne = new Map();
@@ -63,12 +65,23 @@ export function calendrierSemis(parcelles, campagne, liste) {
     .map((g) => ({ cle: g.cle, label: g.label, ha: r(sousTotauxAutomne.get(g.cle) || 0) }))
     .filter((g) => g.ha > 0);
 
-  const enDerobee = parcelles.filter((p) => p.derobee && String(p.derobee).trim());
+  // Réellement en place, pas juste tapé sur la fiche parcelle : lit
+  // l'implantation en cours (collection "implantations") plutôt que l'ancien
+  // champ texte libre p.derobee, qui restait vide tant que personne ne
+  // retapait à la main le nom d'une dérobée/CIPAN/couvert déjà semé via le
+  // tunnel d'activité — un semis bien enregistré comme réel disparaissait
+  // silencieusement de cette synthèse.
+  const enDerobee = [];
+  parcelles.forEach((p) => {
+    const impl = implantationEnCours(p.id, undefined, implantations);
+    const culture = impl ? getCultureById(impl.cultureId) : null;
+    if (culture && culture.famille === 'derobee') {
+      enDerobee.push({ nom: p.nom || 'Sans nom', derobee: culture.nom, ha: r(Number(p.surfaceHa) || 0) });
+    }
+  });
   const derobees = {
-    ha: r(enDerobee.reduce((n, p) => n + (Number(p.surfaceHa) || 0), 0)),
-    parcelles: enDerobee.map((p) => ({
-      nom: p.nom || 'Sans nom', derobee: p.derobee, ha: r(Number(p.surfaceHa) || 0)
-    }))
+    ha: r(enDerobee.reduce((n, p) => n + p.ha, 0)),
+    parcelles: enDerobee
   };
 
   return {
