@@ -18,14 +18,15 @@ import {
   initMap, renderParcelles, renderLegend, refreshMapSize,
   fitToParcelles, centrerSurMaPosition, vueARestaurer,
   renderBatiments as renderBatimentsCarte, setOnBatimentClick,
-  demarrerPlacement, arreterPlacement, positionPlacement
+  demarrerPlacement, arreterPlacement, positionPlacement,
+  startEditContour, stopEditContour
 } from './map.js';
 import {
   initDraw, startDrawing, cancelDrawing, undoLastPoint, finishDrawing,
   raisonDeRefus, isDrawing
 } from './draw.js';
 import { initImport } from './import-geojson.js';
-import { openCreate, openEdit } from './ui.js';
+import { openCreate, openEdit, setSecteursConnus, setOnDemanderModifContour } from './ui.js';
 import {
   setParcellesDisponibles, setChauffeursConnus, setCreateursDeContenant
 } from './ui-intervention.js';
@@ -100,6 +101,11 @@ const btnDrawFinish = document.getElementById('btn-draw-finish');
 const btnDrawCancel = document.getElementById('btn-draw-cancel');
 const placeToolbar = document.getElementById('place-toolbar');
 const placeInfo = document.getElementById('place-info');
+const contourToolbar = document.getElementById('contour-toolbar');
+const carteSecteurFiltreEl = document.getElementById('carte-secteur-filtre');
+const listeSecteurFiltreEl = document.getElementById('liste-secteur-filtre');
+let secteurFiltre = '';
+let secteursDisponibles = false;
 
 function log(msg) {
   if (window.__logisolDebug) window.__logisolDebug(msg);
@@ -124,8 +130,19 @@ function recomputeAndRender() {
   }));
   enrichedById = new Map(enriched.map((p) => [p.id, p]));
 
-  renderParcelles(enriched);
-  renderLegend(computeLegendItems(enriched));
+  const secteurs = Array.from(new Set(enriched.map((p) => p.secteur).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, 'fr'));
+  if (secteurFiltre && !secteurs.includes(secteurFiltre)) secteurFiltre = '';
+  setSecteursConnus(secteurs);
+  peuplerFiltreSecteurs(secteurs);
+  // Le filtre ne restreint QUE l'affichage carte/liste : les autres écrans
+  // (stocks, bâtiments, assolement, tunnel d'activité) doivent continuer à
+  // voir TOUTES les parcelles, sinon une parcelle hors secteur filtré
+  // deviendrait injoignable ailleurs dans l'appli.
+  const affichees = secteurFiltre ? enriched.filter((p) => p.secteur === secteurFiltre) : enriched;
+
+  renderParcelles(affichees);
+  renderLegend(computeLegendItems(affichees));
   setParcellesDisponibles(enriched);
   setParcellesStocks(enriched);
   setParcellesBatiments(enriched);
@@ -141,9 +158,42 @@ function recomputeAndRender() {
     batiments: latestBatiments
   });
   if (currentView === 'ferme') renderFeed();
-  if (currentView === 'liste') renderListView(enriched);
+  if (currentView === 'liste') renderListView(affichees);
 
   centrerAuPremierChargement(enriched);
+}
+
+// Chips réutilisées au-dessus de la carte et de la liste : "Toutes" + une par
+// secteur distinct rencontré sur les parcelles. N'apparaissent que s'il
+// existe au moins un secteur renseigné — inutile de montrer un filtre à
+// une seule position.
+function peuplerFiltreSecteurs(secteurs) {
+  secteursDisponibles = !!secteurs.length;
+  if (!secteursDisponibles) {
+    carteSecteurFiltreEl.hidden = true;
+    listeSecteurFiltreEl.hidden = true;
+    carteSecteurFiltreEl.innerHTML = '';
+    listeSecteurFiltreEl.innerHTML = '';
+    return;
+  }
+  const html = ['', ...secteurs]
+    .map((s) => {
+      const actif = s === secteurFiltre;
+      return `<button type="button" class="filtre-chip ${actif ? 'is-active' : ''}" data-secteur="${escapeAttr(s)}">${escapeHtml(s || 'Toutes')}</button>`;
+    })
+    .join('');
+  [carteSecteurFiltreEl, listeSecteurFiltreEl].forEach((el) => {
+    el.innerHTML = html;
+    el.querySelectorAll('[data-secteur]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.secteur === secteurFiltre) return;
+        secteurFiltre = btn.dataset.secteur;
+        recomputeAndRender();
+      });
+    });
+  });
+  carteSecteurFiltreEl.hidden = currentView !== 'carte';
+  listeSecteurFiltreEl.hidden = !(currentView === 'liste' && sousVueParcelles === 'liste');
 }
 
 // Stocks et troupeau partagent la même agrégation par catégorie : c'est elle
@@ -199,6 +249,7 @@ function openEditParcelle(parcelle) {
 
 function renderListView(enriched) {
   parcellesListeEl.hidden = sousVueParcelles !== 'liste';
+  listeSecteurFiltreEl.hidden = !(secteursDisponibles && sousVueParcelles === 'liste');
   assolementVueEl.hidden = sousVueParcelles !== 'previsionnel';
   listViewEl.querySelectorAll('[data-sousvue]').forEach((b) => {
     b.classList.toggle('is-active', b.dataset.sousvue === sousVueParcelles);
@@ -387,6 +438,51 @@ function terminerPlacement(valider) {
   }
 }
 
+// --- Modification du contour d'une parcelle existante ---------------------
+// Même principe que le placement d'un bâtiment ci-dessus : bascule en vue
+// Carte, poignées de glisser-déposer sur le contour (map.js), puis retour à
+// la vue et à la fiche d'origine, avec la géométrie et la surface à jour.
+let contourEnCours = null;
+let vueAvantContour = null;
+
+function initModifContour() {
+  document.getElementById('btn-contour-ok').addEventListener('click', () => terminerModifContour(true));
+  document.getElementById('btn-contour-cancel').addEventListener('click', () => terminerModifContour(false));
+
+  setOnDemanderModifContour((opts) => {
+    contourEnCours = opts;
+    vueAvantContour = currentView;
+    setView('carte');
+    fitToParcelles([{ coordonnees: opts.geometrieActuelle }]);
+    startEditContour(opts.parcelleId);
+    contourToolbar.hidden = false;
+    fabCarte.hidden = true;
+    afficherIndice('Fais glisser les poignées pour ajuster le contour, puis valide.', 0);
+  });
+}
+
+function terminerModifContour(valider) {
+  const resultat = stopEditContour(valider);
+  contourToolbar.hidden = true;
+  fabCarte.hidden = currentView !== 'carte';
+  masquerIndice();
+  const opts = contourEnCours;
+  const retour = vueAvantContour;
+  contourEnCours = null;
+  vueAvantContour = null;
+  if (retour && retour !== 'carte') setView(retour);
+  if (!opts) return;
+  if (valider && resultat) opts.onValider(resultat.geometry, resultat.surfaceHa);
+  else opts.onAnnuler();
+}
+
+// --- Hub de rapports PDF (préparation d'UI) -------------------------------
+function initRapports() {
+  const panel = document.getElementById('rapports-panel');
+  document.getElementById('btn-rapports').addEventListener('click', () => { panel.hidden = false; });
+  document.getElementById('rapports-fermer').addEventListener('click', () => { panel.hidden = true; });
+}
+
 // --- Navigation entre les trois vues --------------------------------------
 function setView(vue) {
   if (!VUES.includes(vue)) return;
@@ -396,6 +492,8 @@ function setView(vue) {
   // Un placement en cours sur une carte qu'on quitte laisserait une barre
   // d'outils orpheline et un formulaire qui n'est jamais rendu.
   if (vue !== 'carte' && placementEnCours) terminerPlacement(false);
+  // Même précaution pour une édition de contour en cours.
+  if (vue !== 'carte' && contourEnCours) terminerModifContour(false);
 
   currentView = vue;
   // La carte n'existe que dans les vues qui l'utilisent : la laisser affichée
@@ -408,6 +506,8 @@ function setView(vue) {
   troupeauViewEl.hidden = vue !== 'troupeau';
   batimentsViewEl.hidden = vue !== 'batiments';
   fabCarte.hidden = vue !== 'carte';
+  carteSecteurFiltreEl.hidden = vue !== 'carte' || !secteursDisponibles;
+  listeSecteurFiltreEl.hidden = !(vue === 'liste' && sousVueParcelles === 'liste' && secteursDisponibles);
 
   tabsEl.querySelectorAll('.tab').forEach((b) => {
     b.classList.toggle('is-active', b.dataset.vue === vue);
@@ -459,6 +559,8 @@ async function boot() {
 
     initAccueil({ onModifierParcelle: openEditParcelle });
     initPlacement();
+    initModifContour();
+    initRapports();
     document.getElementById('alerte-regles-close').addEventListener('click', () => {
       document.getElementById('alerte-regles').hidden = true;
     });

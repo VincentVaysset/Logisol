@@ -429,6 +429,62 @@ export function renderParcelles(list) {
   });
 }
 
+// --- Modification du contour d'une parcelle existante ---------------------
+// S'appuie sur le module "Edit" de Leaflet.draw (déjà vendorisé avec le
+// module "Draw" dans le même fichier), qui attache .editing à chaque
+// L.Polygon : poignées de glisser-déposer sur chaque sommet, sans repasser
+// par un nouveau tracé. Le contour d'origine est mémorisé avant activation
+// pour pouvoir le restaurer telle quelle en cas d'annulation — l'édition
+// modifie le layer EN PLACE, Leaflet.draw ne le fait pas lui-même.
+let contourEnEdition = null; // { id, original: L.LatLng[][] }
+
+export function startEditContour(parcelleId) {
+  const layer = layers.get(parcelleId);
+  if (!layer || !layer.editing) return false;
+  contourEnEdition = {
+    id: parcelleId,
+    original: layer.getLatLngs().map((anneau) => anneau.map((ll) => L.latLng(ll.lat, ll.lng)))
+  };
+  layer.editing.enable();
+  log('édition du contour activée pour ' + parcelleId);
+  return true;
+}
+
+export function isEditingContour() {
+  return !!contourEnEdition;
+}
+
+/**
+ * Termine l'édition en cours.
+ * @param {boolean} sauvegarder true : renvoie {geometry, surfaceHa} calculés
+ *   depuis le nouveau contour. false : restaure le contour d'avant édition.
+ * @returns {{geometry:object, surfaceHa:number}|null}
+ */
+export function stopEditContour(sauvegarder) {
+  if (!contourEnEdition) return null;
+  const { id, original } = contourEnEdition;
+  contourEnEdition = null;
+  const layer = layers.get(id);
+  if (!layer) return null;
+
+  if (!sauvegarder) {
+    layer.setLatLngs(original);
+    if (layer.editing && layer.editing.enabled()) layer.editing.disable();
+    return null;
+  }
+
+  if (layer.editing && layer.editing.enabled()) layer.editing.disable();
+  const anneaux = layer.getLatLngs();
+  const geometry = latLngsToGeoJsonPolygon(anneaux);
+  let surfaceHa = 0;
+  try {
+    surfaceHa = Math.round((L.GeometryUtil.geodesicArea(anneaux[0]) / 10000) * 100) / 100;
+  } catch (err) {
+    log('surface non recalculable après édition du contour : ' + ((err && err.message) || err));
+  }
+  return { geometry, surfaceHa };
+}
+
 // Géométrie GeoJSON (lon, lat) -> tableaux de L.LatLng (lat, lon) pour Leaflet
 export function geoJsonPolygonToLatLngs(geometry) {
   if (!geometry || geometry.type !== 'Polygon' || !Array.isArray(geometry.coordinates)) {

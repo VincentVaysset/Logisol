@@ -192,6 +192,24 @@ header button {
   font-size: 12px;
   cursor: pointer;
 }
+.header-icon-btn { padding: 8px 10px; font-size: 15px; line-height: 1; }
+
+/* --- Hub de rapports PDF --- */
+.rapport-liste { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
+.rapport-card {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 11px 13px;
+}
+.rapport-icone { font-size: 20px; flex: 0 0 26px; text-align: center; }
+.rapport-body { flex: 1; min-width: 0; }
+.rapport-nom { font-size: 14px; font-weight: 700; }
+.rapport-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.badge-bientot {
+  flex: 0 0 auto; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  color: var(--text-muted); background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 7px;
+}
 
 #map {
   flex: 1;
@@ -935,6 +953,13 @@ header button {
 .tableau-synthese .sous-total th, .tableau-synthese .sous-total td { font-weight: 700; }
 .tableau-synthese .zero { color: var(--border); }
 .tableau-synthese .non-renseigne th, .tableau-synthese .non-renseigne td { color: #b5793a; font-style: italic; }
+.tableau-synthese .detail-cliquable { cursor: pointer; }
+.tableau-synthese .detail-cliquable:active { background: rgba(5,150,105,0.08); }
+.tableau-synthese .detail-parcelles td {
+  padding: 4px 10px 8px 22px; font-size: 11px; color: var(--text-muted);
+  white-space: normal; line-height: 1.5; background: rgba(5,150,105,0.04);
+}
+.tableau-synthese .detail-parcelles[hidden] { display: none; }
 
 /* Tableau croisé stades × stocks */
 .tableau-croise { min-width: 560px; }
@@ -1185,6 +1210,21 @@ header button {
 .choix-btn.is-active {
   border-color: var(--primary); background: rgba(5,150,105,0.12); color: var(--primary);
 }
+
+/* Filtre par secteur : chips défilables horizontalement, réutilisées
+   au-dessus de la carte (flux normal, jamais dans une leaflet-pane) et de la
+   liste des parcelles. */
+.filtre-chips {
+  display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding: 8px 12px 4px; margin: 0;
+}
+.filtre-chips[hidden] { display: none; }
+.filtre-chip {
+  flex: 0 0 auto; border: 1px solid var(--border); background: var(--card);
+  color: var(--text-muted); font-size: 12px; font-weight: 600;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+}
+.filtre-chip.is-active { border-color: var(--primary); background: var(--primary); color: white; }
 
 .activites { margin-bottom: 8px; }
 .activite-groupe { margin-bottom: 14px; }

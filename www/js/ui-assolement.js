@@ -82,7 +82,7 @@ export function renderAssolement() {
         <select data-champ="cultureN" aria-label="Culture ${N}">${optionsCultures(prevN.cultureCode)}</select>
         ${reel ? `<span class="reel${ecart ? ' ecart' : ''}">${ecart ? '⚠ ' : ''}en place : ${esc(reel.nom)}</span>` : ''}
       </td>
-      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierT" value="${nombre(prevN.fumierT)}" aria-label="Prévision fumier (t)"></td>
+      <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="fumierTHa" value="${nombre(prevN.fumierTHa)}" aria-label="Prévision fumier (t/ha)"></td>
       <td><input type="number" step="any" min="0" inputmode="decimal" data-champ="chauxTHa" value="${nombre(prevN.chauxTHa)}" aria-label="Prévision chaux (t/ha)"></td>
       <td class="${suggestion ? 'suggestion' : ''}">
         <select data-champ="cultureN1" aria-label="Culture ${N1}">${optionsCultures(prevN1.cultureCode)}</select>
@@ -94,7 +94,7 @@ export function renderAssolement() {
   tableEl.innerHTML = `
     <thead><tr>
       <th>N°</th><th class="col-nom-parcelle">Parcelle</th><th>Surface<br>(ha)</th>
-      <th>Culture<br>${N}</th><th>Prévision<br>fumier (t)</th><th>Prévision<br>chaux (t/ha)</th>
+      <th>Culture<br>${N}</th><th>Prévision<br>fumier (t/ha)</th><th>Prévision<br>chaux (t/ha)</th>
       <th>Culture<br>${N1}</th>
     </tr></thead>
     <tbody>${lignes}</tbody>
@@ -112,16 +112,19 @@ function renderTotaux() {
   if (!tfoot) return;
   const N = String(campagneN);
   const totHa = parcelles.reduce((n, p) => n + (Number(p.surfaceHa) || 0), 0);
-  const totFumier = parcelles.reduce((n, p) => n + (Number((prevision(p.id, N) || {}).fumierT) || 0), 0);
-  // Chaux : une dose par hectare. Le total utile, c'est le tonnage à
-  // commander — dose × surface, parcelle par parcelle.
+  // Fumier et chaux : une dose par hectare chacun. Le total utile, c'est le
+  // tonnage à épandre — dose × surface, parcelle par parcelle.
+  const totFumier = parcelles.reduce((n, p) => {
+    const d = Number((prevision(p.id, N) || {}).fumierTHa) || 0;
+    return n + d * (Number(p.surfaceHa) || 0);
+  }, 0);
   const totChaux = parcelles.reduce((n, p) => {
     const d = Number((prevision(p.id, N) || {}).chauxTHa) || 0;
     return n + d * (Number(p.surfaceHa) || 0);
   }, 0);
   tfoot.innerHTML = `<tr>
       <th></th><th class="col-nom-parcelle">Total</th><td>${formatHa(totHa)}</td><td></td>
-      <td>${arrondi(totFumier)} t</td><td>${arrondi(totChaux)} t à épandre</td><td></td>
+      <td>${arrondi(totFumier)} t à épandre</td><td>${arrondi(totChaux)} t à épandre</td><td></td>
     </tr>`;
 }
 
@@ -233,6 +236,21 @@ const STRUCTURE = [
   { famille: 'AUTRE',          codes: 'presents', total: null }
 ];
 
+// Parcelles portant un code de culture donné sur une campagne — c'est ce que
+// le tableau de synthèse résume en hectares ; ici on remonte à la liste
+// nominative, dépliée au clic sur la ligne concernée.
+function parcellesDuCode(campagne, code) {
+  return parcelles.filter((p) => {
+    const prev = prevision(p.id, campagne);
+    return prev && prev.cultureCode === code;
+  });
+}
+
+function listeParcelles(campagne, code) {
+  const l = parcellesDuCode(campagne, code);
+  return l.length ? l.map((p) => `${esc(p.nom || 'Sans nom')} (${formatHa(p.surfaceHa)} ha)`).join(', ') : '—';
+}
+
 function renderSynthese() {
   const N = String(campagneN);
   const N1 = String(campagneN + 1);
@@ -254,7 +272,17 @@ function renderSynthese() {
     }
     lignes.push(`<tr class="famille"><th colspan="3">${esc(fam.label)}</th></tr>`);
     codes.forEach((code) => {
-      lignes.push(`<tr class="detail"><th>${esc(culturePrev(code).label)}</th>${cell(sN.parCode.get(code))}${cell(sN1.parCode.get(code))}</tr>`);
+      const haN = sN.parCode.get(code);
+      const haN1 = sN1.parCode.get(code);
+      const cliquable = haN || haN1;
+      const detailId = `syn-detail-${code}-${campagneN}`;
+      lignes.push(`<tr class="detail${cliquable ? ' detail-cliquable' : ''}"${cliquable ? ` data-detail="${detailId}"` : ''}><th>${esc(culturePrev(code).label)}</th>${cell(haN)}${cell(haN1)}</tr>`);
+      if (cliquable) {
+        lignes.push(`<tr class="detail-parcelles" id="${detailId}" hidden><td colspan="3">
+          <strong>${N} :</strong> ${listeParcelles(N, code)}<br>
+          <strong>${N1} :</strong> ${listeParcelles(N1, code)}
+        </td></tr>`);
+      }
     });
     if (bloc.total) {
       lignes.push(`<tr class="sous-total"><th>${esc(bloc.total)}</th>${cell(sN.parFamille.get(bloc.famille))}${cell(sN1.parFamille.get(bloc.famille))}</tr>`);
@@ -271,6 +299,13 @@ function renderSynthese() {
     <thead><tr><th>Famille</th><th>${N} (ha)</th><th>${N1} (ha)</th></tr></thead>
     <tbody>${lignes.join('')}</tbody>
     <tfoot><tr><th>Total général</th><td>${formatHa(sN.total)}</td><td>${formatHa(sN1.total)}</td></tr></tfoot>`;
+
+  syntheseEl.querySelectorAll('.detail-cliquable').forEach((tr) => {
+    tr.addEventListener('click', () => {
+      const el = document.getElementById(tr.dataset.detail);
+      if (el) el.hidden = !el.hidden;
+    });
+  });
 }
 
 // --- Utilitaires ------------------------------------------------------------

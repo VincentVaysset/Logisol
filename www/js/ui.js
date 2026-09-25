@@ -26,11 +26,14 @@ const dureeInfo = document.getElementById('fiche-duree-info');
 const numeroBadge = document.getElementById('fiche-numero');
 const surfaceBadge = document.getElementById('fiche-surface-badge');
 const inputNom = document.getElementById('fiche-nom');
+const inputSecteur = document.getElementById('fiche-secteur');
+const secteursDatalist = document.getElementById('fiche-secteurs-connus');
 const inputSurface = document.getElementById('fiche-surface');
 const inputCouleur = document.getElementById('fiche-couleur');
 const inputNotes = document.getElementById('fiche-notes');
 const btnDelete = document.getElementById('fiche-delete');
 const btnCancel = document.getElementById('fiche-cancel');
+const btnContourModifier = document.getElementById('fiche-contour-modifier');
 const btnSave = document.getElementById('f-save');
 const errorBanner = document.getElementById('fiche-error-banner');
 const errorBannerText = document.getElementById('fiche-error-text');
@@ -97,6 +100,41 @@ selectCulture.addEventListener('change', () => {
   newCultureWrap.hidden = selectCulture.value !== '__new__';
 });
 
+// --- Secteur / zone (texte libre avec suggestion) --------------------------
+// Pas de collection de config séparée pour un champ aussi simple : la liste
+// de suggestions est déduite des secteurs déjà utilisés sur les autres
+// parcelles (voir main.js), via une <datalist> qui laisse le champ libre.
+export function setSecteursConnus(list) {
+  secteursDatalist.innerHTML = (list || [])
+    .map((s) => `<option value="${escapeHtml(s)}"></option>`).join('');
+}
+
+// --- Modification du contour existant (Leaflet.draw Edit) -------------------
+// Orchestré depuis main.js (comme le placement d'un bâtiment) : cette fiche
+// se contente de s'effacer le temps du geste sur la carte, puis de reprendre
+// la géométrie et la surface recalculée sans perdre le reste de la saisie en
+// cours (rien n'est réinitialisé, le formulaire reste tel quel derrière).
+let onDemanderModifContour = () => {};
+export function setOnDemanderModifContour(cb) { onDemanderModifContour = cb || (() => {}); }
+
+btnContourModifier.addEventListener('click', () => {
+  if (mode !== 'edit' || !editingId || !pendingGeometry) return;
+  panel.hidden = true;
+  onDemanderModifContour({
+    parcelleId: editingId,
+    geometrieActuelle: pendingGeometry,
+    onValider: (geometry, surfaceHa) => {
+      pendingGeometry = geometry;
+      if (typeof surfaceHa === 'number' && isFinite(surfaceHa) && surfaceHa > 0) {
+        inputSurface.value = surfaceHa;
+      }
+      majSurfaceBadge();
+      panel.hidden = false;
+    },
+    onAnnuler: () => { panel.hidden = false; }
+  });
+});
+
 export function openCreate({ geometry, surfaceHa, croise }) {
   // LA FICHE EST AFFICHÉE EN PREMIER, avant tout remplissage.
   // Auparavant, panel.hidden = false était la DERNIÈRE instruction : la
@@ -118,7 +156,9 @@ export function openCreate({ geometry, surfaceHa, croise }) {
     titleEl.textContent = 'Nouvelle parcelle';
     numeroBadge.hidden = true;   // pas encore de numéro sur une parcelle qui n'existe pas
     btnDelete.hidden = true;
+    btnContourModifier.hidden = true; // le contour vient d'être tracé, rien à corriger ici
     inputNom.value = '';
+    inputSecteur.value = '';
     inputSurface.value = (typeof surfaceHa === 'number' && isFinite(surfaceHa)) ? surfaceHa : '';
     inputCouleur.value = '#3c7a4e';
     inputNotes.value = '';
@@ -162,7 +202,9 @@ export function openEdit(parcelle, implantation) {
   numeroBadge.hidden = !parcelle.numero;
   numeroBadge.textContent = parcelle.numero ? '#' + parcelle.numero : '';
   btnDelete.hidden = false;
+  btnContourModifier.hidden = false;
   inputNom.value = parcelle.nom || '';
+  inputSecteur.value = parcelle.secteur || '';
   inputSurface.value = parcelle.surfaceHa != null ? parcelle.surfaceHa : '';
   inputCouleur.value = parcelle.couleur || '#3c7a4e';
   inputNotes.value = parcelle.notes || '';
@@ -260,6 +302,7 @@ form.addEventListener('submit', async (e) => {
 
     const data = {
       nom: inputNom.value.trim() || 'Parcelle sans nom',
+      secteur: inputSecteur.value.trim(),
       vocation,
       surfaceHa: parseFloat(inputSurface.value) || 0,
       couleur: inputCouleur.value,

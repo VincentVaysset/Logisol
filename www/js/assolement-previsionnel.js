@@ -119,7 +119,9 @@ export async function setPrevision(parcelleId, campagne, champs) {
   const maj = { parcelleId, campagne: String(campagne), majLe: serverTimestamp(),
                 majPar: auth.currentUser ? auth.currentUser.uid : null };
   if ('cultureCode' in champs) maj.cultureCode = champs.cultureCode || null;
-  if ('fumierT' in champs) maj.fumierT = nombreOuNull(champs.fumierT);
+  // Dose par hectare, comme la chaux : le tonnage à épandre se déduit de la
+  // surface plutôt que d'être saisi à part, et ne diverge donc jamais d'elle.
+  if ('fumierTHa' in champs) maj.fumierTHa = nombreOuNull(champs.fumierTHa);
   if ('chauxTHa' in champs) maj.chauxTHa = nombreOuNull(champs.chauxTHa);
   return setDoc(doc(db, NOM_COL, `${parcelleId}_${campagne}`), maj, { merge: true });
 }

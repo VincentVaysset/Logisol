@@ -164,6 +164,7 @@
       </div>
     </div>
     <div class="header-compte">
+      <button id="btn-rapports" type="button" class="header-icon-btn" aria-label="Rapports et synthèses PDF">📄</button>
       <span id="user-email" class="user-email"></span>
       <button id="btn-logout" type="button">Déconnexion</button>
     </div>
@@ -233,6 +234,20 @@
     <button id="btn-place-cancel" type="button" class="draw-btn draw-btn-cancel">✖ Annuler</button>
   </div>
 
+  <!-- Barre du mode « modifier le contour » : fait glisser les poignées d'une
+       parcelle déjà enregistrée (Leaflet.draw Edit), même principe hors carte
+       que les deux barres ci-dessus. -->
+  <div id="contour-toolbar" class="draw-toolbar" hidden>
+    <span class="draw-count">Fais glisser les poignées</span>
+    <button id="btn-contour-ok" type="button" class="draw-btn draw-btn-primary">✅ Valider le contour</button>
+    <button id="btn-contour-cancel" type="button" class="draw-btn draw-btn-cancel">✖ Annuler</button>
+  </div>
+
+  <!-- Filtre par secteur : mêmes boutons réutilisés au-dessus de la carte et
+       de la liste (voir main.js/peuplerFiltreSecteurs). N'apparaît que s'il
+       existe au moins un secteur renseigné sur une parcelle. -->
+  <div id="carte-secteur-filtre" class="filtre-chips" hidden></div>
+
   <div id="map"></div>
 
   <!-- Fil des dernières activités (vue Ferme) : toutes parcelles mélangées,
@@ -250,6 +265,7 @@
       <button type="button" class="choix-btn is-active" data-sousvue="liste">📋 Liste</button>
       <button type="button" class="choix-btn" data-sousvue="previsionnel">📅 Assolement prévisionnel</button>
     </div>
+    <div id="liste-secteur-filtre" class="filtre-chips" hidden></div>
     <div id="parcelles-liste"></div>
 
     <!-- Assolement prévisionnel, sur le modèle du dossier UNOTEC. Le tableau
@@ -1126,6 +1142,10 @@
         <label for="fiche-nom">Nom</label>
         <input type="text" id="fiche-nom" required placeholder="ex: Prairie du bas">
 
+        <label for="fiche-secteur">Secteur / zone</label>
+        <input type="text" id="fiche-secteur" list="fiche-secteurs-connus" placeholder="ex: Vallée, Maison...">
+        <datalist id="fiche-secteurs-connus"></datalist>
+
         <label for="fiche-vocation">Vocation</label>
         <select id="fiche-vocation"></select>
 
@@ -1168,6 +1188,8 @@
           </div>
         </div>
 
+        <button type="button" id="fiche-contour-modifier" class="btn btn-secondary btn-mini" hidden>✏️ Modifier le contour</button>
+
         <label for="fiche-notes">Notes</label>
         <textarea id="fiche-notes" rows="3" placeholder="Observations, remarques..."></textarea>
 
@@ -1177,6 +1199,54 @@
           <button type="button" id="fiche-delete" class="btn btn-danger" hidden>Supprimer</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Hub de synthèses PDF — préparation d'UI seule pour l'instant (demande
+       explicite) : un seul endroit pour retrouver tous les bilans à venir,
+       chacun branché à son propre générateur plus tard sans changer cet
+       écran d'accueil. -->
+  <div id="rapports-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>Rapports &amp; Synthèses</h2>
+      <p class="apercu-sous-titre">Génération PDF à venir — chaque bilan s'appuiera sur les données déjà saisies dans l'appli.</p>
+      <div class="rapport-liste">
+        <div class="rapport-card">
+          <span class="rapport-icone">🌾</span>
+          <div class="rapport-body">
+            <div class="rapport-nom">Bilan Stocks</div>
+            <div class="rapport-sub">Tonnages récoltés, consommés et restants par catégorie</div>
+          </div>
+          <span class="badge-bientot">Bientôt</span>
+        </div>
+        <div class="rapport-card">
+          <span class="rapport-icone">💩</span>
+          <div class="rapport-body">
+            <div class="rapport-nom">Fumier &amp; Épandages</div>
+            <div class="rapport-sub">Doses prévues par parcelle, tonnage total à épandre</div>
+          </div>
+          <span class="badge-bientot">Bientôt</span>
+        </div>
+        <div class="rapport-card">
+          <span class="rapport-icone">🪨</span>
+          <div class="rapport-body">
+            <div class="rapport-nom">Chaux</div>
+            <div class="rapport-sub">Doses t/ha et tonnage à commander par campagne</div>
+          </div>
+          <span class="badge-bientot">Bientôt</span>
+        </div>
+        <div class="rapport-card">
+          <span class="rapport-icone">📋</span>
+          <div class="rapport-body">
+            <div class="rapport-nom">Assolement prévisionnel</div>
+            <div class="rapport-sub">Surfaces par famille et par campagne, prêtes à imprimer</div>
+          </div>
+          <span class="badge-bientot">Bientôt</span>
+        </div>
+      </div>
+      <div class="fiche-actions">
+        <button type="button" id="rapports-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
     </div>
   </div>
 </section>
