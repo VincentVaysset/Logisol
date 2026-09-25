@@ -85,11 +85,22 @@ jobs:
           LOGISOL_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --stacktrace
 
+      - name: Lister l'APK produit (diagnostic)
+        # Le build précédent (run #52) a réussi ("BUILD SUCCESSFUL") mais
+        # l'étape d'upload suivante n'a trouvé aucun fichier au chemin figé
+        # attendu (android/app/build/outputs/apk/release/app-release.apk) —
+        # cette étape logue le contenu réel du dossier de sortie pour
+        # diagnostiquer si ça se reproduit, sans faire échouer le job.
+        run: find android/app/build/outputs/apk -type f 2>&1 || true
+
       - name: Upload release APK (artefact)
         uses: actions/upload-artifact@v4
         with:
           name: logisol-release-apk-v1.0.${{ github.run_number }}
-          path: android/app/build/outputs/apk/release/app-release.apk
+          # Motif générique plutôt qu'un nom de fichier figé : robuste au
+          # nommage exact que produit Gradle (constaté différent du
+          # "app-release.apk" attendu lors d'un run précédent).
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -120,4 +131,4 @@ jobs:
             Build automatique — ${{ github.ref_name }}@${{ github.sha }}
 
             ${{ github.event.head_commit.message }}
-          files: android/app/build/outputs/apk/release/app-release.apk
+          files: android/app/build/outputs/apk/release/*.apk
