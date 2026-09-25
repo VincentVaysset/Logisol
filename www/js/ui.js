@@ -28,6 +28,8 @@ const surfaceBadge = document.getElementById('fiche-surface-badge');
 const inputNom = document.getElementById('fiche-nom');
 const inputSecteur = document.getElementById('fiche-secteur');
 const secteursDatalist = document.getElementById('fiche-secteurs-connus');
+const inputDerobee = document.getElementById('fiche-derobee');
+const derobeesDatalist = document.getElementById('fiche-derobees-connues');
 const inputSurface = document.getElementById('fiche-surface');
 const inputCouleur = document.getElementById('fiche-couleur');
 const inputNotes = document.getElementById('fiche-notes');
@@ -109,6 +111,13 @@ export function setSecteursConnus(list) {
     .map((s) => `<option value="${escapeHtml(s)}"></option>`).join('');
 }
 
+// Même principe pour les dérobées : aucune configuration séparée, juste les
+// mélanges déjà tapés ailleurs, proposés en complétion.
+export function setDerobeesConnues(list) {
+  derobeesDatalist.innerHTML = (list || [])
+    .map((s) => `<option value="${escapeHtml(s)}"></option>`).join('');
+}
+
 // --- Modification du contour existant (Leaflet.draw Edit) -------------------
 // Orchestré depuis main.js (comme le placement d'un bâtiment) : cette fiche
 // se contente de s'effacer le temps du geste sur la carte, puis de reprendre
@@ -159,6 +168,7 @@ export function openCreate({ geometry, surfaceHa, croise }) {
     btnContourModifier.hidden = true; // le contour vient d'être tracé, rien à corriger ici
     inputNom.value = '';
     inputSecteur.value = '';
+    inputDerobee.value = '';
     inputSurface.value = (typeof surfaceHa === 'number' && isFinite(surfaceHa)) ? surfaceHa : '';
     inputCouleur.value = '#3c7a4e';
     inputNotes.value = '';
@@ -205,6 +215,7 @@ export function openEdit(parcelle, implantation) {
   btnContourModifier.hidden = false;
   inputNom.value = parcelle.nom || '';
   inputSecteur.value = parcelle.secteur || '';
+  inputDerobee.value = parcelle.derobee || '';
   inputSurface.value = parcelle.surfaceHa != null ? parcelle.surfaceHa : '';
   inputCouleur.value = parcelle.couleur || '#3c7a4e';
   inputNotes.value = parcelle.notes || '';
@@ -303,6 +314,7 @@ form.addEventListener('submit', async (e) => {
     const data = {
       nom: inputNom.value.trim() || 'Parcelle sans nom',
       secteur: inputSecteur.value.trim(),
+      derobee: inputDerobee.value.trim(),
       vocation,
       surfaceHa: parseFloat(inputSurface.value) || 0,
       couleur: inputCouleur.value,

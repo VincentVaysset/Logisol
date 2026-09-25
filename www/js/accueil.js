@@ -11,6 +11,8 @@ const apercuSurface = document.getElementById('apercu-surface');
 const apercuCulture = document.getElementById('apercu-culture');
 const apercuDuree = document.getElementById('apercu-duree');
 const apercuSemis = document.getElementById('apercu-semis');
+const apercuDerobeeLigne = document.getElementById('apercu-derobee-ligne');
+const apercuDerobee = document.getElementById('apercu-derobee');
 const apercuActivites = document.getElementById('apercu-activites');
 
 let parcelleAffichee = null;
@@ -137,6 +139,8 @@ export function ouvrirApercu(parcelle) {
   try {
     apercuNom.textContent = parcelle.nom || 'Parcelle';
     apercuSurface.textContent = parcelle.surfaceHa != null ? parcelle.surfaceHa + ' ha' : '—';
+    apercuDerobeeLigne.hidden = !parcelle.derobee;
+    if (parcelle.derobee) apercuDerobee.textContent = parcelle.derobee;
 
     const impl = implantationEnCours(parcelle.id, undefined, etat.implantations);
     if (impl) {

@@ -30,10 +30,21 @@ export const FAMILLES = [
   { value: 'CEREALES',       label: 'Céréales' },
   { value: 'LUZERNE',        label: 'Luzerne' },
   { value: 'PRAIRIE_COURTE', label: 'Prairie courte durée' },
+  { value: 'FETUQUE',        label: 'Fétuque / Trèfle' },
   { value: 'PN',             label: 'Prairie naturelle' },
   { value: 'SEMIS_PRAIRIE',  label: 'Semis de prairies' },
   { value: 'AUTRE',          label: 'Autre' }
 ];
+
+// Regroupement « vue macro / PAC » : toutes les déclinaisons de prairie
+// (luzerne, RG trèfle, fétuque/trèfle, prairie naturelle, semis) fondues sous
+// un seul libellé Prairie — cf. ui-assolement.js, bascule Détaillée/Regroupée.
+export const GROUPE_DE_FAMILLE = {
+  LUZERNE: 'PRAIRIE', PRAIRIE_COURTE: 'PRAIRIE', FETUQUE: 'PRAIRIE',
+  PN: 'PRAIRIE', SEMIS_PRAIRIE: 'PRAIRIE',
+  CEREALES: 'CEREALE', AUTRE: 'AUTRE'
+};
+export const LABEL_GROUPE = { PRAIRIE: 'Prairie', CEREALE: 'Céréales', AUTRE: 'Autre' };
 
 /**
  * @typedef {object} CulturePrev
@@ -59,6 +70,9 @@ const cer = (code, label, grain, suivante = null) =>
 export const CULTURES_PREV = [
   luz(0), luz(1), luz(2), luz(3), luz(4), luz(5),
   rgt(0), rgt(1), rgt(2), rgt(3),
+  // Auto-reproductrice comme la PN : une fétuque/trèfle ne se compte pas par
+  // âge sur ce dossier, contrairement au RG trèfle.
+  { code: 'FET', label: 'Fétuque/Trèfle', famille: 'FETUQUE', fourrage: 'Fétuque trèfle', suivante: 'FET' },
   { code: 'PN', label: 'PN', famille: 'PN', fourrage: 'Prairie naturelle', suivante: 'PN' },
   cer('BLE1', 'Blé 1', 'BLE'), cer('BLE2', 'Blé 2', 'BLE'),
   cer('ORGE1', 'Orge 1', 'ORGE'), cer('ORGE2', 'Orge 2', 'ORGE'),
@@ -136,6 +150,7 @@ export async function setPrevision(parcelleId, campagne, champs) {
 export function syntheseSurfaces(parcelles, campagne, liste = courants) {
   const parCode = new Map();
   const parFamille = new Map();
+  const parGroupe = new Map();
   let nonRenseigne = 0;
   let total = 0;
   parcelles.forEach((p) => {
@@ -146,9 +161,12 @@ export function syntheseSurfaces(parcelles, campagne, liste = courants) {
     if (!c) { nonRenseigne += ha; return; }
     parCode.set(c.code, (parCode.get(c.code) || 0) + ha);
     parFamille.set(c.famille, (parFamille.get(c.famille) || 0) + ha);
+    const groupe = GROUPE_DE_FAMILLE[c.famille] || 'AUTRE';
+    parGroupe.set(groupe, (parGroupe.get(groupe) || 0) + ha);
   });
   const r = (v) => Math.round(v * 100) / 100;
   parCode.forEach((v, k) => parCode.set(k, r(v)));
   parFamille.forEach((v, k) => parFamille.set(k, r(v)));
-  return { parCode, parFamille, nonRenseigne: r(nonRenseigne), total: r(total) };
+  parGroupe.forEach((v, k) => parGroupe.set(k, r(v)));
+  return { parCode, parFamille, parGroupe, nonRenseigne: r(nonRenseigne), total: r(total) };
 }

@@ -2,6 +2,8 @@
 // colorés par vocation/culture) et légende. Ne connaît rien de
 // Firestore/cultures : reçoit des parcelles déjà enrichies (_couleur, _label)
 // calculées par main.js.
+import { getVueLegende, toggleVueLegende } from './vue-legende.js';
+
 let map = null;
 const layers = new Map(); // id parcelle -> L.Polygon
 let onParcelleClick = () => {};
@@ -236,12 +238,28 @@ export function getZoom() {
 }
 
 // --- Légende -------------------------------------------------------------
+// pointer-events est désactivé sur .map-legend (cf. style.css, pour ne pas
+// intercepter les boutons flottants derrière elle) : le bouton de bascule le
+// réactive lui-même, seul élément cliquable de la légende.
 function renderLegendInto(container, items) {
-  container.innerHTML = items.length
+  const mode = getVueLegende();
+  const toggle = `<button type="button" class="legend-toggle" data-legend-toggle>` +
+    (mode === 'groupe' ? '🌐 Regroupée' : '🔍 Détaillée') + `</button>`;
+  const corps = items.length
     ? items.map((it) =>
-        `<div class="legend-item"><span class="legend-swatch" style="background:${escapeAttr(it.couleur)}"></span>${escapeHtml(it.label)}</div>`
+        `<div class="legend-item">` +
+          `<span class="legend-swatch${it.style === 'derobee' ? ' legend-swatch-derobee' : ''}" style="${it.style === 'derobee' ? 'border-color' : 'background'}:${escapeAttr(it.couleur)}"></span>` +
+          `${escapeHtml(it.label)}${it.ha ? ` <span class="legend-ha">${formatHaLegende(it.ha)} ha</span>` : ''}` +
+        `</div>`
       ).join('')
     : '<div class="legend-item">Aucune parcelle</div>';
+  container.innerHTML = toggle + corps;
+  const btn = container.querySelector('[data-legend-toggle]');
+  if (btn) btn.addEventListener('click', toggleVueLegende);
+}
+
+function formatHaLegende(v) {
+  return (Math.round(v * 100) / 100).toLocaleString('fr-FR');
 }
 
 // items : [{label, couleur}] déjà dédupliqués — voir vocation.js pour le calcul.
@@ -391,13 +409,20 @@ export function renderParcelles(list) {
     if (!latlngs) return;
     seen.add(p.id);
     const color = p._couleur || '#888888';
+    // Dérobée/couvert : bordure violette en pointillés SUR la couleur de la
+    // culture principale (le remplissage ne change pas) — repérable d'un
+    // coup d'œil sans se substituer à l'identité de la parcelle.
+    const enDerobee = !!(p.derobee && String(p.derobee).trim());
+    const style = enDerobee
+      ? { color: '#8b5cf6', fillColor: color, fillOpacity: 0.45, weight: 3, dashArray: '6, 5' }
+      : { color, fillColor: color, fillOpacity: 0.45, weight: 2, dashArray: null };
 
     let layer = layers.get(p.id);
     if (layer) {
       layer.setLatLngs(latlngs);
-      layer.setStyle({ color, fillColor: color });
+      layer.setStyle(style);
     } else {
-      layer = L.polygon(latlngs, { color, fillColor: color, fillOpacity: 0.45, weight: 2 });
+      layer = L.polygon(latlngs, style);
       layer.on('click', () => onParcelleClick(p.id));
       layer.addTo(map);
       layers.set(p.id, layer);
@@ -406,7 +431,8 @@ export function renderParcelles(list) {
     // carte (et pas seulement au survol — impossible à obtenir au doigt).
     const contenu =
       `<span class="parcelle-label-nom">${escapeHtml(p.nom || 'Sans nom')}</span>` +
-      (p._label ? `<span class="parcelle-label-sub">${escapeHtml(p._label)}</span>` : '');
+      (p._label ? `<span class="parcelle-label-sub">${escapeHtml(p._label)}</span>` : '') +
+      (enDerobee ? `<span class="parcelle-label-derobee">🌱 ${escapeHtml(p.derobee)}</span>` : '');
     const tooltip = layer.getTooltip();
     if (tooltip) {
       tooltip.setContent(contenu);

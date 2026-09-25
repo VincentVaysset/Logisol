@@ -13,6 +13,7 @@ import {
 import { ensureSeeded as ensureTypesSeeded, watchTypes, onTypesChange } from './interventions-types.js';
 import { watchInterventions } from './interventions.js';
 import { resolveCouleur, resolveLabel } from './vocation.js';
+import { getVueLegende, onVueLegendeChange } from './vue-legende.js';
 import { watchParcelles } from './parcelles.js';
 import {
   initMap, renderParcelles, renderLegend, refreshMapSize,
@@ -26,7 +27,7 @@ import {
   raisonDeRefus, isDrawing
 } from './draw.js';
 import { initImport } from './import-geojson.js';
-import { openCreate, openEdit, setSecteursConnus, setOnDemanderModifContour } from './ui.js';
+import { openCreate, openEdit, setSecteursConnus, setDerobeesConnues, setOnDemanderModifContour } from './ui.js';
 import {
   setParcellesDisponibles, setChauffeursConnus, setCreateursDeContenant
 } from './ui-intervention.js';
@@ -123,10 +124,11 @@ function recomputeAndRender() {
     if (impl) implantationsByParcelle.set(p.id, impl);
   });
 
+  const groupe = getVueLegende() === 'groupe';
   const enriched = latestParcelles.map((p) => ({
     ...p,
-    _couleur: resolveCouleur(p, implantationsByParcelle, culturesById),
-    _label: resolveLabel(p, implantationsByParcelle, culturesById)
+    _couleur: resolveCouleur(p, implantationsByParcelle, culturesById, groupe),
+    _label: resolveLabel(p, implantationsByParcelle, culturesById, groupe)
   }));
   enrichedById = new Map(enriched.map((p) => [p.id, p]));
 
@@ -135,6 +137,10 @@ function recomputeAndRender() {
   if (secteurFiltre && !secteurs.includes(secteurFiltre)) secteurFiltre = '';
   setSecteursConnus(secteurs);
   peuplerFiltreSecteurs(secteurs);
+
+  const derobees = Array.from(new Set(enriched.map((p) => p.derobee).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, 'fr'));
+  setDerobeesConnues(derobees);
   // Le filtre ne restreint QUE l'affichage carte/liste : les autres écrans
   // (stocks, bâtiments, assolement, tunnel d'activité) doivent continuer à
   // voir TOUTES les parcelles, sinon une parcelle hors secteur filtré
@@ -236,11 +242,30 @@ function recomputeBatiments() {
 }
 
 function computeLegendItems(enriched) {
-  const seen = new Map(); // label -> couleur, dans l'ordre de première apparition
+  // Cumul d'hectares par libellé, dans l'ordre de première apparition — en
+  // vue regroupée, _label vaut déjà "Prairie"/"Céréales"/... (cf.
+  // vocation.js), donc les hectares s'additionnent naturellement sous UNE
+  // seule entrée au lieu d'une par espèce.
+  const seen = new Map(); // label -> {couleur, ha}
   enriched.forEach((p) => {
-    if (!seen.has(p._label)) seen.set(p._label, p._couleur);
+    const ha = Number(p.surfaceHa) || 0;
+    if (!seen.has(p._label)) seen.set(p._label, { couleur: p._couleur, ha: 0 });
+    seen.get(p._label).ha += ha;
   });
-  return Array.from(seen.entries()).map(([label, couleur]) => ({ label, couleur }));
+  const items = Array.from(seen.entries())
+    .map(([label, v]) => ({ label, couleur: v.couleur, ha: Math.round(v.ha * 100) / 100 }));
+  // Repère les parcelles en dérobée/couvert, tous groupes confondus : une
+  // seule entrée de légende, à part, avec un liseré plutôt qu'un aplat
+  // (cf. map.js — le remplissage reste celui de la culture principale).
+  const enDerobee = enriched.filter((p) => p.derobee && String(p.derobee).trim());
+  if (enDerobee.length) {
+    items.push({
+      label: `Dérobée / couvert (${enDerobee.length})`,
+      couleur: '#8b5cf6',
+      style: 'derobee'
+    });
+  }
+  return items;
 }
 
 function openEditParcelle(parcelle) {
@@ -646,6 +671,10 @@ async function boot() {
     // lieu d'attendre la fin de tout.
     onCulturesChange((cultures) => { latestCultures = cultures; recomputeAndRender(); });
     watchCultures();
+    // Bascule Détaillée/Regroupée : partagée avec le bouton de la légende
+    // carte (map.js) et celui du tableau d'assolement (ui-assolement.js) —
+    // où qu'elle soit actionnée, la carte ET la légende doivent suivre.
+    onVueLegendeChange(() => recomputeAndRender());
 
     onImplantationsChange((impl) => { latestImplantations = impl; recomputeAndRender(); });
     watchImplantations();

@@ -9,13 +9,21 @@ import {
 
 const COL = collection(db, 'cultures_config');
 
+// Palette par nuances : chaque espèce de prairie garde SA couleur propre
+// (vue détaillée de la carte), toutes rattachées à la même famille 'prairie'
+// pour la vue regroupée (cf. vocation.js/FAMILLE_COULEUR, qui fixe alors
+// #059669 — même émeraude que le reste du design system). Les céréales
+// partagent une seule teinte ambre : leur distinction utile se fait par le
+// nom, pas par la couleur.
 const DEFAULT_CULTURES = [
-  { nom: 'Blé tendre', couleur: '#c98a3e', famille: 'cereale' },
-  { nom: 'Orge', couleur: '#d4a53f', famille: 'cereale' },
-  { nom: 'Colza', couleur: '#a8b83f', famille: 'oleagineux' },
-  { nom: 'Luzerne', couleur: '#5b8c5a', famille: 'legumineuse' },
-  { nom: 'Prairie', couleur: '#3f6b3a', famille: 'prairie' },
-  { nom: 'Autre', couleur: '#9a988f', famille: 'autre' }
+  { nom: 'RG Trèfle',              couleur: '#059669', famille: 'prairie' },  // vert émeraude
+  { nom: 'Luzerne',                couleur: '#10b981', famille: 'prairie' },  // vert jade / anis
+  { nom: 'Prairie permanente',     couleur: '#65a30d', famille: 'prairie' },  // vert olive
+  { nom: 'Fétuque / Trèfle',       couleur: '#047857', famille: 'prairie' },  // vert sapin
+  { nom: 'Blé tendre',             couleur: '#d97706', famille: 'cereale' },  // jaune ambre
+  { nom: 'Orge',                   couleur: '#d97706', famille: 'cereale' },
+  { nom: 'Colza',                  couleur: '#a8b83f', famille: 'oleagineux' },
+  { nom: 'Autre',                  couleur: '#9a988f', famille: 'autre' }
 ];
 
 let currentCultures = []; // [{id, nom, couleur, famille}]

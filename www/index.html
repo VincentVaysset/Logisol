@@ -284,9 +284,20 @@
         <table class="tableau tableau-prev" id="prev-tableau"></table>
       </div>
 
-      <h3 class="section-titre">Synthèse des surfaces par famille</h3>
+      <div class="vue-head vue-head-sous">
+        <h3 class="section-titre section-titre-inline">Synthèse des surfaces par famille</h3>
+        <button type="button" id="prev-toggle-vue" class="btn btn-secondary btn-mini">🔍 Détaillée</button>
+      </div>
       <div class="table-scroll">
         <table class="tableau tableau-synthese" id="prev-synthese"></table>
+      </div>
+
+      <!-- Dérobées/couverts : champ vivant sur la parcelle (fiche), pas une
+           prévision par campagne — cumul et liste séparés du reste du
+           tableau plutôt que forcés dans les colonnes N/N+1. -->
+      <div id="prev-derobees-bloc" hidden>
+        <h3 class="section-titre">Dérobées / couverts en place</h3>
+        <div id="prev-derobees"></div>
       </div>
     </section>
   </div>
@@ -771,6 +782,7 @@
         <div><dt>Culture en cours</dt><dd id="apercu-culture">—</dd></div>
         <div><dt>Implantée depuis</dt><dd id="apercu-duree">—</dd></div>
         <div><dt>Semée le</dt><dd id="apercu-semis">—</dd></div>
+        <div id="apercu-derobee-ligne" hidden><dt>Dérobée / couvert</dt><dd id="apercu-derobee">—</dd></div>
       </dl>
       <h3 class="apercu-sous-titre">Dernières activités sur cette parcelle</h3>
       <div id="apercu-activites" class="apercu-activites"></div>
@@ -1176,6 +1188,14 @@
             </select>
           </div>
         </div>
+
+        <!-- Dérobée/couvert : texte libre, volontairement séparé de la
+             culture principale — un mélange (« RGI + Trèfle ») ne mérite pas
+             sa propre fiche culture dans cultures_config, et n'est lié à
+             aucun calcul de ration (cf. CLAUDE.md). -->
+        <label for="fiche-derobee">Culture dérobée / couvert (optionnel)</label>
+        <input type="text" id="fiche-derobee" list="fiche-derobees-connues" placeholder="ex: RGI + Trèfle, Moutarde...">
+        <datalist id="fiche-derobees-connues"></datalist>
 
         <div class="row">
           <div style="flex:1">
