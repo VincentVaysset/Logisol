@@ -51,7 +51,7 @@ import { watchCellules, onCellulesChange } from './cellules.js';
 import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
 import { watchMouvements, onMouvementsChange, getMouvements } from './mouvements.js';
 import { agregerMouvements, fusionnerCategories } from './fourrages.js';
-import { watchPrevisions, onPrevisionsChange } from './assolement-previsionnel.js';
+import { watchPrevisions, onPrevisionsChange, migrerRGT0 } from './assolement-previsionnel.js';
 import {
   initAssolement, setParcellesAssolement, rafraichirAssolement
 } from './ui-assolement.js';
@@ -736,6 +736,8 @@ async function boot() {
     const reprisesPrairie = await migrerFamillesPrairie();
     if (reprisesPrairie) log(reprisesPrairie + ' culture(s) « prairie » reclassée(s) en PP/PT');
     if (await ensureColzaFourrager()) log('culture "Colza fourrager" (dérobée) ajoutée');
+    const reprisesRGT0 = await migrerRGT0();
+    if (reprisesRGT0) log(reprisesRGT0 + ' case(s) « RG trèfle 0 » reclassée(s) en RG trèfle 1');
 
     // Diagnostic des règles, en dernier et sans bloquer : il transforme un
     // « permission-denied » muet en message qui dit quelle collection est

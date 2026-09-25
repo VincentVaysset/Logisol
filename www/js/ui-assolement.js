@@ -367,7 +367,9 @@ const STRUCTURE = [
   { famille: 'PRAIRIE_COURTE', codes: ['RGT1', 'RGT2', 'RGT3'], total: 'Total prairie courte durée' },
   { famille: 'FETUQUE',        codes: ['FET'], total: null },
   { famille: 'PN',             codes: ['PN'], total: null },
-  { famille: 'SEMIS_PRAIRIE',  codes: ['LUZ0', 'RGT0'], total: 'Total semis de prairies' },
+  // RGT0 n'existe plus (un RG trèfle démarre directement à 1, récolté dès sa
+  // première année) : seule la luzerne a une vraie année de semis à part.
+  { famille: 'SEMIS_PRAIRIE',  codes: ['LUZ0'], total: 'Total semis de prairies' },
   { famille: 'AUTRE',          codes: 'presents', total: null }
 ];
 

@@ -15,7 +15,7 @@
 // publier.
 import { db, auth } from './firebase-config.js';
 import {
-  collection, doc, setDoc, onSnapshot, serverTimestamp
+  collection, doc, setDoc, getDocs, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 
 const NOM_COL = 'lgs_assolement_previsionnel';
@@ -68,9 +68,12 @@ const luz = (n) => ({
   code: 'LUZ' + n, label: 'Luz ' + n, famille: n === 0 ? 'SEMIS_PRAIRIE' : 'LUZERNE',
   fourrage: 'Luzerne', suivante: n < 5 ? 'LUZ' + (n + 1) : null
 });
+// Pas de RGT0 : contrairement à la luzerne (implantation lente, ne compte
+// pas l'année du semis), un RG trèfle est récolté/pâturé dès sa première
+// année — l'année de semis EST déjà "RG trèfle 1", jamais une année 0.
 const rgt = (n) => ({
-  code: 'RGT' + n, label: n === 0 ? 'RG 0' : 'RG trèfle ' + n,
-  famille: n === 0 ? 'SEMIS_PRAIRIE' : 'PRAIRIE_COURTE',
+  code: 'RGT' + n, label: 'RG trèfle ' + n,
+  famille: 'PRAIRIE_COURTE',
   fourrage: 'RG trèfle', suivante: n < 3 ? 'RGT' + (n + 1) : null
 });
 const cer = (code, label, grain, suivante = null) =>
@@ -78,7 +81,7 @@ const cer = (code, label, grain, suivante = null) =>
 
 export const CULTURES_PREV = [
   luz(0), luz(1), luz(2), luz(3), luz(4), luz(5),
-  rgt(0), rgt(1), rgt(2), rgt(3),
+  rgt(1), rgt(2), rgt(3),
   // Auto-reproductrice comme la PN : une fétuque/trèfle ne se compte pas par
   // âge sur ce dossier, contrairement au RG trèfle.
   { code: 'FET', label: 'Fétuque/Trèfle', famille: 'FETUQUE', fourrage: 'Fétuque trèfle', suivante: 'FET' },
@@ -99,10 +102,13 @@ export function culturePrev(code) {
 }
 
 // Indice d'âge/semis porté par le CODE lui-même (LUZ0 -> 0, RGT2 -> 2,
-// BLE1 -> 1) : les prairies/pluriannuelles démarrent à 0 l'année du semis,
-// les céréales/annuelles à 1 — jamais 0 — conformément à la règle métier.
-// null pour les codes sans indice (PN, Fétuque/Trèfle, Autre : perennes non
-// comptées par âge sur ce dossier).
+// BLE1 -> 1). PAS de règle uniforme "prairie = 0, annuelle = 1" : chaque
+// espèce démarre à l'indice où elle est réellement récoltée/pâturée pour la
+// première fois — 0 pour la luzerne (implantation lente, l'année de semis
+// ne compte pas), 1 pour le RG trèfle (récolté dès sa première année, comme
+// une céréale) et pour les céréales/annuelles. null pour les codes sans
+// indice (PN, Fétuque/Trèfle, Autre : pérennes non comptées par âge sur ce
+// dossier).
 export function indiceCulture(code) {
   const c = culturePrev(code);
   if (!c) return null;
@@ -170,6 +176,21 @@ export async function setPrevision(parcelleId, campagne, champs) {
   if ('fumierTHa' in champs) maj.fumierTHa = nombreOuNull(champs.fumierTHa);
   if ('chauxTHa' in champs) maj.chauxTHa = nombreOuNull(champs.chauxTHa);
   return setDoc(doc(db, NOM_COL, `${parcelleId}_${campagne}`), maj, { merge: true });
+}
+
+// Reprise des cases "RGT0" saisies avant la correction de la règle d'âge du
+// RG trèfle (il n'a jamais d'année 0, contrairement à la luzerne — cf.
+// CULTURES_PREV) : reclassées en "RGT1", la première année réelle. Idempotent
+// — une fois reclassée, une case ne porte plus RGT0 et n'est plus retouchée.
+export async function migrerRGT0() {
+  let repris = 0;
+  const snap = await getDocs(COL);
+  for (const d of snap.docs) {
+    if (d.data().cultureCode !== 'RGT0') continue;
+    await setDoc(doc(db, NOM_COL, d.id), { cultureCode: 'RGT1', majLe: serverTimestamp() }, { merge: true });
+    repris++;
+  }
+  return repris;
 }
 
 // --- Synthèse par famille ---------------------------------------------------
