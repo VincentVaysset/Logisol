@@ -15,6 +15,13 @@ jobs:
     # In-App", portées depuis Ovilog/claude/sheep-herd-android-app-7tlcq1).
     permissions:
       contents: write
+    # GitHub Actions interdit toute référence au contexte "secrets" dans un
+    # "if:" (job ou step) — "Unrecognized named-value: 'secrets'", constaté
+    # à l'exécution. Contournement standard : recopier le secret dans une
+    # variable d'environnement ICI (où "secrets" reste autorisé), puis ne
+    # tester que cette variable dans les "if:" des étapes ci-dessous.
+    env:
+      HAS_KEYSTORE_SECRET: ${{ secrets.KEYSTORE_BASE64 != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,7 +68,7 @@ jobs:
         # exposés) : le fichier n'est alors simplement pas créé, et
         # build.gradle retombe sur un build non signé (cf. commentaire dans
         # android/app/build.gradle) plutôt que d'échouer.
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: ${{ env.HAS_KEYSTORE_SECRET == 'true' }}
         working-directory: android/app
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > logisol-release.keystore
 
@@ -100,7 +107,7 @@ jobs:
         # développement), la release est marquée "prerelease" — purement
         # indicatif sur GitHub, elle reste bien détectée par l'appli comme
         # n'importe quelle autre release (même mécanisme qu'Ovilog).
-        if: ${{ github.event_name == 'push' && secrets.KEYSTORE_BASE64 != '' }}
+        if: ${{ github.event_name == 'push' && env.HAS_KEYSTORE_SECRET == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
