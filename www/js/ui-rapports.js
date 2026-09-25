@@ -94,9 +94,9 @@ async function telechargerPdf() {
   btnTelechargerEl.disabled = true;
   exportStatutEl.textContent = 'Génération du PDF...';
   try {
-    const blob = genererRapportPdf({ parcelles, campagne: String(campagneR), previsions: getPrevisions() });
+    const doc = genererRapportPdf({ parcelles, campagne: String(campagneR), previsions: getPrevisions() });
     const nomFichier = `logisol-rapports-${campagneR}.pdf`;
-    const resultat = await exporterPdf(blob, nomFichier);
+    const resultat = await exporterPdf(doc, nomFichier);
     if (!resultat.ok) {
       exportStatutEl.textContent = '⚠️ ' + resultat.erreur;
       toastErreur('PDF non enregistré : ' + resultat.erreur);

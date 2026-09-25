@@ -5,9 +5,17 @@
 // Dans la WebView Capacitor (pas un vrai navigateur), window.print() n'a
 // souvent aucun moteur d'impression système à piloter (silencieux : aucune
 // erreur, aucun document), et window.open() se heurte au bloqueur de
-// popups sur mobile. jsPDF construit le fichier .pdf lui-même, en mémoire
-// (Blob) : rien à ouvrir dans une fenêtre tierce — ni impression navigateur
-// ni fenêtre popup nulle part dans ce flux.
+// popups sur mobile. jsPDF construit le fichier .pdf lui-même, en mémoire.
+//
+// POURQUOI PAS <a download>/navigator.share EN PREMIER RECOURS NON PLUS
+// Dans l'app installée, une WebView Capacitor brute n'a souvent aucun
+// gestionnaire de téléchargement à piloter pour un <a download> (le clic
+// "réussit" sans erreur JS, mais rien n'est jamais écrit sur l'appareil), et
+// navigator.share/canShare peuvent être absents ou limités selon la version
+// de WebView embarquée. exporterPdf() écrit donc le fichier via le pont
+// natif Capacitor (plugins officiels Filesystem + Share, cf. plus bas)
+// quand l'app est installée — Web Share puis <a download> restent en repli
+// pour le test en navigateur (app non installée).
 import {
   calendrierSemis, syntheseCategories, planFertilisation
 } from './rapports.js';
@@ -106,9 +114,10 @@ function creerCurseur(doc) {
 
 /**
  * Construit le PDF du rapport (mêmes données que l'écran Rapports &
- * Synthèses, cf. ui-rapports.js) et le renvoie en Blob — jamais écrit sur
- * disque ni ouvert ici : c'est exporterPdf() qui décide comment le remettre
- * à l'utilisateur.
+ * Synthèses, cf. ui-rapports.js) et renvoie le document jsPDF — jamais écrit
+ * sur disque ni ouvert ici : c'est exporterPdf() qui décide comment le
+ * remettre à l'utilisateur (et sous quel format, Blob ou base64, selon la
+ * méthode de remise choisie).
  */
 export function genererRapportPdf({ parcelles, campagne, previsions }) {
   if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -189,24 +198,48 @@ export function genererRapportPdf({ parcelles, campagne, previsions }) {
     c.ligne(`Aucune dose de fumier ou de chaux renseignée pour ${campagne}.`, { taille: 9 });
   }
 
-  return doc.output('blob');
+  return doc;
 }
 
 /**
  * Remet le PDF déjà généré à l'utilisateur, avec la méthode la plus fiable
- * disponible sur l'appareil :
- *   1) Web Share API avec fichier (mobile/PWA) : ouvre le sélecteur natif
- *      (lecteur PDF, Fichiers, envoi...) — la meilleure expérience quand
- *      elle existe.
- *   2) Sinon, lien de téléchargement temporaire (<a download>) sur une URL
- *      Blob locale : fonctionne aussi bien en WebView qu'en navigateur,
- *      sans dépendre d'une fenêtre popup (jamais bloqué par un bloqueur de
- *      popups, contrairement à window.open()).
+ * disponible :
+ *   1) App installée (pont natif Capacitor, Filesystem + Share) : écrit le
+ *      fichier via l'API Android native (aucune dépendance à ce que la
+ *      WebView sache gérer un téléchargement), puis ouvre le sélecteur de
+ *      partage natif sur ce fichier réel — l'utilisateur choisit de
+ *      l'enregistrer dans Fichiers, de l'ouvrir dans un lecteur PDF, etc.
+ *      NÉCESSAIRE car dans une WebView Capacitor brute, ni <a download> ni
+ *      la Web Share API du navigateur embarqué n'aboutissent de façon
+ *      fiable : le clic "réussit" en apparence (aucune erreur JS) mais rien
+ *      n'est jamais réellement écrit sur l'appareil — cause du bug remonté
+ *      ("le téléchargement se lance mais rien n'est nulle part").
+ *   2) Hors app installée (navigateur de test) : Web Share API avec fichier,
+ *      puis lien de téléchargement temporaire (<a download>) sur une URL
+ *      Blob locale en dernier recours.
  * Ne lève jamais d'exception : renvoie { ok, methode } ou { ok:false,
  * erreur } pour que l'appelant affiche un retour explicite (cf. ticket,
  * "message d'erreur explicite si la création du fichier échoue").
  */
-export async function exporterPdf(blob, nomFichier) {
+export async function exporterPdf(doc, nomFichier) {
+  const Filesystem = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+  const Share = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+  if (Filesystem && Share) {
+    try {
+      const datauri = doc.output('datauristring');
+      const base64 = datauri.slice(datauri.indexOf(',') + 1);
+      // Répertoire Cache : privé à l'appli, aucune permission de stockage à
+      // demander sur aucune version d'Android — suffisant puisque le fichier
+      // n'a besoin d'exister que le temps du partage qui suit immédiatement.
+      const { uri } = await Filesystem.writeFile({ path: nomFichier, data: base64, directory: 'CACHE' });
+      await Share.share({ title: nomFichier, dialogTitle: 'Enregistrer ou ouvrir le PDF', files: [uri] });
+      return { ok: true, methode: 'partage' };
+    } catch (e) {
+      return { ok: false, erreur: (e && e.message) || "Échec de l'enregistrement." };
+    }
+  }
+
+  const blob = doc.output('blob');
   try {
     if (navigator.canShare && navigator.share) {
       const fichier = new File([blob], nomFichier, { type: 'application/pdf' });
