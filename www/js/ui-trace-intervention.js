@@ -61,7 +61,7 @@ export function initTraceUi() {
 }
 
 /** Reflète l'état du tracé (appelé par trace-intervention.js à chaque fix GPS). */
-export function majEtatTrace({ distanceM, surfaceHa, modeFilaire }) {
-  distanceEl.textContent = distanceM + ' m parcourus';
+export function majEtatTrace({ distanceM, surfaceHa, dureeMin, modeFilaire }) {
+  distanceEl.textContent = `${distanceM} m · ${dureeMin} min`;
   surfaceEl.textContent = modeFilaire ? '(tracé filaire, pas de largeur)' : `${surfaceHa} ha couverts`;
 }

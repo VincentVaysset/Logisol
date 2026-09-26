@@ -577,11 +577,14 @@
         <select id="mat-actions" multiple size="6"></select>
         <p class="champ-aide">Ces activités proposeront ce matériel en tête de liste. Rien n'est jamais filtré : tout le parc reste sélectionnable.</p>
 
-        <label for="mat-graissage">Dernier graissage</label>
-        <input type="date" id="mat-graissage">
-        <div class="graissage-box">
-          <span id="mat-graissage-info">jamais renseigné</span>
-          <button type="button" id="mat-graissage-aujourdhui" class="btn btn-primary btn-mini">🛢️ Graissé aujourd'hui</button>
+        <div id="mat-entretien-bloc" hidden>
+          <label>Entretien</label>
+          <div id="mat-entretien-resume" class="champ-aide"></div>
+          <div class="graissage-box">
+            <select id="mat-entretien-type"></select>
+            <button type="button" id="mat-entretien-enregistrer" class="btn btn-primary btn-mini">✅ Enregistrer aujourd'hui</button>
+          </div>
+          <button type="button" id="mat-entretien-annuler" class="btn btn-secondary btn-mini">↩ Annuler la dernière opération</button>
         </div>
 
         <label for="mat-note">Note d'entretien</label>
@@ -1025,9 +1028,11 @@
           </div>
 
           <div id="itv-champ-materiel">
+            <label for="itv-tracteur-id">Tracteur (facultatif)</label>
+            <select id="itv-tracteur-id"></select>
             <label for="itv-materiel-id">Matériel utilisé</label>
             <select id="itv-materiel-id"></select>
-            <input type="text" id="itv-materiel" placeholder="Précision libre (tracteur, réglage...)">
+            <input type="text" id="itv-materiel" placeholder="Précision libre (réglage, attelage...)">
           </div>
 
           <label>Statut</label>

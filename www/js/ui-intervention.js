@@ -16,7 +16,7 @@ import {
   typesPourCible, categorieDe, fluxDe, formulaireDe, fluxObligatoire,
   effetCultureDe, addType, TYPE_NOTE
 } from './interventions-types.js';
-import { getMaterielById, onMaterielsChange, materielsPourAction } from './materiel.js';
+import { getMaterielById, getMateriels, onMaterielsChange, materielsPourAction } from './materiel.js';
 import {
   createIntervention, updateIntervention, deleteIntervention, quantiteDeSaisie
 } from './interventions.js';
@@ -59,7 +59,7 @@ const el = {};
 [ 'title','back','steps','etape-1','etape-2','etape-3','cible','parcelles','pick-all',
   'pick-none','pick-count','activites','date','campagne','chauffeur','chauffeurs','statut',
   'notes','details','details-toggle',
-  'champ-produit','produit','quantite','unite','champ-materiel','materiel','materiel-id','champ-duree',
+  'champ-produit','produit','quantite','unite','champ-materiel','materiel','materiel-id','tracteur-id','champ-duree',
   'newtype','newtype-toggle','newtype-nom','newtype-icone','newtype-cat','newtype-add',
   'duree','champ-meteo','meteo-text','meteo-refresh','photo-btn','photo-clear','photo-input',
   'photo-preview','photo-info',
@@ -127,7 +127,23 @@ onTypesChange(() => { if (!panel.hidden) renderActivites(); });
 
 // Liste du parc, tenue à jour en direct : un matériel créé depuis l'onglet
 // Bâtiments doit être proposé sans avoir à rouvrir le formulaire.
-onMaterielsChange(() => peuplerMateriels(el['materiel-id'].value));
+onMaterielsChange(() => {
+  peuplerMateriels(el['materiel-id'].value);
+  peuplerTracteurs(el['tracteur-id'].value);
+});
+
+// Tracteur/moteur séparé de l'outil (#itv-materiel-id ci-dessus) : un
+// chantier attelle les deux en même temps, mais un seul champ de matériel
+// forçait jusqu'ici à noter le tracteur en texte libre. Filtré sur la seule
+// catégorie TRACTEUR — jamais proposé en tête par activité (contrairement à
+// l'outil) : aucun tracteur n'est "conseillé" pour un chantier en
+// particulier.
+function peuplerTracteurs(valeur) {
+  const tracteurs = getMateriels().filter((m) => m.categorie === 'TRACTEUR');
+  const opt = (m) => `<option value="${escapeAttr(m.id)}">${escapeHtml(m.nom)}</option>`;
+  el['tracteur-id'].innerHTML = '<option value="">— Aucun —</option>' + tracteurs.map(opt).join('');
+  if (valeur && tracteurs.some((m) => m.id === valeur)) el['tracteur-id'].value = valeur;
+}
 
 // L'outil qui va avec l'action est remonté en tête : à l'ouverture d'un
 // fanage, la pirouette est le premier choix. Rien n'est filtré pour autant —
@@ -399,6 +415,7 @@ function appliquerType() {
     relever(true);
   }
   peuplerMateriels(el['materiel-id'].value);
+  peuplerTracteurs(el['tracteur-id'].value);
   appliquerGroupe();
   majEffetCulture();
 }
@@ -445,11 +462,14 @@ el['surface-tout'].addEventListener('click', () => {
 });
 
 // Tracé GPS en direct du chantier (bande de passage, cf. trace-intervention.js)
-// plutôt qu'une surface tapée à vue de nez. Le tunnel s'efface le temps du
-// tracé (même principe que la création d'un contenant manquant, cf.
-// eclipserTunnel/rouvrirTunnel plus haut) et revient avec le champ rempli —
-// sans repasser par preparerFlux(), spécifique à l'étape 3 (flux de stock),
-// jamais concernée ici.
+// plutôt qu'une surface tapée à vue de nez — et, la durée du tracé étant
+// connue à la seconde près, elle préremplit aussi le champ "Nombre d'heures"
+// au retour (quand ce champ est affiché pour ce type d'activité), sans que
+// l'exploitant ait à relever une heure de début/fin lui-même. Le tunnel
+// s'efface le temps du tracé (même principe que la création d'un contenant
+// manquant, cf. eclipserTunnel/rouvrirTunnel plus haut) et revient avec les
+// champs remplis — sans repasser par preparerFlux(), spécifique à l'étape 3
+// (flux de stock), jamais concernée ici.
 el['surface-tracer'].addEventListener('click', () => {
   if (!demarreurTrace) { showError('Traçage en direct indisponible.'); return; }
   const materielId = el['materiel-id'].value;
@@ -463,6 +483,9 @@ el['surface-tracer'].addEventListener('click', () => {
       if (resultat && resultat.surfaceHa != null) {
         el.surface.value = resultat.surfaceHa;
         majTotalGroupe();
+      }
+      if (resultat && resultat.dureeHeures != null && !el['champ-duree'].hidden) {
+        el.duree.value = resultat.dureeHeures;
       }
     }
   });
@@ -1233,6 +1256,7 @@ function reinitialiser() {
   delete el.campagne.dataset.auto;
   appliquerGroupe();
   peuplerMateriels('');
+  peuplerTracteurs('');
   el.newtype.hidden = true;
   el['newtype-toggle'].textContent = '＋ Action sur mesure';
   el.unite.value = '';
@@ -1353,6 +1377,7 @@ export function openEditIntervention(itv) {
     el.unite.value = itv.unite || '';
     el.materiel.value = itv.materiel || '';
     peuplerMateriels(itv.materielId || '');
+    peuplerTracteurs(itv.tracteurId || '');
     el.duree.value = itv.dureeHeures != null ? itv.dureeHeures : '';
     el.notes.value = itv.notes || '';
     meteoCourante = itv.meteo || null;
@@ -1496,6 +1521,8 @@ form.addEventListener('submit', async (e) => {
       // Nom figé : le fil reste lisible même si le matériel est renommé ou
       // sorti du parc plus tard.
       materielNom: el['champ-materiel'].hidden ? '' : nomMateriel(el['materiel-id'].value),
+      tracteurId: el['champ-materiel'].hidden ? null : (el['tracteur-id'].value || null),
+      tracteurNom: el['champ-materiel'].hidden ? '' : nomMateriel(el['tracteur-id'].value),
       dureeHeures: el['champ-duree'].hidden ? null : el.duree.value,
       meteo: el['champ-meteo'].hidden ? null : meteoCourante,
       photo: photoCourante,

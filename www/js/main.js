@@ -74,7 +74,10 @@ import {
   ouvrirApercuBatiment, renderStockageParBatiment
 } from './ui-mouvements.js';
 import { verifierRegles } from './diagnostic-regles.js';
-import { watchMateriels, onMaterielsChange, ensureSeeded as ensureMaterielSeeded } from './materiel.js';
+import {
+  watchMateriels, onMaterielsChange, ensureSeeded as ensureMaterielSeeded,
+  watchEntretiens, onEntretiensChange
+} from './materiel.js';
 import { initMateriel, renderMateriels } from './ui-materiel.js';
 import { initRapports, setParcellesRapports } from './ui-rapports.js';
 import { initParametresCultures } from './ui-parametres.js';
@@ -845,6 +848,8 @@ async function boot() {
     watchMouvements();
     onMaterielsChange(() => { if (currentView === 'batiments') renderMateriels(); });
     watchMateriels();
+    onEntretiensChange(() => { if (currentView === 'batiments') renderMateriels(); });
+    watchEntretiens();
 
     await ensureCulturesSeeded();
     await ensureTypesSeeded();

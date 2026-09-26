@@ -33,6 +33,7 @@ let largeurM = 0; // 0/null -> mode filaire, pas de calcul de surface
 let dernierPointMercator = null; // {x, y} en mètres, dernier point RETENU (segment précédent)
 let distanceTotaleM = 0;
 let cellulesCouvertes = new Set();
+let debutTraceMs = null; // Date.now() au démarrage — sert à calculer la durée pour getResultat()
 let onStateChange = () => {};
 let onCurseurChange = () => {};
 
@@ -129,6 +130,7 @@ function notifier() {
       actif: watchHandle != null,
       distanceM: Math.round(distanceTotaleM),
       surfaceHa: surfaceHaCouverte(),
+      dureeMin: debutTraceMs != null ? Math.round((Date.now() - debutTraceMs) / 60000) : 0,
       modeFilaire: !largeurM
     });
   } catch (err) { /* jamais bloquant */ }
@@ -150,6 +152,7 @@ export function demarrerTrace(largeurMetres) {
   distanceTotaleM = 0;
   cellulesCouvertes = new Set();
   dernierPointMercator = null;
+  debutTraceMs = Date.now();
   assurerLayers();
   watchHandle = ecouterPositionNative((fix) => {
     afficherCurseur(fix);
@@ -185,6 +188,7 @@ export function arreterTrace() {
   arreterEcoutePositionNative(watchHandle);
   watchHandle = null;
   dernierPointMercator = null;
+  debutTraceMs = null;
   if (rubanLayer) { rubanLayer.remove(); rubanLayer = null; }
   if (filLayer) { filLayer.remove(); filLayer = null; }
   if (curseurMarker) { curseurMarker.remove(); curseurMarker = null; }
@@ -195,12 +199,19 @@ export function arreterTrace() {
 
 /**
  * Résultat exploitable : surfaceHa (null en mode filaire, jamais une valeur
- * inventée) + distanceM, à titre indicatif dans les deux modes.
+ * inventée) + distanceM/dureeHeures, à titre indicatif dans les deux modes —
+ * dureeHeures vient du chrono interne (début du tracé -> maintenant), jamais
+ * d'une heure de début/fin saisie à la main. À appeler AVANT arreterTrace()
+ * (qui remet le chrono à zéro), cf. ui-trace-intervention.js.
  */
 export function getResultat() {
+  const dureeHeures = debutTraceMs != null
+    ? Math.round(((Date.now() - debutTraceMs) / 3600000) * 100) / 100
+    : null;
   return {
     surfaceHa: surfaceHaCouverte(),
     distanceM: Math.round(distanceTotaleM),
+    dureeHeures,
     modeFilaire: !largeurM
   };
 }

@@ -1,22 +1,26 @@
-// Parc matériel : liste dans l'onglet Bâtiments, fiche, et l'action rapide
-// « graissé aujourd'hui ».
+// Parc matériel : liste dans l'onglet Bâtiments, fiche, et le module
+// d'entretien (graissage, soufflage, vidange, niveaux/pression, nettoyage).
 import {
   getMateriels, getMaterielById, createMateriel, updateMateriel,
-  validerGraissage, deleteMateriel, graissageLisible, resume,
-  CATEGORIES_MATERIEL, categorieMateriel
+  deleteMateriel, resume, CATEGORIES_MATERIEL, categorieMateriel,
+  TYPES_ENTRETIEN, labelEntretien, enregistrerEntretien, annulerDernierEntretien,
+  dernierEntretien, dateLisible, onEntretiensChange
 } from './materiel.js';
 import { getTypes, onTypesChange, estMasque, cibleDe } from './interventions-types.js';
-import { aujourdhui } from './implantations.js';
 import { messagePermission } from './diagnostic-regles.js';
 import { toastSucces, toastErreur } from './toast.js';
 
 const panel = document.getElementById('materiel-panel');
 const form = document.getElementById('mat-form');
 const el = {};
-['title', 'nom', 'marque', 'categorie', 'largeur', 'actions', 'graissage', 'graissage-info',
- 'graissage-aujourdhui', 'note', 'save', 'cancel', 'delete',
+['title', 'nom', 'marque', 'categorie', 'largeur', 'actions',
+ 'entretien-bloc', 'entretien-resume', 'entretien-type', 'entretien-enregistrer', 'entretien-annuler',
+ 'note', 'save', 'cancel', 'delete',
  'error-banner', 'error-text', 'error-close'
 ].forEach((k) => { el[k] = document.getElementById('mat-' + k); });
+
+el['entretien-type'].innerHTML = TYPES_ENTRETIEN
+  .map((t) => `<option value="${t.value}">${t.icone} ${escapeHtml(t.label)}</option>`).join('');
 
 el.categorie.innerHTML = CATEGORIES_MATERIEL
   .map((c) => `<option value="${c.value}">${c.icone} ${escapeHtml(c.label)}</option>`).join('');
@@ -56,17 +60,57 @@ el['error-close'].addEventListener('click', hideError);
 export function initMateriel() {
   document.getElementById('btn-new-materiel').addEventListener('click', openCreate);
   el.cancel.addEventListener('click', fermer);
-  el.graissage.addEventListener('change', majInfoGraissage);
-  el['graissage-aujourdhui'].addEventListener('click', () => {
-    el.graissage.value = aujourdhui();
-    majInfoGraissage();
-  });
   form.addEventListener('submit', enregistrer);
   el.delete.addEventListener('click', supprimer);
+
+  el['entretien-enregistrer'].addEventListener('click', async () => {
+    if (!editId) return;
+    const type = el['entretien-type'].value;
+    el['entretien-enregistrer'].disabled = true;
+    try {
+      await enregistrerEntretien(editId, type);
+      // Affichage optimiste : ne dépend pas du délai de retour de
+      // l'écouteur Firestore (cf. onEntretiensChange ci-dessous, qui prendra
+      // le relais dès que le journal aura vraiment reçu la mise à jour).
+      el['entretien-resume'].textContent = `Dernière opération : ${labelEntretien(type)} — aujourd'hui`;
+      el['entretien-annuler'].hidden = false;
+      toastSucces(labelEntretien(type) + ' enregistré.');
+    } catch (err) {
+      const msg = (err && err.message) || err;
+      toastErreur("Entretien non enregistré : " + msg);
+    } finally {
+      el['entretien-enregistrer'].disabled = false;
+    }
+  });
+  el['entretien-annuler'].addEventListener('click', async () => {
+    if (!editId) return;
+    el['entretien-annuler'].disabled = true;
+    try {
+      await annulerDernierEntretien(editId);
+      toastSucces('Dernière opération annulée.');
+    } catch (err) {
+      const msg = (err && err.message) || err;
+      toastErreur("Annulation impossible : " + msg);
+    } finally {
+      el['entretien-annuler'].disabled = false;
+    }
+  });
+
+  // Filet de sécurité contre le délai de propagation Firestore (cf.
+  // affichage optimiste ci-dessus) : dès que le journal confirme vraiment
+  // le changement, le résumé de la fiche ouverte se corrige tout seul.
+  onEntretiensChange(() => { if (!panel.hidden && editId) majEntretienResume(); });
 }
 
-function majInfoGraissage() {
-  el['graissage-info'].textContent = graissageLisible({ dateDernierGraissage: el.graissage.value });
+// Dernière opération TOUS types confondus (cf. materiel.js/dernierEntretien,
+// qui tient aussi compte de l'ancien champ dateDernierGraissage pour ne
+// perdre aucune donnée déjà saisie avant ce journal).
+function majEntretienResume() {
+  const dernier = editId ? dernierEntretien(editId) : null;
+  el['entretien-resume'].textContent = dernier
+    ? `Dernière opération : ${labelEntretien(dernier.type)} — ${dateLisible(dernier.date)}`
+    : 'Aucune opération enregistrée.';
+  el['entretien-annuler'].hidden = !dernier;
 }
 
 export function openCreate() {
@@ -79,8 +123,10 @@ export function openCreate() {
   el.nom.value = ''; el.marque.value = ''; el.largeur.value = '';
   el.categorie.value = 'AUTRE';
   peuplerActions([]);
-  el.graissage.value = ''; el.note.value = '';
-  majInfoGraissage();
+  el.note.value = '';
+  // Rien à entretenir avant que le matériel n'existe réellement (pas
+  // d'id à rattacher au journal tant qu'il n'est pas enregistré).
+  el['entretien-bloc'].hidden = true;
   log('fiche matériel ouverte (création)');
 }
 
@@ -97,9 +143,9 @@ export function openEditMateriel(m) {
   el.categorie.value = m.categorie || 'AUTRE';
   peuplerActions(Array.isArray(m.actions) ? m.actions : []);
   el.largeur.value = m.largeurTravailMetres != null ? m.largeurTravailMetres : '';
-  el.graissage.value = m.dateDernierGraissage || '';
   el.note.value = m.noteEntretien || '';
-  majInfoGraissage();
+  el['entretien-bloc'].hidden = false;
+  majEntretienResume();
 }
 
 function fermer() { panel.hidden = true; editId = null; }
@@ -115,7 +161,6 @@ async function enregistrer(e) {
       categorie: el.categorie.value,
       actions: lireActions(),
       largeurTravailMetres: el.largeur.value,
-      dateDernierGraissage: el.graissage.value || null,
       noteEntretien: el.note.value
     };
     if (editId) await updateMateriel(editId, data);
@@ -163,7 +208,13 @@ export function renderMateriels() {
         <div class="mat-sub">${escapeHtml(resume(m)) || '—'}</div>
         ${Array.isArray(m.actions) && m.actions.length
           ? `<div class="mat-actions">Conseillé pour : ${escapeHtml(m.actions.join(', '))}</div>` : ''}
-        <div class="mat-graissage">🛢️ Graissage ${escapeHtml(graissageLisible(m))}</div>
+        ${(() => {
+          const dernier = dernierEntretien(m.id);
+          const texte = dernier
+            ? `${labelEntretien(dernier.type)} ${escapeHtml(dateLisible(dernier.date))}`
+            : 'Aucun entretien enregistré';
+          return `<div class="mat-graissage">🛠️ ${texte}</div>`;
+        })()}
         ${m.noteEntretien ? `<div class="mat-note">${escapeHtml(m.noteEntretien)}</div>` : ''}
       </div>
       <button type="button" class="btn btn-secondary btn-mini mat-graisser" data-id="${escapeAttr(m.id)}"
@@ -183,10 +234,12 @@ export function renderMateriels() {
       ev.stopPropagation();
       b.disabled = true;
       try {
-        await validerGraissage(b.dataset.id);
+        await enregistrerEntretien(b.dataset.id, 'GRAISSAGE');
         log('graissage enregistré');
+        toastSucces('Graissage enregistré.');
       } catch (err) {
-        alert('Graissage non enregistré : ' + ((err && err.message) || err));
+        const msg = (err && err.message) || err;
+        toastErreur('Graissage non enregistré : ' + msg);
       } finally { b.disabled = false; }
     });
   });

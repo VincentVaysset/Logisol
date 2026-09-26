@@ -2,8 +2,10 @@
 //
 // Suivi volontairement minimal : ce qui sert vraiment au quotidien, c'est
 // savoir quel outil a fait quel chantier, sa largeur de travail, et depuis
-// combien de temps il n'a pas été graissé. Tout le reste (heures moteur,
-// factures, pièces) serait de la saisie que personne ne tient à jour.
+// combien de temps il n'a pas reçu tel ou tel entretien (graissage,
+// vidange, soufflage, niveaux/pression, nettoyage — cf. TYPES_ENTRETIEN et
+// le journal lgs_materiel_entretien plus bas). Tout le reste (heures
+// moteur, factures, pièces) serait de la saisie que personne ne tient à jour.
 //
 // Le parc réel de l'exploitation est amorcé au premier lancement
 // (PARC_PAR_DEFAUT), mais reste ENTIÈREMENT à la main de l'exploitant :
@@ -17,6 +19,28 @@ import {
 import { aujourdhui } from './implantations.js';
 
 const COL = collection(db, 'lgs_materiel');
+
+// Journal des opérations d'entretien (collection "lgs_materiel_entretien",
+// déjà couverte par le joker lgs_.* des règles Firestore — rien à publier).
+// Remplace le simple bouton "graissé aujourd'hui" (un seul champ, un seul
+// type d'action) par un vrai journal, sur le même principe que le journal
+// de mouvements de stock : chaque opération est un document daté, jamais
+// réécrit — "annuler" supprime le document plutôt que de deviner une valeur
+// précédente.
+const COL_ENTRETIEN = collection(db, 'lgs_materiel_entretien');
+
+export const TYPES_ENTRETIEN = [
+  { value: 'GRAISSAGE',  label: 'Graissage',                    icone: '🛢️' },
+  { value: 'SOUFFLAGE',  label: 'Soufflage filtres/radiateurs',  icone: '💨' },
+  { value: 'VIDANGE',    label: 'Vidange',                       icone: '🔧' },
+  { value: 'NIVEAUX',    label: 'Niveaux / Pression',            icone: '📏' },
+  { value: 'NETTOYAGE',  label: 'Nettoyage / Lavage',            icone: '🧼' }
+];
+
+export function labelEntretien(type) {
+  const t = TYPES_ENTRETIEN.find((x) => x.value === type);
+  return t ? t.label : type;
+}
 
 // Le marqueur d'amorçage vit dans la collection du matériel plutôt que dans
 // une collection dédiée : une collection de plus, c'est une règle Firestore
@@ -32,7 +56,8 @@ const ID_MARQUEUR = '_seed';
  * @property {string} [categorie]
  * @property {number} [largeurTravailMetres]
  * @property {string[]} [actions]              noms des types d'activité conseillés
- * @property {string} [dateDernierGraissage]   "AAAA-MM-JJ"
+ * @property {string} [dateDernierGraissage]   "AAAA-MM-JJ" — hérité, non
+ *   réédité par la fiche (cf. dernierEntretien/annulerDernierEntretien)
  * @property {string} [noteEntretien]
  */
 
@@ -169,29 +194,6 @@ export function materielsPourAction(nomType, liste = courants) {
 }
 
 /** Jours écoulés depuis le dernier graissage, ou null si jamais renseigné. */
-export function joursDepuisGraissage(m, date = aujourdhui()) {
-  if (!m || !m.dateDernierGraissage) return null;
-  const j = Math.round(
-    (Date.parse(date + 'T12:00:00') - Date.parse(m.dateDernierGraissage + 'T12:00:00')) / 86400000
-  );
-  return isFinite(j) ? Math.max(0, j) : null;
-}
-
-// Formulation en clair. Aucun seuil d'alerte n'est inventé : la fréquence de
-// graissage dépend de l'outil et de l'usage, et une couleur d'alarme posée au
-// hasard finirait ignorée. On affiche le fait, l'exploitant juge.
-export function graissageLisible(m, date = aujourdhui()) {
-  const j = joursDepuisGraissage(m, date);
-  if (j === null) return 'jamais renseigné';
-  if (j === 0) return "aujourd'hui";
-  if (j === 1) return 'hier';
-  if (j < 31) return `il y a ${j} jours`;
-  const mois = Math.floor(j / 30.44);
-  if (mois < 12) return `il y a ${mois} mois`;
-  const ans = Math.floor(mois / 12);
-  return ans === 1 ? 'il y a plus d\'un an' : `il y a plus de ${ans} ans`;
-}
-
 export function resume(m) {
   const bouts = [];
   if (m.marque) bouts.push(m.marque);
@@ -199,6 +201,12 @@ export function resume(m) {
   return bouts.join(' · ');
 }
 
+// dateDernierGraissage n'est PLUS géré ici : la fiche ne l'édite plus
+// directement (remplacée par le journal d'entretien, cf. plus bas), et le
+// réécrire à chaque sauvegarde de la fiche (nom, marque, catégorie...)
+// effacerait silencieusement l'historique hérité à la première modification
+// venue. Seuls enregistrerEntretien()/annulerDernierEntretien() y touchent
+// désormais (ce dernier pour son repli de rétrocompatibilité uniquement).
 function nettoyer(data) {
   const l = Number(data.largeurTravailMetres);
   return {
@@ -207,7 +215,6 @@ function nettoyer(data) {
     categorie: data.categorie || 'AUTRE',
     largeurTravailMetres: isFinite(l) && l > 0 ? l : null,
     actions: Array.isArray(data.actions) ? data.actions.map(String) : [],
-    dateDernierGraissage: data.dateDernierGraissage || null,
     noteEntretien: String(data.noteEntretien || '').trim()
   };
 }
@@ -227,14 +234,98 @@ export async function updateMateriel(id, data) {
   return updateDoc(doc(db, 'lgs_materiel', id), { ...m, majLe: serverTimestamp() });
 }
 
-/** Action rapide : « graissé aujourd'hui », en un seul geste. */
-export async function validerGraissage(id, date) {
-  return updateDoc(doc(db, 'lgs_materiel', id), {
-    dateDernierGraissage: date || aujourdhui(),
-    majLe: serverTimestamp()
+export async function deleteMateriel(id) {
+  return deleteDoc(doc(db, 'lgs_materiel', id));
+}
+
+// --- Journal d'entretien -----------------------------------------------------
+let entretiensCourants = [];
+const entretienListeners = new Set();
+
+export function getEntretiens() { return entretiensCourants; }
+export function onEntretiensChange(cb) { entretienListeners.add(cb); cb(entretiensCourants); return () => entretienListeners.delete(cb); }
+
+export function watchEntretiens() {
+  return onSnapshot(COL_ENTRETIEN, (snap) => {
+    entretiensCourants = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    entretienListeners.forEach((cb) => cb(entretiensCourants));
   });
 }
 
-export async function deleteMateriel(id) {
-  return deleteDoc(doc(db, 'lgs_materiel', id));
+/** Enregistre une opération d'entretien à la date du jour (ou la date donnée). */
+export async function enregistrerEntretien(materielId, type, date = aujourdhui()) {
+  if (!materielId) throw new Error('Matériel manquant.');
+  if (!TYPES_ENTRETIEN.some((t) => t.value === type)) throw new Error("Type d'entretien inconnu.");
+  return addDoc(COL_ENTRETIEN, {
+    materielId, type, date,
+    creeLe: serverTimestamp(),
+    creePar: auth.currentUser ? auth.currentUser.uid : null
+  });
+}
+
+/**
+ * Dernière opération d'entretien d'un matériel, TOUS types confondus.
+ * Rétrocompatibilité : l'ancien champ dateDernierGraissage (une seule valeur,
+ * jamais horodatée, posée par l'ancien bouton "graissé aujourd'hui") est
+ * traité comme une opération GRAISSAGE historique tant qu'aucune entrée plus
+ * récente n'existe dans le journal — sans ça, toute donnée déjà enregistrée
+ * avant ce journal deviendrait invisible/inannulable.
+ */
+export function dernierEntretien(materielId, liste = entretiensCourants) {
+  const m = getMaterielById(materielId);
+  const candidats = liste
+    .filter((e) => e.materielId === materielId)
+    .map((e) => ({ ...e, source: 'journal' }));
+  if (m && m.dateDernierGraissage) {
+    candidats.push({ type: 'GRAISSAGE', date: m.dateDernierGraissage, source: 'legacy' });
+  }
+  if (!candidats.length) return null;
+  // À date égale, le journal prime sur l'ancien champ (une vraie opération
+  // datée l'emporte sur un simple repère hérité).
+  return candidats.reduce((meilleur, c) => (
+    !meilleur || c.date > meilleur.date || (c.date === meilleur.date && meilleur.source === 'legacy')
+      ? c : meilleur
+  ), null);
+}
+
+/** Dernière date pour un type précis (détail par type sur la fiche). */
+export function dernierEntretienDeType(materielId, type, liste = entretiensCourants) {
+  const m = getMaterielById(materielId);
+  const dates = liste
+    .filter((e) => e.materielId === materielId && e.type === type)
+    .map((e) => e.date);
+  if (type === 'GRAISSAGE' && m && m.dateDernierGraissage) dates.push(m.dateDernierGraissage);
+  if (!dates.length) return null;
+  return dates.reduce((a, b) => (b > a ? b : a));
+}
+
+/**
+ * Annule la dernière opération d'entretien enregistrée (tous types) : décrite
+ * ci-dessus par dernierEntretien(). Un repère hérité (source 'legacy') n'a
+ * pas de document à supprimer — on le remet simplement à vide sur la fiche.
+ */
+export async function annulerDernierEntretien(materielId) {
+  const dernier = dernierEntretien(materielId);
+  if (!dernier) throw new Error('Aucune opération à annuler.');
+  if (dernier.source === 'legacy') {
+    return updateDoc(doc(db, 'lgs_materiel', materielId), { dateDernierGraissage: null, majLe: serverTimestamp() });
+  }
+  return deleteDoc(doc(db, 'lgs_materiel_entretien', dernier.id));
+}
+
+// Formulation en clair. Aucun seuil d'alerte n'est inventé : la fréquence
+// d'entretien dépend de l'outil et de l'usage, et une couleur d'alarme
+// posée au hasard finirait ignorée. On affiche le fait, l'exploitant juge.
+/** Formulation en clair d'une date "AAAA-MM-JJ" quelconque. */
+export function dateLisible(date, refDate = aujourdhui()) {
+  if (!date) return 'jamais renseigné';
+  const j = Math.round((Date.parse(refDate + 'T12:00:00') - Date.parse(date + 'T12:00:00')) / 86400000);
+  if (!isFinite(j)) return 'jamais renseigné';
+  if (j === 0) return "aujourd'hui";
+  if (j === 1) return 'hier';
+  if (j < 31) return `il y a ${j} jours`;
+  const mois = Math.floor(j / 30.44);
+  if (mois < 12) return `il y a ${mois} mois`;
+  const ans = Math.floor(mois / 12);
+  return ans === 1 ? "il y a plus d'un an" : `il y a plus de ${ans} ans`;
 }
