@@ -62,6 +62,10 @@ errorBannerClose.addEventListener('click', hideFicheError);
 let mode = null; // 'create' | 'edit'
 let editingId = null;
 let pendingGeometry = null;
+// Précision/fixType du relevé GPS/RTK qui a produit pendingGeometry (cf.
+// releve-contour.js/getResultat) — null pour un contour dessiné à la main
+// comme aujourd'hui (openEdit le remet systématiquement à null, cf. plus bas).
+let pendingReleveGps = null;
 // Implantation actuellement en place sur la parcelle éditée (ou null). Sert à
 // savoir s'il faut créer une nouvelle implantation (culture changée, ou semis
 // à une autre date) ou simplement corriger celle qui existe.
@@ -192,7 +196,7 @@ btnContourModifier.addEventListener('click', () => {
   });
 });
 
-export function openCreate({ geometry, surfaceHa, croise }) {
+export function openCreate({ geometry, surfaceHa, croise, releveGps }) {
   // LA FICHE EST AFFICHÉE EN PREMIER, avant tout remplissage.
   // Auparavant, panel.hidden = false était la DERNIÈRE instruction : la
   // moindre erreur en amont (liste de cultures non chargée, champ absent...)
@@ -203,6 +207,7 @@ export function openCreate({ geometry, surfaceHa, croise }) {
   mode = 'create';
   editingId = null;
   pendingGeometry = geometry;
+  pendingReleveGps = releveGps || null;
   saveToken++;
   panel.hidden = false;
   hideFicheError();
@@ -252,6 +257,7 @@ export function openEdit(parcelle, implantation) {
   mode = 'edit';
   editingId = parcelle.id;
   pendingGeometry = parcelle.coordonnees;
+  pendingReleveGps = null;
   saveToken++;
   hideFicheError();
   resetSaveButton();
@@ -385,6 +391,11 @@ form.addEventListener('submit', async (e) => {
       notes: inputNotes.value,
       coordonnees: pendingGeometry
     };
+    // Précision/fixType du relevé GPS/RTK à l'origine du contour (cf.
+    // gps.js/releveGpsDepuisFix) — seulement quand ce contour vient bien
+    // d'un relevé (releve-contour.js), jamais un champ vide/undefined sur
+    // une parcelle dessinée à la main (Firestore refuse "undefined").
+    if (pendingReleveGps) data.releveGps = pendingReleveGps;
 
     let parcelleId = editingId;
     if (mode === 'create') {

@@ -227,6 +227,34 @@
     </div>
   </div>
 
+  <!-- Fin de relevé de contour (www/js/ui-releve.js) : au moins 3 points
+       posés, choix de la destination avant écriture Firestore — jamais
+       automatique, cf. CLAUDE.md (toute action qui affecte une parcelle
+       existante s'annonce avant d'être appliquée). -->
+  <div id="releve-fin-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>Enregistrer le relevé</h2>
+      <p class="apercu-sous-titre" id="releve-fin-resume"></p>
+      <div id="releve-fin-error-banner" class="fiche-error-banner" hidden>
+        <span id="releve-fin-error-text"></span>
+        <button type="button" id="releve-fin-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="releve-fin-form">
+        <label><input type="radio" name="releve-destination" value="nouvelle" checked> Nouvelle parcelle</label>
+        <label><input type="radio" name="releve-destination" value="existante"> Mettre à jour une parcelle existante</label>
+        <div id="releve-fin-select-wrap" hidden>
+          <label for="releve-fin-select">Parcelle à mettre à jour</label>
+          <select id="releve-fin-select"></select>
+          <p class="champ-aide">Remplace le contour et la surface enregistrés par ce relevé.</p>
+        </div>
+      </form>
+      <div class="fiche-actions">
+        <button type="button" id="releve-fin-retour" class="btn btn-secondary">Retour au relevé</button>
+        <button type="button" id="releve-fin-valider" class="btn btn-primary">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Popup "Nouvelle version disponible" (www/js/maj-apk.js) — porté
        depuis Ovilog (VincentVaysset/Ovilog, branche
        claude/sheep-herd-android-app-7tlcq1). L'appli n'étant pas
@@ -304,6 +332,23 @@
     <button id="btn-draw-cancel" type="button" class="draw-btn draw-btn-cancel">✖ Annuler</button>
   </div>
   <p id="draw-hint" class="draw-hint" hidden></p>
+
+  <!-- Barre du mode « relevé de contour au GPS/RTK » (www/js/releve-contour.js,
+       www/js/ui-releve.js) : même principe hors carte que la barre de dessin
+       ci-dessus, mais les sommets viennent du GPS/RTK, pas du doigt. -->
+  <div id="releve-toolbar" class="draw-toolbar" hidden>
+    <span id="releve-count" class="draw-count">0 point</span>
+    <span id="releve-surface" class="draw-count"></span>
+    <label class="releve-auto-label">
+      <input type="checkbox" id="releve-mode-auto"> Auto
+    </label>
+    <input type="number" id="releve-seuil" class="releve-seuil" value="2" min="0.5" step="0.5"
+           title="Distance minimale entre deux points en mode auto (m)">
+    <button id="btn-releve-point" type="button" class="draw-btn draw-btn-primary">➕ Point</button>
+    <button id="btn-releve-undo" type="button" class="draw-btn">↩ Annuler le point</button>
+    <button id="btn-releve-finish" type="button" class="draw-btn draw-btn-primary">✅ Terminer</button>
+    <button id="btn-releve-cancel" type="button" class="draw-btn draw-btn-cancel">✖ Annuler</button>
+  </div>
 
   <!-- Barre du mode « placer un bâtiment ». Même principe que la barre de
        dessin : en flux normal, hors de la carte, donc jamais recouverte. -->
@@ -474,6 +519,7 @@
     <button id="btn-locate" type="button" class="btn btn-fab btn-fab-icon" title="Centrer sur ma position">📍</button>
     <button id="btn-fit" type="button" class="btn btn-fab btn-fab-icon" title="Voir toutes mes parcelles">🎯</button>
     <button id="btn-draw" type="button" class="btn btn-fab">✏️ Dessiner</button>
+    <button id="btn-releve" type="button" class="btn btn-fab btn-fab-icon" title="Relever un contour au GPS/RTK">📐</button>
     <button id="btn-import" type="button" class="btn btn-fab btn-fab-secondary">📂 Importer</button>
   </div>
   <input type="file" id="input-geojson" accept=".json,.geojson,application/geo+json,application/json" hidden>

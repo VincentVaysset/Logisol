@@ -543,6 +543,37 @@ header button {
 }
 .draw-hint[hidden] { display: none; }
 
+/* --- Barre du relevé de contour GPS/RTK (www/js/ui-releve.js) --- */
+.releve-auto-label {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.releve-seuil {
+  flex: 0 0 56px;
+  min-height: 44px;
+  border-radius: var(--radius);
+  border: none;
+  padding: 4px 6px;
+  font-size: 14px;
+  text-align: center;
+}
+.releve-sommet-label {
+  background: rgba(29,78,216,0.9);
+  border: none;
+  box-shadow: none;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+.releve-sommet-label::before { display: none; }
+
 /* --- Étiquette permanente du nom de parcelle sur la carte --- */
 .parcelle-label {
   background: rgba(0,0,0,0.55);

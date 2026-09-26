@@ -23,6 +23,11 @@ import { initSyncStatus, onSyncStatusChange } from './sync-status.js';
 import { initMajApk } from './maj-apk.js';
 import { libelleBadge } from './gps.js';
 import {
+  initReleveContour, demarrerReleve, arreterReleve, ajouterPointManuel,
+  annulerDernierPoint, activerModeAuto, definirSeuilAutoM, getResultat
+} from './releve-contour.js';
+import { initReleveUi, setParcellesReleve, ouvrirFinReleve } from './ui-releve.js';
+import {
   initMap, renderParcelles, renderLegend, refreshMapSize,
   fitToParcelles, centrerSurMaPosition, vueARestaurer,
   renderBatiments as renderBatimentsCarte, setOnBatimentClick,
@@ -112,6 +117,15 @@ const btnDrawCancel = document.getElementById('btn-draw-cancel');
 const placeToolbar = document.getElementById('place-toolbar');
 const placeInfo = document.getElementById('place-info');
 const contourToolbar = document.getElementById('contour-toolbar');
+const releveToolbar = document.getElementById('releve-toolbar');
+const releveCount = document.getElementById('releve-count');
+const releveSurface = document.getElementById('releve-surface');
+const releveModeAutoEl = document.getElementById('releve-mode-auto');
+const releveSeuilEl = document.getElementById('releve-seuil');
+const btnRelevePoint = document.getElementById('btn-releve-point');
+const btnReleveUndo = document.getElementById('btn-releve-undo');
+const btnReleveFinish = document.getElementById('btn-releve-finish');
+const btnReleveCancel = document.getElementById('btn-releve-cancel');
 const carteSecteurFiltreEl = document.getElementById('carte-secteur-filtre');
 const listeSecteurFiltreEl = document.getElementById('liste-secteur-filtre');
 let secteurFiltre = '';
@@ -164,6 +178,7 @@ function recomputeAndRender() {
   setParcellesMouvements(enriched);
   setParcellesAssolement(enriched);
   setParcellesRapports(enriched);
+  setParcellesReleve(enriched);
 
   majEtat({
     parcelles: enriched,
@@ -430,6 +445,31 @@ function majEtatDessin({ actif, sommets }) {
   }
 }
 
+// Reflète l'état du relevé de contour GPS/RTK dans l'interface. Appelé par
+// releve-contour.js à chaque changement (point posé/annulé, relevé démarré
+// ou arrêté) — même principe que majEtatDessin ci-dessus.
+function majEtatReleve({ actif, nbPoints: n, surfaceHa, modeAuto, seuilAutoM }) {
+  releveToolbar.hidden = !actif;
+  fabCarte.hidden = actif || currentView !== 'carte';
+  tabsEl.classList.toggle('tabs-bloques', actif);
+  releveCount.textContent = n + (n > 1 ? ' points' : ' point');
+  releveSurface.textContent = surfaceHa != null ? `${surfaceHa} ha` : '';
+  releveModeAutoEl.checked = modeAuto;
+  releveSeuilEl.value = seuilAutoM;
+  btnReleveUndo.disabled = n < 1;
+  btnReleveFinish.disabled = n < 3;
+  if (actif) {
+    afficherIndice(
+      n < 3
+        ? 'Déplace-toi le long de la limite puis ➕ Point (ou active Auto), au moins 3 points.'
+        : 'Continue si besoin, puis ✅ Terminer pour calculer la surface.',
+      0
+    );
+  } else {
+    masquerIndice();
+  }
+}
+
 // --- Placement d'un bâtiment sur la carte ---------------------------------
 // Bascule l'appli en vue Carte, affiche une barre d'outils dédiée, et rend
 // la main au formulaire une fois le point validé ou abandonné.
@@ -604,6 +644,12 @@ async function boot() {
       onStateChange: majEtatDessin
     });
 
+    initReleveContour({
+      onStateChange: majEtatReleve,
+      onCurseurChange: afficherBadgeGps
+    });
+    initReleveUi();
+
     initImport({
       onImported: (count) => {
         alert(`${count} parcelle(s) importée(s). Touche chaque parcelle pour compléter culture et notes.`);
@@ -683,6 +729,26 @@ async function boot() {
       cancelDrawing();
       afficherIndice('Dessin annulé.', 3000);
     });
+
+    document.getElementById('btn-releve').addEventListener('click', () => {
+      setView('carte');
+      demarrerReleve();
+    });
+    btnRelevePoint.addEventListener('click', () => {
+      if (!ajouterPointManuel()) afficherIndice('Position GPS pas encore reçue — réessaie dans un instant.', 4000);
+    });
+    btnReleveUndo.addEventListener('click', () => annulerDernierPoint());
+    btnReleveFinish.addEventListener('click', () => {
+      const resultat = getResultat();
+      if (!resultat) { afficherIndice('Il faut au moins 3 points pour calculer une surface.', 5000); return; }
+      ouvrirFinReleve(resultat, { onTermine: arreterReleve });
+    });
+    btnReleveCancel.addEventListener('click', () => {
+      arreterReleve();
+      afficherIndice('Relevé annulé.', 3000);
+    });
+    releveModeAutoEl.addEventListener('change', () => activerModeAuto(releveModeAutoEl.checked));
+    releveSeuilEl.addEventListener('change', () => definirSeuilAutoM(releveSeuilEl.value));
 
     document.getElementById('btn-locate').addEventListener('click', () => {
       setView('carte');
