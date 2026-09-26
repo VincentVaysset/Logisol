@@ -572,6 +572,17 @@ header button {
   padding: 1px 6px;
   border-radius: 999px;
 }
+
+/* --- Barre du traçage GPS en direct (www/js/ui-trace-intervention.js) --- */
+.trace-materiel-select {
+  flex: 1 1 auto;
+  min-height: 44px;
+  min-width: 120px;
+  border-radius: var(--radius);
+  border: none;
+  padding: 4px 8px;
+  font-size: 14px;
+}
 .releve-sommet-label::before { display: none; }
 
 /* --- Étiquette permanente du nom de parcelle sur la carte --- */

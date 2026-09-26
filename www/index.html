@@ -350,6 +350,18 @@
     <button id="btn-releve-cancel" type="button" class="draw-btn draw-btn-cancel">✖ Annuler</button>
   </div>
 
+  <!-- Barre du mode « traçage GPS en direct d'un chantier » (bande de
+       passage, www/js/trace-intervention.js/ui-trace-intervention.js) —
+       ouverte depuis le tunnel d'activité (📡 Tracer en direct, bloc Surface
+       travaillée), pas depuis la carte : pas de bouton flottant dédié. -->
+  <div id="trace-toolbar" class="draw-toolbar" hidden>
+    <select id="trace-materiel-select" class="trace-materiel-select"></select>
+    <span id="trace-distance" class="draw-count"></span>
+    <span id="trace-surface" class="draw-count"></span>
+    <button id="btn-trace-finish" type="button" class="draw-btn draw-btn-primary">✅ Terminer</button>
+    <button id="btn-trace-cancel" type="button" class="draw-btn draw-btn-cancel">✖ Annuler</button>
+  </div>
+
   <!-- Barre du mode « placer un bâtiment ». Même principe que la barre de
        dessin : en flux normal, hors de la carte, donc jamais recouverte. -->
   <div id="place-toolbar" class="draw-toolbar" hidden>
@@ -1068,6 +1080,7 @@
               <input type="number" id="itv-surface" step="any" min="0" inputmode="decimal">
               <div class="melange-pied">
                 <button type="button" id="itv-surface-tout" class="btn btn-secondary btn-mini">Toute la surface</button>
+                <button type="button" id="itv-surface-tracer" class="btn btn-secondary btn-mini">📡 Tracer en direct</button>
                 <span id="itv-surface-aide" class="champ-aide"></span>
               </div>
             </div>

@@ -41,8 +41,10 @@ import {
 import { initImport } from './import-geojson.js';
 import { openCreate, openEdit, setSecteursConnus, setDerobeesConnues, setOnDemanderModifContour } from './ui.js';
 import {
-  setParcellesDisponibles, setChauffeursConnus, setCreateursDeContenant
+  setParcellesDisponibles, setChauffeursConnus, setCreateursDeContenant, setDemarreurTrace
 } from './ui-intervention.js';
+import { initTraceIntervention } from './trace-intervention.js';
+import { initTraceUi, ouvrirTrace, majEtatTrace as majEtatTraceToolbar } from './ui-trace-intervention.js';
 import { initAccueil, majEtat, renderFeed, ouvrirApercu, fermerApercu } from './accueil.js';
 import { watchStocks, onStocksChange, agregerParCategorie } from './stocks.js';
 import { ensureSeeded as ensureStadesSeeded, watchStades, onStadesChange } from './stades.js';
@@ -470,6 +472,18 @@ function majEtatReleve({ actif, nbPoints: n, surfaceHa, modeAuto, seuilAutoM }) 
   }
 }
 
+// Reflète l'état du traçage GPS en direct d'un chantier (trace-intervention.js)
+// dans l'interface. Contrairement au dessin/relevé, la barre d'outils
+// elle-même (#trace-toolbar) est montrée/masquée par ui-trace-intervention.js
+// (ouvrirTrace/fermer) — ce qui reste à faire ici, c'est juste ce qui est
+// commun à tous les modes plein-écran (masquer les boutons flottants,
+// bloquer les onglets) et son propre affichage (distance/surface).
+function majEtatTrace(etat) {
+  fabCarte.hidden = etat.actif || currentView !== 'carte';
+  tabsEl.classList.toggle('tabs-bloques', etat.actif);
+  majEtatTraceToolbar(etat);
+}
+
 // --- Placement d'un bâtiment sur la carte ---------------------------------
 // Bascule l'appli en vue Carte, affiche une barre d'outils dédiée, et rend
 // la main au formulaire une fois le point validé ou abandonné.
@@ -649,6 +663,16 @@ async function boot() {
       onCurseurChange: afficherBadgeGps
     });
     initReleveUi();
+
+    initTraceIntervention({
+      onStateChange: majEtatTrace,
+      onCurseurChange: afficherBadgeGps
+    });
+    initTraceUi();
+    setDemarreurTrace((opts) => {
+      setView('carte');
+      ouvrirTrace(opts);
+    });
 
     initImport({
       onImported: (count) => {

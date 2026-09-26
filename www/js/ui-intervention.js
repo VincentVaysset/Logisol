@@ -33,6 +33,12 @@ import {
 // importe ce module) : même branchement que pour le placement sur la carte.
 let createurs = { batiment: null, cellule: null, emplacement: null };
 export function setCreateursDeContenant(c) { createurs = { ...createurs, ...c }; }
+
+// Traçage GPS en direct du chantier (bande de passage), branché depuis
+// main.js — même principe que createurs ci-dessus, pour éviter un cycle
+// d'imports avec trace-intervention.js/map.js.
+let demarreurTrace = null;
+export function setDemarreurTrace(fn) { demarreurTrace = fn; }
 import { getCellules, getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getLots } from './lots.js';
@@ -61,7 +67,7 @@ const el = {};
   'g-semis','culture','culture-aide','culture-toggle','culture-new','culture-nom','culture-add',
   'semence','melange','melange-toggle','melange-rows','melange-add','melange-total',
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
-  'g-surface','surface','surface-tout','surface-aide',
+  'g-surface','surface','surface-tout','surface-tracer','surface-aide',
   'g-fourrage','coupe','fourrage','fourrages','fourrage-aide',
   'g-pressage','nb-bottes','poids-botte',
   'g-sechage','nb-remorques','t-remorque',
@@ -436,6 +442,30 @@ function majAideSurface() {
 el['surface-tout'].addEventListener('click', () => {
   el.surface.value = surfaceSelectionnee() || '';
   majTotalGroupe();
+});
+
+// Tracé GPS en direct du chantier (bande de passage, cf. trace-intervention.js)
+// plutôt qu'une surface tapée à vue de nez. Le tunnel s'efface le temps du
+// tracé (même principe que la création d'un contenant manquant, cf.
+// eclipserTunnel/rouvrirTunnel plus haut) et revient avec le champ rempli —
+// sans repasser par preparerFlux(), spécifique à l'étape 3 (flux de stock),
+// jamais concernée ici.
+el['surface-tracer'].addEventListener('click', () => {
+  if (!demarreurTrace) { showError('Traçage en direct indisponible.'); return; }
+  const materielId = el['materiel-id'].value;
+  const materiel = materielId ? getMaterielById(materielId) : null;
+  panel.hidden = true;
+  demarreurTrace({
+    largeurM: materiel ? materiel.largeurTravailMetres : null,
+    materielId,
+    onTermine: (resultat) => {
+      panel.hidden = false;
+      if (resultat && resultat.surfaceHa != null) {
+        el.surface.value = resultat.surfaceHa;
+        majTotalGroupe();
+      }
+    }
+  });
 });
 
 // Total calculé, affiché en clair sous le bloc : c'est lui qui partira en
