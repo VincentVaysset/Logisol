@@ -104,7 +104,6 @@ export function setStocks(list) {
 
 export function initStocks(opts = {}) {
   onChangeExterne = opts.onChange || (() => {});
-  document.getElementById('btn-new-stock').addEventListener('click', () => openCreate());
   document.getElementById('stock-cancel').addEventListener('click', fermer);
   [selectCategorie, selectConservation].forEach((el) => el.addEventListener('change', appliquerCategorie));
   selectFourrage.addEventListener('change', () => {
