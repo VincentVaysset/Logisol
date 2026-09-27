@@ -37,18 +37,36 @@ const COL = collection(db, 'lgs_mouvements_stock');
  * @property {string} [intervenant]
  */
 
-// TRANSFERT et INVENTAIRE s'ajoutent aux quatre types demandés :
+// TRANSFERT, INVENTAIRE et SORTIE_VENTE s'ajoutent aux quatre types
+// historiques :
 //   * TRANSFERT — vider un silo dans un autre est un geste courant, et le
 //     saisir comme une perte suivie d'un achat fausserait les deux compteurs ;
 //   * INVENTAIRE — un re-comptage qui ne colle pas au calcul doit laisser une
-//     trace explicite plutôt que d'être corrigé en douce.
+//     trace explicite plutôt que d'être corrigé en douce ;
+//   * SORTIE_VENTE — symétrique d'ENTREE_ACHAT (fournisseur -> exploitation
+//     à l'achat, exploitation -> client à la vente), avec son propre prix
+//     (cf. prixTonne dans nettoyer()) : vendre du foin excédentaire n'est ni
+//     une perte ni une sortie d'alimentation.
 export const TYPES_MOUVEMENT = [
   { value: 'ENTREE_RECOLTE',      label: 'Entrée — récolte',      sens: 1,  icone: '🌾' },
   { value: 'ENTREE_ACHAT',        label: 'Entrée — achat',        sens: 1,  icone: '🛒' },
   { value: 'TRANSFERT',           label: 'Transfert',             sens: 0,  icone: '🔁' },
   { value: 'SORTIE_ALIMENTATION', label: 'Sortie — alimentation', sens: -1, icone: '🐑' },
+  { value: 'SORTIE_VENTE',        label: 'Sortie — vente',        sens: -1, icone: '💰' },
   { value: 'PERTE',               label: 'Perte / déchet',        sens: -1, icone: '🗑️' },
   { value: 'INVENTAIRE',          label: 'Correction d\'inventaire', sens: 0, icone: '📋' }
+];
+
+// Produits proposés pour un achat/vente (mouvement ENTREE_ACHAT/SORTIE_VENTE) —
+// une nomenclature commerciale volontairement plus courte que le référentiel
+// agronomique fin (stocks.js/FOURRAGES, TYPES_GRAIN...), pensée pour une
+// facture, pas pour la traçabilité de coupe. "Amendements bio" et les
+// concentrés (Tourteaux, Complet brebis/agnelles) ne vont dans aucun silo ni
+// hangar suivi : ils s'achètent avec une destination "Autre" (cf.
+// valider() plus bas, qui l'autorise spécifiquement pour un achat).
+export const PRODUITS_ACHAT_VENTE = [
+  'Foin', 'Enrubannage', 'Paille', 'Céréales',
+  'Tourteaux', 'Complet brebis', 'Complet agnelles', 'Amendements bio'
 ];
 
 export function typeMouvement(value) {
@@ -216,6 +234,16 @@ function nettoyer(data) {
   m.poidsBotteKg = isFinite(p) && p > 0 ? p : null;
   m.typeGrain = data.typeGrain || null;
 
+  // --- Achat / vente -------------------------------------------------------
+  // produit : nomenclature commerciale (PRODUITS_ACHAT_VENTE), distincte du
+  // référentiel agronomique fin utilisé pour la traçabilité de coupe.
+  // prixTonne : jamais un montant total stocké — le prix peut être corrigé
+  // après coup sans devoir recalculer un total figé ; le montant se calcule
+  // à l'affichage (cf. fourrages.js/montantMouvement).
+  m.produit = data.produit || null;
+  const prix = Number(data.prixTonne);
+  m.prixTonne = isFinite(prix) && prix > 0 ? prix : null;
+
   // --- Traçabilité du fourrage -------------------------------------------
   // Ce qui fait qu'un fourrage est « le même » au moment de le donner aux
   // brebis : son type, sa coupe, son mode de conservation. Écrit sur le
@@ -231,6 +259,12 @@ function nettoyer(data) {
   // qu'elle vienne du tunnel d'activité ou de l'onglet Stocks.
   m.categorieCle = data.categorieCle || null;
   m.categorieLabel = data.categorieLabel || null;
+
+  // Consommation par lot sur une période (cf. ui-mouvements.js) : la date du
+  // mouvement reste le point d'ancrage chronologique du journal, dateFin ne
+  // sert qu'à retrouver sur combien de jours la quantité totale a été
+  // calculée — ni l'un ni l'autre n'est recalculé après coup.
+  m.dateFin = data.dateFin || null;
   return m;
 }
 
@@ -241,7 +275,13 @@ function valider(m) {
   const t = typeMouvement(m.typeMouvement);
   const versContenant = CONTENANTS.includes(m.destinationType) && m.destinationId;
   const depuisContenant = CONTENANTS.includes(m.sourceType) && m.sourceId;
-  if (t.sens === 1 && !versContenant) {
+  // Un achat de concentré ou d'amendement (Tourteaux, Complet brebis/agnelles,
+  // Amendements bio...) ne rejoint aucun silo ni hangar suivi : seul ce type
+  // précis de mouvement peut viser une destination "Autre" nommée en texte
+  // libre. Une récolte, elle, existe forcément quelque part de traçable.
+  const versAutrePourAchat = m.typeMouvement === 'ENTREE_ACHAT' &&
+    m.destinationType === 'AUTRE' && !!m.destinationNom;
+  if (t.sens === 1 && !versContenant && !versAutrePourAchat) {
     throw new Error('Une entrée doit aller vers une cellule ou un emplacement.');
   }
   if (t.sens === -1 && !depuisContenant) {

@@ -3,7 +3,10 @@ import {
   CATEGORIES, CONSERVATIONS, COUPES, FOURRAGES, labelCoupe,
   createStock, updateStock, deleteStock, calculerTonnes, totauxParFamille
 } from './stocks.js';
-import { croiseCoupeFourrage } from './fourrages.js';
+import { croiseCoupeFourrage, stockNetParCategorie } from './fourrages.js';
+import { getMouvements } from './mouvements.js';
+import { getCellules } from './cellules.js';
+import { getEmplacements } from './emplacements.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { toastSucces, toastErreur } from './toast.js';
@@ -38,6 +41,7 @@ const errorBanner = document.getElementById('stock-error-banner');
 const errorText = document.getElementById('stock-error-text');
 
 const totauxEl = document.getElementById('stocks-totaux');
+const netEl = document.getElementById('stocks-net');
 const croiseEl = document.getElementById('stocks-croise');
 const categoriesEl = document.getElementById('stocks-categories');
 const lignesEl = document.getElementById('stocks-lignes');
@@ -321,6 +325,18 @@ export function renderVue() {
     tuile('Céréales', t.cereale, 'cereale'),
     tuile('Paille', t.paille, 'paille')
   ].join('');
+
+  if (netEl) {
+    const net = stockNetParCategorie(getMouvements(), getCellules(), getEmplacements());
+    netEl.innerHTML = net.length
+      ? net.map((g) => `
+        <div class="cat-card">
+          <div class="cat-card-nom">${escapeHtml(g.label)}</div>
+          <div class="cat-card-detail">${g.bottes > 0 ? Math.round(g.bottes) + ' bottes restantes' : 'en vrac'}</div>
+          <div class="cat-card-tonnes">${formatTonnes(g.tonnes)} t</div>
+        </div>`).join('')
+      : '<p class="list-empty">Aucun stock en cellule ou en hangar pour l\'instant — une récolte saisie sans contenant (onglet Stocks) n\'est pas décomptée ici.</p>';
+  }
 
   // Le croisement se construit sur les catégories FUSIONNÉES : un pressage
   // saisi dans le tunnel d'activité y apparaît au même titre qu'une récolte

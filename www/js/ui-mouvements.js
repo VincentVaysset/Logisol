@@ -15,7 +15,7 @@ import {
 import { getEmplacements, getEmplacementById, emplacementsDuBatiment } from './emplacements.js';
 import {
   TYPES_MOUVEMENT, typeMouvement, getMouvements, niveauContenant,
-  createMouvement, updateMouvement, deleteMouvement
+  createMouvement, updateMouvement, deleteMouvement, PRODUITS_ACHAT_VENTE
 } from './mouvements.js';
 import { getLots } from './lots.js';
 import { openEditLot } from './ui-alimentation.js';
@@ -33,8 +33,11 @@ const panel = document.getElementById('mouvement-panel');
 const form = document.getElementById('mvt-form');
 const el = {};
 [ 'title','date','type','champ-source','source-type','source-id','source-libre',
-  'champ-destination','dest-type','dest-id','dest-libre','quantite','quantite-label',
-  'champ-poids','poids','aide','champ-grain','grain','grain-label','libelle','intervenant',
+  'champ-destination','dest-type','dest-id','dest-libre',
+  'champ-periode','date-fin','qte-jour','qte-jour-label',
+  'quantite','quantite-label',
+  'champ-poids','poids','aide','champ-grain','grain','grain-label',
+  'champ-achat-vente','produit','prix','montant','libelle','intervenant',
   'save','cancel','delete','error-banner','error-text','error-close'
 ].forEach((k) => { el[k] = document.getElementById('mvt-' + k); });
 
@@ -55,6 +58,7 @@ const DESTINATIONS = [
   { value: 'CELLULE',              label: 'Cellule (grain ou séchage)' },
   { value: 'EMPLACEMENT_FOURRAGE', label: 'Emplacement fourrage (bottes)' },
   { value: 'LOT_BERGERIE',         label: 'Lot de bergerie' },
+  { value: 'CLIENT',               label: 'Client' },
   { value: 'AUTRE',                label: 'Autre' }
 ];
 
@@ -70,6 +74,7 @@ function hideError() { el['error-banner'].hidden = true; }
 el.type.innerHTML = TYPES_MOUVEMENT.map((t) => `<option value="${t.value}">${t.icone} ${t.label}</option>`).join('');
 el['source-type'].innerHTML = SOURCES.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
 el['dest-type'].innerHTML = DESTINATIONS.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
+el.produit.innerHTML = PRODUITS_ACHAT_VENTE.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
 // Une cellule peut contenir du grain (silo) ou du fourrage (séchage en
 // grange) : le libellé du contenu suit le type de la cellule.
 function labelContenuCellule(c) {
@@ -97,12 +102,20 @@ export function initBatiments(opts = {}) {
   onChangeExterne = opts.onChange || (() => {});
   document.getElementById('btn-new-batiment').addEventListener('click', openCreateBatiment);
   document.getElementById('btn-new-mouvement').addEventListener('click', () => openCreateMouvement());
+  const btnAchatVente = document.getElementById('btn-new-achat-vente');
+  if (btnAchatVente) btnAchatVente.addEventListener('click', () => openCreateMouvement({ typeMouvement: 'ENTREE_ACHAT' }));
   el.cancel.addEventListener('click', fermer);
   el.type.addEventListener('change', appliquerType);
   el['source-type'].addEventListener('change', () => peuplerCible('source'));
   el['dest-type'].addEventListener('change', () => peuplerCible('dest'));
-  el['source-id'].addEventListener('change', majUnite);
-  el['dest-id'].addEventListener('change', majUnite);
+  el['source-id'].addEventListener('change', () => { majUnite(); majMontant(); });
+  el['dest-id'].addEventListener('change', () => { majUnite(); majMontant(); });
+  el.quantite.addEventListener('input', majMontant);
+  el.poids.addEventListener('input', majMontant);
+  el.prix.addEventListener('input', majMontant);
+  el['date-fin'].addEventListener('change', majQuantiteDepuisPeriode);
+  el['qte-jour'].addEventListener('input', majQuantiteDepuisPeriode);
+  el.date.addEventListener('change', majQuantiteDepuisPeriode);
   form.addEventListener('submit', enregistrer);
   el.delete.addEventListener('click', supprimer);
 }
@@ -138,10 +151,13 @@ function peuplerCible(quel, valeur) {
   const select = el[quel === 'source' ? 'source-id' : 'dest-id'];
   const libre = el[quel === 'source' ? 'source-libre' : 'dest-libre'];
   const options = optionsPour(type);
-  // FOURNISSEUR et AUTRE ne désignent rien d'enregistré : on saisit un nom.
-  const saisieLibre = type === 'FOURNISSEUR' || type === 'AUTRE';
+  // FOURNISSEUR, CLIENT et AUTRE ne désignent rien d'enregistré : on saisit un nom.
+  const saisieLibre = type === 'FOURNISSEUR' || type === 'AUTRE' || type === 'CLIENT';
   select.hidden = saisieLibre;
   libre.hidden = !saisieLibre;
+  if (quel === 'dest') {
+    libre.placeholder = type === 'CLIENT' ? 'Nom du client' : 'Destination';
+  }
   select.innerHTML = options.length
     ? options.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')
     : '<option value="">— rien à sélectionner —</option>';
@@ -162,6 +178,7 @@ function majUnite() {
     (!el['champ-source'].hidden && el['source-type'].value === 'CELLULE');
 
   el['quantite-label'].textContent = fourrage ? 'Nombre de bottes' : 'Quantité (tonnes)';
+  el['qte-jour-label'].textContent = fourrage ? 'Bottes / jour' : 'Quantité / jour (tonnes)';
   el.quantite.step = fourrage ? '1' : '0.01';
   // Le poids d'une botte n'est demandé que lorsqu'il entre du fourrage : il
   // sert à convertir le stock en tonnes, et il change à chaque récolte.
@@ -202,14 +219,22 @@ function appliquerType() {
   el['champ-source'].hidden = entree === false && sortie === false && inventaire ? true : false;
   el['champ-destination'].hidden = false;
 
+  const achat = el.type.value === 'ENTREE_ACHAT';
+  const vente = el.type.value === 'SORTIE_VENTE';
+
   if (entree) {
     el['champ-source'].hidden = false;
     limiter('source-type', el.type.value === 'ENTREE_RECOLTE' ? ['PARCELLE'] : ['FOURNISSEUR']);
-    limiter('dest-type', ['CELLULE', 'EMPLACEMENT_FOURRAGE']);
+    // Un achat peut viser un contenant suivi (silo, hangar) OU un produit qui
+    // n'en a pas (concentré, amendement) — cf. PRODUITS_ACHAT_VENTE plus haut.
+    // Une récolte, elle, existe forcément quelque part de traçable.
+    limiter('dest-type', achat ? ['CELLULE', 'EMPLACEMENT_FOURRAGE', 'AUTRE'] : ['CELLULE', 'EMPLACEMENT_FOURRAGE']);
   } else if (sortie) {
     el['champ-source'].hidden = false;
     limiter('source-type', ['CELLULE', 'EMPLACEMENT_FOURRAGE']);
-    limiter('dest-type', el.type.value === 'SORTIE_ALIMENTATION' ? ['LOT_BERGERIE', 'AUTRE'] : ['AUTRE']);
+    limiter('dest-type',
+      el.type.value === 'SORTIE_ALIMENTATION' ? ['LOT_BERGERIE', 'AUTRE'] :
+      vente ? ['CLIENT'] : ['AUTRE']);
   } else if (transfert) {
     el['champ-source'].hidden = false;
     limiter('source-type', ['CELLULE', 'EMPLACEMENT_FOURRAGE']);
@@ -226,6 +251,61 @@ function appliquerType() {
     el.aide.textContent = 'Saisis la quantité RÉELLEMENT constatée : elle remplace le niveau calculé, et l\'écart reste visible dans l\'historique.';
     el.aide.hidden = false;
   }
+
+  // Produit + prix ne concernent que l'achat et la vente : un transfert ou
+  // une distribution n'a pas de tiers ni de prix à la tonne.
+  el['champ-achat-vente'].hidden = !(achat || vente);
+  if (!(achat || vente)) { el.produit.value = ''; el.prix.value = ''; el.montant.hidden = true; }
+  majMontant();
+
+  // Le calcul par durée n'a de sens que pour une consommation de lot
+  // (cf. ticket "Consommation Réelle & Déstockage par Lot") : un achat, une
+  // récolte ou un transfert sont des faits ponctuels, pas un débit continu.
+  el['champ-periode'].hidden = el.type.value !== 'SORTIE_ALIMENTATION';
+  if (el['champ-periode'].hidden) { el['date-fin'].value = ''; el['qte-jour'].value = ''; }
+}
+
+// Une consommation de lot se raisonne en "tant par jour", pas en quantité
+// totale devinée à la louche : ça calcule la quantité du mouvement à partir
+// de la quantité/jour et du nombre de jours entre la date de début (le champ
+// date existant) et la date de fin.
+function majQuantiteDepuisPeriode() {
+  if (el['champ-periode'].hidden) return;
+  const qJour = Number(el['qte-jour'].value);
+  if (!(qJour > 0) || !el.date.value || !el['date-fin'].value) return;
+  const debut = new Date(el.date.value + 'T00:00:00');
+  const fin = new Date(el['date-fin'].value + 'T00:00:00');
+  const jours = Math.round((fin - debut) / 86400000) + 1;
+  if (!(jours > 0)) return;
+  el.quantite.value = Math.round(qJour * jours * 1000) / 1000;
+  majMontant();
+}
+
+// Montant purement indicatif (pas de coût analytique demandé) : aide à
+// vérifier une saisie de prix avant d'enregistrer, jamais stocké tel quel
+// (cf. nettoyer()/prixTonne dans mouvements.js). Un achat en bottes connaît
+// le poids de botte qu'on vient de saisir ; une vente en bottes reprend le
+// poids moyen déjà constaté sur le hangar d'où elles sortent.
+function majMontant() {
+  if (el['champ-achat-vente'].hidden) { el.montant.hidden = true; return; }
+  const prix = Number(el.prix.value);
+  const q = Number(el.quantite.value) || 0;
+  if (!(prix > 0) || !(q > 0)) { el.montant.hidden = true; return; }
+  const fourrage = el['dest-type'].value === 'EMPLACEMENT_FOURRAGE' || el['source-type'].value === 'EMPLACEMENT_FOURRAGE';
+  let tonnes;
+  if (!fourrage) {
+    tonnes = q;
+  } else if (!el['champ-poids'].hidden) {
+    tonnes = (q * (Number(el.poids.value) || 0)) / 1000;
+  } else if (el['source-type'].value === 'EMPLACEMENT_FOURRAGE' && el['source-id'].value) {
+    const n = niveauContenant('EMPLACEMENT_FOURRAGE', el['source-id'].value);
+    tonnes = n.poidsMoyenBotteKg ? (q * n.poidsMoyenBotteKg) / 1000 : 0;
+  } else {
+    tonnes = 0;
+  }
+  if (!(tonnes > 0)) { el.montant.hidden = true; return; }
+  el.montant.textContent = `≈ ${formatTonnes(tonnes)} t × ${prix} €/t = ${Math.round(tonnes * prix)} €`;
+  el.montant.hidden = false;
 }
 
 function limiter(champ, valeurs) {
@@ -252,6 +332,10 @@ export function openCreateMouvement(prefill = {}) {
     el.type.value = prefill.typeMouvement || 'ENTREE_RECOLTE';
     el.quantite.value = '';
     el.poids.value = '';
+    el.produit.value = '';
+    el.prix.value = '';
+    el['date-fin'].value = '';
+    el['qte-jour'].value = '';
     el.libelle.value = '';
     el.intervenant.value = '';
     appliquerType();
@@ -276,16 +360,23 @@ export function openEditMouvement(m) {
     el.date.value = m.date || aujourdhui();
     el.type.value = m.typeMouvement;
     appliquerType();
+    // Le débit/jour n'est jamais stocké (seule sa quantité totale l'est,
+    // cf. nettoyer()) : rouvrir un mouvement retrouve la période mais pas
+    // le taux journalier qui l'avait produite.
+    if (!el['champ-periode'].hidden) el['date-fin'].value = m.dateFin || '';
     if (m.sourceType) { el['source-type'].value = m.sourceType; peuplerCible('source', m.sourceId); }
     if (m.sourceType === 'FOURNISSEUR') el['source-libre'].value = m.sourceNom || '';
     if (m.destinationType) { el['dest-type'].value = m.destinationType; peuplerCible('dest', m.destinationId); }
-    if (m.destinationType === 'AUTRE') el['dest-libre'].value = m.destinationNom || '';
+    if (m.destinationType === 'AUTRE' || m.destinationType === 'CLIENT') el['dest-libre'].value = m.destinationNom || '';
     el.quantite.value = m.quantite != null ? m.quantite : '';
     el.poids.value = m.poidsBotteKg != null ? m.poidsBotteKg : '';
     if (m.typeGrain) el.grain.value = m.typeGrain;
+    el.produit.value = m.produit || '';
+    el.prix.value = m.prixTonne != null ? m.prixTonne : '';
     el.libelle.value = m.libelle || '';
     el.intervenant.value = m.intervenant || '';
     majUnite();
+    majMontant();
   } catch (err) {
     showError('Impossible de charger ce mouvement : ' + messageErreur(err));
   }
@@ -294,7 +385,7 @@ export function openEditMouvement(m) {
 function fermer() { panel.hidden = true; editId = null; }
 
 function nomDe(type, id, libre) {
-  if (type === 'FOURNISSEUR' || type === 'AUTRE') return libre;
+  if (type === 'FOURNISSEUR' || type === 'AUTRE' || type === 'CLIENT') return libre;
   if (type === 'PARCELLE') { const p = parcelles.find((x) => x.id === id); return p ? p.nom : ''; }
   if (type === 'CELLULE') { const c = getCelluleById(id); return c ? c.nom : ''; }
   if (type === 'EMPLACEMENT_FOURRAGE') { const e = getEmplacementById(id); return e ? e.nom : ''; }
@@ -333,12 +424,15 @@ async function enregistrer(e) {
       quantite: el.quantite.value,
       poidsBotteKg: el['champ-poids'].hidden ? null : el.poids.value,
       typeGrain: el['champ-grain'].hidden ? null : el.grain.value,
+      produit: el['champ-achat-vente'].hidden ? null : el.produit.value,
+      prixTonne: el['champ-achat-vente'].hidden ? null : el.prix.value,
+      dateFin: el['champ-periode'].hidden ? null : (el['date-fin'].value || null),
       unite: fourrage ? 'bottes' : 't',
       libelle: el.libelle.value,
       intervenant: el.intervenant.value
     };
     if (!data.libelle) {
-      data.libelle = typeMouvement(data.typeMouvement).label +
+      data.libelle = (data.produit ? data.produit + ' — ' : '') + typeMouvement(data.typeMouvement).label +
         (data.sourceNom ? ' depuis ' + data.sourceNom : '') +
         (data.destinationNom ? ' vers ' + data.destinationNom : '');
     }

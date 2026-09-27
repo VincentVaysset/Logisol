@@ -444,9 +444,13 @@
   <div id="stocks-view" class="scroll-view" hidden>
     <div class="vue-head">
       <h2>Stocks</h2>
+      <button type="button" id="btn-new-achat-vente" class="btn btn-secondary btn-mini">💰 Achat / Vente</button>
       <button type="button" id="btn-new-stock" class="btn btn-primary btn-mini">➕ Récolte</button>
     </div>
     <div id="stocks-totaux" class="tuiles"></div>
+    <h3 class="section-titre">Stock disponible</h3>
+    <p class="champ-aide">Récoltes + achats, moins ventes, consommation animaux et interventions au champ — recalculé depuis le journal des mouvements.</p>
+    <div id="stocks-net"></div>
     <h3 class="section-titre">Foin — coupe × type de fourrage</h3>
     <div id="stocks-croise" class="table-scroll"></div>
     <h3 class="section-titre">Par catégorie</h3>
@@ -728,6 +732,20 @@
           <input type="text" id="mvt-dest-libre" placeholder="Destination" hidden>
         </div>
 
+        <div id="mvt-champ-periode">
+          <div class="row">
+            <div style="flex:1">
+              <label for="mvt-date-fin">Date de fin</label>
+              <input type="date" id="mvt-date-fin">
+            </div>
+            <div style="flex:1">
+              <label for="mvt-qte-jour" id="mvt-qte-jour-label">Quantité / jour</label>
+              <input type="number" id="mvt-qte-jour" step="0.01" min="0" inputmode="decimal">
+            </div>
+          </div>
+          <p class="champ-aide">Renseigné, ça calcule seul la quantité totale ci-dessous sur toute la période.</p>
+        </div>
+
         <div class="row">
           <div style="flex:2">
             <label for="mvt-quantite" id="mvt-quantite-label">Quantité</label>
@@ -743,6 +761,20 @@
         <div id="mvt-champ-grain">
           <label for="mvt-grain" id="mvt-grain-label">Type de grain</label>
           <select id="mvt-grain"></select>
+        </div>
+
+        <div id="mvt-champ-achat-vente">
+          <div class="row">
+            <div style="flex:1">
+              <label for="mvt-produit">Produit</label>
+              <select id="mvt-produit"></select>
+            </div>
+            <div style="flex:1">
+              <label for="mvt-prix">Prix à la tonne (€)</label>
+              <input type="number" id="mvt-prix" step="0.01" min="0" inputmode="decimal">
+            </div>
+          </div>
+          <p class="champ-aide" id="mvt-montant" hidden></p>
         </div>
 
         <label for="mvt-libelle">Libellé</label>

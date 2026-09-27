@@ -17,6 +17,7 @@
 import { cleFoin, labelFoin, cleCereale, labelCereale, labelCoupe } from './stocks.js';
 import { getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacementById } from './emplacements.js';
+import { niveauContenant } from './mouvements.js';
 
 function arrondi3(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
 
@@ -161,6 +162,16 @@ export function ventilationContenant(type, id, mouvements, niveau) {
   return { niveau: arrondi3(n), unite, totalEntre, prorata, lots };
 }
 
+/**
+ * Montant d'un mouvement d'achat/vente — jamais stocké (cf. mouvements.js/
+ * nettoyer(), prixTonne reste un prix unitaire), toujours recalculé à
+ * l'affichage pour rester juste si le prix est corrigé après coup.
+ */
+export function montantMouvement(m) {
+  if (!m || !(Number(m.prixTonne) > 0)) return 0;
+  return arrondi3(tonnesDuMouvement(m) * Number(m.prixTonne));
+}
+
 /** Résumé d'une ligne : « 15 t 1ʳᵉ coupe Luzerne ». */
 export function resumeLot(lot, unite) {
   const q = unite === 'bottes'
@@ -254,4 +265,40 @@ export function croiseCoupeFourrage(categories) {
     coupes: Array.from(coupes).sort((a, b) => a - b),
     valeur: (coupe, fourrage) => grille.get(`${coupe}|${fourrage}`) || 0
   };
+}
+
+/**
+ * Stock RÉELLEMENT disponible par catégorie de fourrage : récoltes et achats,
+ * moins ventes, consommation animaux et interventions au champ — cf. le
+ * bridge tunnel d'activité -> mouvement (ui-intervention.js) qui fait déjà
+ * entrer les interventions champ dans ce même journal.
+ *
+ * Contrairement à agregerMouvements() (qui ne compte que les ENTRÉES, donc un
+ * total brut de récolte), cette fonction rejoue les SORTIES aussi : elle
+ * additionne, sur tous les contenants existants, ce que ventilationContenant()
+ * sait dire du niveau NET restant, réparti au prorata par lot. Une récolte
+ * saisie à la main dans l'onglet Stocks (collection "stocks", sans contenant)
+ * n'a pas d'existence dans le journal et ne peut donc pas être décomptée
+ * ici — elle reste dans le total brut affiché à côté, pas fondue dedans.
+ * @returns {Array<{cle, label, tonnes, bottes}>}
+ */
+export function stockNetParCategorie(mouvements, cellules, emplacements) {
+  const parCle = new Map();
+  const ajouter = (type, id) => {
+    const niveau = niveauContenant(type, id, mouvements);
+    const v = ventilationContenant(type, id, mouvements, niveau.quantite);
+    v.lots.forEach((l) => {
+      if (!parCle.has(l.cle)) {
+        parCle.set(l.cle, { cle: l.cle, label: l.label, tonnes: 0, bottes: 0 });
+      }
+      const g = parCle.get(l.cle);
+      g.tonnes = arrondi3(g.tonnes + l.tonnesRestantes);
+      if (v.unite === 'bottes') g.bottes = arrondi3(g.bottes + l.quantiteRestante);
+    });
+  };
+  (cellules || []).forEach((c) => ajouter('CELLULE', c.id));
+  (emplacements || []).forEach((e) => ajouter('EMPLACEMENT_FOURRAGE', e.id));
+  return Array.from(parCle.values())
+    .filter((g) => g.tonnes > 0.001 || g.bottes > 0.5)
+    .sort((a, b) => b.tonnes - a.tonnes);
 }
