@@ -14,7 +14,7 @@
 // saisies à la main dans l'onglet Stocks (stocks.js) : une 1ʳᵉ coupe de
 // luzerne en botte est la même chose quelle que soit la porte d'entrée, donc
 // la même colonne et la même ration.
-import { cleFoin, labelFoin, cleCereale, labelCereale, labelCoupe } from './stocks.js';
+import { cleFoin, labelFoin, cleCereale, labelCereale, labelCoupe, cleCommerce } from './stocks.js';
 import { getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacementById } from './emplacements.js';
 import { niveauContenant } from './mouvements.js';
@@ -64,6 +64,13 @@ export function identiteDuMouvement(m) {
   }
   if (m.destinationType === 'CELLULE' && m.typeGrain) {
     return { cle: cleCereale(m.typeGrain), label: labelCereale(m.typeGrain), famille: 'cereale' };
+  }
+  // Achat sans contenant suivi (concentré, amendement bio...) : identifié par
+  // son produit commercial, comme un aliment du commerce (cf. stades.js) —
+  // sinon un tel achat resterait invisible des catégories de stock et donc
+  // impossible à choisir comme composant d'une ration (rations.js).
+  if (m.typeMouvement === 'ENTREE_ACHAT' && m.destinationType === 'AUTRE' && m.produit) {
+    return { cle: cleCommerce(m.produit), label: m.produit, famille: 'commerce' };
   }
   return null;
 }

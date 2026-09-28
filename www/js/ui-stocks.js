@@ -7,6 +7,7 @@ import { croiseCoupeFourrage, stockNetParCategorie } from './fourrages.js';
 import { getMouvements } from './mouvements.js';
 import { getCellules } from './cellules.js';
 import { getEmplacements } from './emplacements.js';
+import { renderAchatPrevoir } from './ui-rations.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { toastSucces, toastErreur } from './toast.js';
@@ -42,6 +43,7 @@ const errorText = document.getElementById('stock-error-text');
 
 const totauxEl = document.getElementById('stocks-totaux');
 const netEl = document.getElementById('stocks-net');
+const achatPrevoirEl = document.getElementById('stocks-achat-prevoir');
 const croiseEl = document.getElementById('stocks-croise');
 const categoriesEl = document.getElementById('stocks-categories');
 const lignesEl = document.getElementById('stocks-lignes');
@@ -324,6 +326,11 @@ export function renderVue() {
     tuile('Céréales', t.cereale, 'cereale'),
     tuile('Paille', t.paille, 'paille')
   ].join('');
+
+  // Même calcul, même alerte que l'onglet Rations (rations-calc.js/
+  // projectionAchat) : un seul rendu partagé, pour ne jamais afficher deux
+  // chiffres différents d'un onglet à l'autre.
+  renderAchatPrevoir(achatPrevoirEl);
 
   if (netEl) {
     const net = stockNetParCategorie(getMouvements(), getCellules(), getEmplacements());

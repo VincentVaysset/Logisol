@@ -12,6 +12,7 @@ import {
 } from './lots.js';
 
 import { construireTableau, lotsSansStock, autonomieLisible, regrouperColonnesParFamille } from './alimentation.js';
+import { ouvrirSectionRationsLot, fermerSectionRationsLot } from './ui-rations.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
@@ -248,6 +249,7 @@ export function openCreate() {
     btnDelete.hidden = true;
     peuplerBatiments('');
     periodesSection.hidden = true; // le plan de périodes n'a de sens qu'une fois le lot créé
+    fermerSectionRationsLot(); // idem pour la ration (recette) affectée
   } catch (err) {
     showError('Impossible de préparer le formulaire : ' + ((err && err.message) || err));
   }
@@ -284,6 +286,7 @@ export function openEditLot(lot) {
     }
     peuplerComposantsPeriode(preselection);
     renderPeriodes(lot);
+    ouvrirSectionRationsLot(lot);
   } catch (err) {
     showError('Impossible de charger ce lot : ' + ((err && err.message) || err));
   }
@@ -373,6 +376,7 @@ function fermer() {
   mode = null;
   editingId = null;
   editingLot = null;
+  fermerSectionRationsLot();
 }
 
 async function enregistrer(e) {

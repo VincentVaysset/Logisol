@@ -1263,6 +1263,15 @@ header button {
 .lot-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .lot-card-stock { font-size: 12px; color: var(--primary); font-weight: 600; margin-top: 3px; }
 .sans-stock { color: var(--danger); }
+.cat-card-tonnes.urgent { color: var(--danger); }
+
+/* --- Disponible par aliment (onglet Rations) : détail plus long qu'ailleurs
+   (entrées/consommé/bottes + réglage de poids), donc pas en une seule
+   ligne forcée comme les autres cartes .cat-card-detail. --- */
+#rations-disponible .cat-card { align-items: flex-start; flex-wrap: wrap; }
+#rations-disponible .cat-card-detail { white-space: normal; flex: 1 1 100%; }
+.poids-botte-reglage { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+.poids-botte-input { width: 52px; margin: 0; padding: 3px 5px; font-size: 11px; min-height: auto; }
 
 /* --- Rations éditables, par stade, multi-ingrédients ---
    Un stade peut mêler fourrage ferme + céréale ferme + aliment du commerce,
@@ -1282,6 +1291,7 @@ header button {
 .ration-composant-ligne .rc-nom { flex: 1 1 110px; margin: 0; padding: 8px; font-size: 12px; min-height: 38px; }
 .ration-composant-ligne .rc-nom[hidden] { display: none; }
 .ration-composant-ligne .rc-dose { flex: 0 0 64px; margin: 0; padding: 8px; text-align: right; min-height: 38px; }
+.ration-composant-ligne .rc-stock { flex: 1 1 auto; max-width: 220px; margin: 0; padding: 8px; font-size: 12px; min-height: 38px; }
 .rc-unite { font-size: 11px; color: var(--text-muted); flex: 0 0 auto; }
 .rc-suppr {
   flex: 0 0 auto; background: none; border: none; color: var(--text-muted);

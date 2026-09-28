@@ -304,6 +304,9 @@
     <button type="button" class="tab" data-vue="troupeau">
       <span class="tab-icone">🐑</span><span class="tab-label">Troupeau</span>
     </button>
+    <button type="button" class="tab" data-vue="rations">
+      <span class="tab-icone">🍲</span><span class="tab-label">Rations</span>
+    </button>
     <button type="button" class="tab" data-vue="batiments">
       <span class="tab-icone">🏚️</span><span class="tab-label">Bâtiments</span>
     </button>
@@ -447,6 +450,7 @@
       <button type="button" id="btn-new-achat-vente" class="btn btn-primary btn-mini">💰 Achat / Vente</button>
     </div>
     <div id="stocks-totaux" class="tuiles"></div>
+    <div id="stocks-achat-prevoir" hidden></div>
     <h3 class="section-titre">Stock disponible</h3>
     <p class="champ-aide">Récoltes + achats, moins ventes, consommation animaux et interventions au champ — recalculé depuis le journal des mouvements.</p>
     <div id="stocks-net"></div>
@@ -525,6 +529,28 @@
       <h3 class="section-titre">Périodes de consommation enregistrées</h3>
       <div id="troupeau-journal"></div>
     </div>
+  </div>
+
+  <!-- Vue Rations : recettes nommées et réutilisables, composants choisis
+       parmi les stocks existants (référencés par clé, jamais ressaisis) —
+       système ADDITIF au « Rations par stade » de l'onglet Troupeau
+       (#troupeau-rations, non touché), les deux coexistent. Une ration
+       s'affecte à un lot depuis sa fiche (onglet Troupeau). -->
+  <div id="rations-view" class="scroll-view" hidden>
+    <div class="vue-head">
+      <h2>Rations</h2>
+      <button type="button" id="btn-new-ration" class="btn btn-primary btn-mini">➕ Ration</button>
+    </div>
+    <div class="champ-aide" style="display:flex;align-items:center;gap:6px;">
+      <label for="rations-horizon" style="margin:0;">Horizon de projection</label>
+      <input type="date" id="rations-horizon">
+    </div>
+    <div id="rations-achat-prevoir" hidden></div>
+    <h3 class="section-titre">Disponible par aliment</h3>
+    <p class="champ-aide">Entrées (récoltes + achats) moins consommation calculée depuis les affectations — aucun décrément écrit sur le stock. Poids/botte réglable pour l'estimation en bottes.</p>
+    <div id="rations-disponible"></div>
+    <h3 class="section-titre">Recettes</h3>
+    <div id="rations-liste"></div>
   </div>
 
   <!-- Précision du dernier point GPS obtenu (cf. www/js/gps.js) — masqué
@@ -944,6 +970,59 @@
           <button type="button" id="lot-p-ajouter" class="btn btn-secondary btn-mini">➕ Ajouter au plan</button>
         </div>
       </div>
+
+      <!-- Ration appliquée (recette, cf. onglet Rations) : système ADDITIF au
+           plan de périodes par stade ci-dessus, indépendant de lui. Aucune
+           saisie d'aliment ici — seulement le choix d'une recette déjà
+           composée dans l'onglet Rations. -->
+      <div id="lot-rations-section" hidden>
+        <h3 class="apercu-sous-titre">Ration appliquée (recette)</h3>
+        <div id="lot-r-liste" class="apercu-activites"></div>
+
+        <div class="groupe-saisie">
+          <div class="groupe-titre">➕ Affecter une ration</div>
+
+          <label for="lot-r-select">Ration</label>
+          <select id="lot-r-select"></select>
+          <p id="lot-r-info" class="champ-aide"></p>
+
+          <label for="lot-r-debut">Début</label>
+          <input type="date" id="lot-r-debut">
+
+          <label for="lot-r-fin">Fin (optionnelle — laisser vide si indéterminée)</label>
+          <input type="date" id="lot-r-fin">
+
+          <p id="lot-r-erreur" class="champ-aide champ-aide-erreur" hidden></p>
+          <button type="button" id="lot-r-affecter" class="btn btn-secondary btn-mini">➕ Affecter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ration (recette) : nom + composants, chacun un stock existant (choisi
+       parmi les catégories de l'onglet Stocks, jamais ressaisi) et une dose
+       en kg par animal et par jour. -->
+  <div id="ration-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="ration-title">Nouvelle ration</h2>
+      <div id="ration-error-banner" class="fiche-error-banner" hidden>
+        <span id="ration-error-text"></span>
+        <button type="button" id="ration-error-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="ration-form">
+        <label for="ration-nom">Nom de la ration</label>
+        <input type="text" id="ration-nom" required placeholder="ex: Ration fin de gestation">
+
+        <label>Composants</label>
+        <div id="ration-composants" class="ration-composants"></div>
+        <button type="button" id="ration-composant-ajouter" class="btn btn-secondary btn-mini ration-ajouter">➕ Composant</button>
+
+        <div class="fiche-actions">
+          <button type="submit" id="ration-save" class="btn btn-primary">Enregistrer</button>
+          <button type="button" id="ration-cancel" class="btn btn-secondary">Annuler</button>
+          <button type="button" id="ration-delete" class="btn btn-danger" hidden>Supprimer</button>
+        </div>
+      </form>
     </div>
   </div>
 
