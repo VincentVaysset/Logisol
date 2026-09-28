@@ -62,6 +62,47 @@ export function prevuCampagneParAliment(plan) {
   return Array.from(parCle.values());
 }
 
+// Marge de confort sous laquelle une couverture positive passe en orange
+// plutôt qu'en vert (partagée par couverturePrevisionnelle et bilanParAliment
+// ci-dessous) : moins de 15 % d'avance sur le besoin, c'est "juste" plutôt
+// que confortable. Valeur de convenance, pas une règle métier communiquée
+// par l'exploitant — ajustable si besoin.
+const MARGE_JUSTE = 0.15;
+
+/**
+ * Tableau de couverture du Prévisionnel : Aliment | Stock (entrées campagne)
+ * | Besoin prévu | Solde | À acheter — LE SEUL endroit de l'appli où "à
+ * acheter" existe. Ne lit JAMAIS les distributions ni la consommation
+ * réelle : uniquement le plan (besoin prévu, total sur toute la campagne) et
+ * les entrées de stock (fourrages.js/entreesCampagneParCategorie) — Prévu et
+ * Distribué ne se lisent jamais l'un l'autre (CLAUDE.md).
+ * @param {Array<{cle,label,tonnes}>} entreesCampagne  fourrages.js/entreesCampagneParCategorie
+ * @param {{stades: Array}} plan  sortie de plan-campagne.getPlan()
+ */
+export function couverturePrevisionnelle(entreesCampagne, plan) {
+  const besoin = new Map(prevuCampagneParAliment(plan).map((p) => [p.cle, p]));
+  const stock = new Map((entreesCampagne || []).map((s) => [s.cle, s]));
+  const cles = new Set([...besoin.keys(), ...stock.keys()]);
+
+  return Array.from(cles).map((cle) => {
+    const b = besoin.get(cle);
+    const s = stock.get(cle);
+    const stockT = s ? s.tonnes : 0;
+    const besoinT = b ? b.tonnes : 0;
+    const solde = arrondi3(stockT - besoinT);
+    const aAcheter = Math.max(0, arrondi3(besoinT - stockT));
+
+    let statut = 'vert';
+    if (solde < 0) statut = 'rouge';
+    else if (besoinT > 0 && solde / besoinT < MARGE_JUSTE) statut = 'orange';
+
+    return {
+      cle, label: (b && b.label) || (s && s.label) || cle,
+      stock: stockT, besoin: besoinT, solde, aAcheter, statut
+    };
+  }).sort((a, b) => String(a.label).localeCompare(String(b.label), 'fr'));
+}
+
 /**
  * Stock disponible par aliment : entrées (récoltes + achats, catégories
  * fusionnées de l'onglet Stocks) moins consommation calculée depuis les
@@ -79,12 +120,6 @@ export function stockDisponibleParItem(categories, lots, date = aujourdhui()) {
   });
   return Array.from(parCle.values()).map((c) => ({ ...c, disponible: arrondi3(c.entrees - c.consomme) }));
 }
-
-// Marge de confort sous laquelle un aliment couvert passe en orange plutôt
-// qu'en vert : moins de 15 % d'avance sur ce qu'il reste à distribuer selon
-// le plan, c'est "juste" plutôt que confortable. Valeur de convenance, pas
-// une règle métier communiquée par l'exploitant — ajustable si besoin.
-const MARGE_JUSTE = 0.15;
 
 /**
  * Tableau de bilan par aliment : Prévu campagne | Consommé | Reste prévu |

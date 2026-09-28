@@ -349,6 +349,28 @@ export function stockDisponibleCanonique(mouvements, cellules, emplacements, lot
   return Array.from(parCle.values()).sort((a, b) => b.tonnes - a.tonnes);
 }
 
+// Types comptés comme "entrée" pour le Prévisionnel : récoltes, achats, un
+// inventaire d'ouverture (déclaré en INVENTAIRE — remplace le niveau constaté
+// au lieu de s'y ajouter, ce qui modélise exactement "voici ce que j'ai en
+// stock au début de la campagne") et les transferts (neutres à l'échelle de
+// l'exploitation, un même lot changeant seulement de contenant). AUCUNE
+// sortie (vente, perte, alimentation) : le Prévisionnel compare le total
+// entré sur la campagne au besoin total, jamais ce qu'il en reste aujourd'hui
+// — c'est stockDisponibleCanonique() qui répond à cette question-là.
+const TYPES_ENTREE_CAMPAGNE = ['ENTREE_RECOLTE', 'ENTREE_ACHAT', 'INVENTAIRE', 'TRANSFERT'];
+
+/**
+ * Stock "entrées campagne" par catégorie, pour le tableau de couverture du
+ * Prévisionnel (Aliment | Stock | Besoin prévu | Solde | À acheter) — jamais
+ * les distributions ni les autres sorties, cf. rations-calc.js/
+ * couverturePrevisionnelle qui compare ce chiffre au besoin planifié.
+ * @returns {Array<{cle, label, tonnes, bottes}>}
+ */
+export function entreesCampagneParCategorie(mouvements, cellules, emplacements) {
+  const retenus = (mouvements || []).filter((m) => TYPES_ENTREE_CAMPAGNE.includes(m.typeMouvement));
+  return stockNetParCategorie(retenus, cellules, emplacements);
+}
+
 /**
  * Tous les mouvements qui concernent un aliment donné — pour la fiche
  * aliment de l'onglet Stocks (ui-fiche-aliment.js).

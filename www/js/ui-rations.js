@@ -14,8 +14,8 @@ import {
   precedenteFermeePar, rouvrirAffectation
 } from './affectations.js';
 import {
-  bilanParAliment, prevuCampagneParAliment, stockDisponibleParItem, besoinJournalierParStock,
-  consommationParStock
+  bilanParAliment, stockDisponibleParItem, besoinJournalierParStock,
+  consommationParStock, couverturePrevisionnelle
 } from './rations-calc.js';
 import {
   getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
@@ -27,7 +27,7 @@ import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
 import { toastSucces, toastErreur } from './toast.js';
-import { stockDisponibleCanonique } from './fourrages.js';
+import { stockDisponibleCanonique, entreesCampagneParCategorie } from './fourrages.js';
 import { getMouvements, updateMouvement, deleteMouvement } from './mouvements.js';
 import { getCellules } from './cellules.js';
 import { getEmplacements } from './emplacements.js';
@@ -165,12 +165,27 @@ function renderPrevisionnel() {
   campagneLabelEl.textContent = campagne;
   const plan = getPlan();
 
-  const prevu = prevuCampagneParAliment(plan);
-  prevuEl.innerHTML = prevu.length
-    ? prevu.map((p) => `<div class="cat-card">
-        <div class="cat-card-nom">${escapeHtml(p.label)}</div>
-        <div class="cat-card-tonnes">${formatTonnes(p.tonnes)} t</div>
-      </div>`).join('')
+  // Tableau de couverture : Stock (entrées campagne) vs Besoin prévu — LE
+  // SEUL endroit avec "à acheter" (cf. rations-calc.js/couverturePrevisionnelle).
+  // Ne lit jamais les distributions, uniquement le plan et les entrées de
+  // stock (Prévu et Distribué ne se lisent jamais l'un l'autre, CLAUDE.md).
+  const entrees = entreesCampagneParCategorie(getMouvements(), getCellules(), getEmplacements());
+  const couverture = couverturePrevisionnelle(entrees, plan);
+  prevuEl.innerHTML = couverture.length
+    ? `<table class="tableau">
+        <thead><tr>
+          <th>Aliment</th><th>Stock</th><th>Besoin prévu</th><th>Solde</th><th>À acheter</th>
+        </tr></thead>
+        <tbody>
+          ${couverture.map((c) => `<tr class="bilan-ligne bilan-${c.statut}">
+            <td>${escapeHtml(c.label)}</td>
+            <td>${formatTonnes(c.stock)} t</td>
+            <td>${formatTonnes(c.besoin)} t</td>
+            <td>${formatTonnes(c.solde)} t</td>
+            <td>${c.aAcheter > 0 ? formatTonnes(c.aAcheter) + ' t' : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`
     : '<p class="list-empty">Aucune ligne de plan pour l\'instant.</p>';
 
   const lignes = (plan.stades || []).slice().sort((a, b) => (a.dateDebut < b.dateDebut ? -1 : 1));
@@ -398,23 +413,6 @@ function renderBilan() {
   }
 }
 
-// Rendu partagé de l'alerte « achat à prévoir » — appelé depuis Troupeau ET
-// l'onglet Stocks (ui-stocks.js), sur le même bilan (rations-calc.js), jamais
-// recalculé deux fois séparément.
-export function renderAchatPrevoir(cible) {
-  if (!cible) return;
-  const aAcheter = bilanParAliment(categories, getLots(), getPlan()).filter((b) => b.aAcheter > 0);
-  if (!aAcheter.length) {
-    cible.hidden = true;
-    cible.innerHTML = '';
-    return;
-  }
-  cible.hidden = false;
-  cible.innerHTML = `<div class="alerte">
-    ⚠️ Achat à prévoir (campagne ${escapeHtml(campagneCourante())}) :
-    ${aAcheter.map((b) => `${escapeHtml(b.label)} — ${formatTonnes(b.aAcheter)} t`).join(' · ')}
-  </div>`;
-}
 
 // Totaux agrégés pour les tuiles "Stock restant"/"Déjà consommé"/"Besoin par
 // jour" de la sous-vue Ration actuelle (ui-alimentation.js/renderVue()).
