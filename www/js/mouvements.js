@@ -271,7 +271,12 @@ function nettoyer(data) {
 function valider(m) {
   if (!m.date) throw new Error('La date est obligatoire.');
   if (!m.typeMouvement) throw new Error('Choisis un type de mouvement.');
-  if (!(m.quantite > 0)) throw new Error('La quantité doit être supérieure à 0.');
+  // Un inventaire peut constater un stock à zéro (remise à zéro explicite,
+  // ex. paille en fin de campagne, cf. vider-paille.js) — c'est le seul type
+  // où "0" est une valeur vraiment saisie, jamais une case oubliée : les
+  // autres mouvements gardent l'obligation d'être strictement positifs.
+  const quantiteValide = m.typeMouvement === 'INVENTAIRE' ? m.quantite >= 0 : m.quantite > 0;
+  if (!quantiteValide) throw new Error('La quantité doit être supérieure à 0.');
   const t = typeMouvement(m.typeMouvement);
   const versContenant = CONTENANTS.includes(m.destinationType) && m.destinationId;
   const depuisContenant = CONTENANTS.includes(m.sourceType) && m.sourceId;

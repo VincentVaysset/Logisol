@@ -34,7 +34,9 @@ let courantes = [];
 
 // Cache local, en plus du callback historique : évite de faire remonter la
 // liste jusqu'ici depuis main.js à chaque nouvel usage (cf. stocks.js/lots.js
-// et la plupart des autres modules, qui suivent déjà ce principe).
+// et la plupart des autres modules, qui suivent déjà ce principe) — c'est ce
+// qui permet à campagnes.js/ui-intervention.js de relire l'historique d'une
+// parcelle sans aller-retour Firestore à chaque frappe.
 export function getInterventions() { return courantes; }
 
 export function watchInterventions(onChange) {
@@ -83,8 +85,11 @@ function nettoyer(data) {
     // Étiquette de semence : photo distincte de la photo de chantier, gardée
     // comme pièce justificative en cas de contrôle Bio.
     photoEtiquette: data.photoEtiquette || null,
-    // En-tête commun à toutes les interventions.
+    // En-tête commun à toutes les interventions. campagneId est désormais
+    // TOUJOURS calculé (cf. campagnes.js/calculerCampagnes), jamais saisi —
+    // sauf surcharge explicite via forcerCampagne, prioritaire sur le calcul.
     campagneId: data.campagneId ? String(data.campagneId) : null,
+    forcerCampagne: data.forcerCampagne ? String(data.forcerCampagne) : null,
     chauffeur: String(data.chauffeur || '').trim(),
     // Ce que l'activité a fait à la culture en place, et de quoi le défaire
     // si elle est supprimée : sans cette trace, effacer un labour saisi par
@@ -115,8 +120,13 @@ function nettoyerSaisie(s) {
   };
   ['doseKgHa', 'surfaceHa', 'nbBottes', 'poidsBotteKg', 'nbRemorques',
    'tonnesParRemorque', 'nbBennes', 'tonnageBenne', 'poidsSpecifique',
+   // capaciteBenne/remplissageBenne/ps : nouveau modèle (capacité × remplissage
+   // × PS, cf. poids-specifique.js). tonnageBenne/poidsSpecifique restent tels
+   // quels au-dessus pour les interventions déjà enregistrées avant ce champ —
+   // jamais réinterprétés tout seuls (cf. quantiteDeSaisie, corriger-ps.js).
+   'capaciteBenne', 'remplissageBenne', 'ps',
    'nbEpandeurs', 'tonnageEpandeur', 'doseTonnesHa', 'numeroCoupe'].forEach(nombre);
-  ['semence', 'typeFourrage', 'cultureId'].forEach(texte);
+  ['semence', 'typeFourrage', 'cultureId', 'typeAliment', 'psUniteSaisie', 'produitRecolte'].forEach(texte);
   if (Array.isArray(s.melange)) {
     const m = s.melange
       .map((x) => ({ nom: String((x && x.nom) || '').trim(), pourcentage: Number((x && x.pourcentage) || 0) }))
@@ -138,18 +148,11 @@ function nettoyerEffetCulture(e) {
   return { cloturees, creees };
 }
 
-/** Total calculé d'une saisie de récolte, dans l'unité du contenant visé. */
-export function quantiteDeSaisie(formulaire, s) {
-  if (!s) return null;
-  const n = (v) => (v == null || v === '' ? 0 : Number(v) || 0);
-  if (formulaire === 'PRESSAGE') return n(s.nbBottes) || null;
-  if (formulaire === 'SECHAGE')  return arrondi3(n(s.nbRemorques) * n(s.tonnesParRemorque)) || null;
-  if (formulaire === 'MOISSON')  return arrondi3(n(s.nbBennes) * n(s.tonnageBenne)) || null;
-  if (formulaire === 'FUMIER')   return arrondi3(n(s.nbEpandeurs) * n(s.tonnageEpandeur)) || null;
-  return null;
-}
-
-function arrondi3(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
+// quantiteDeSaisie vit dans poids-specifique.js, un module pur sans aucune
+// dépendance Firestore (contrairement à ce fichier-ci) : ça la garde
+// testable en Node tel quel. Ré-exportée ici pour que les appelants
+// existants (ui-intervention.js) n'aient rien à changer.
+export { quantiteDeSaisie } from './poids-specifique.js';
 
 export async function createIntervention(data) {
   if (!data.date) throw new Error('La date est obligatoire.');
@@ -170,4 +173,16 @@ export async function updateIntervention(id, data) {
 
 export async function deleteIntervention(id) {
   return deleteDoc(doc(db, 'interventions', id));
+}
+
+// Écriture ciblée pour reprise-campagnes.js : seule campagneId (et, à
+// l'annulation, campagneAvantReprise) change — passer par updateIntervention
+// réécrirait tout le document via nettoyer() avec les valeurs par défaut des
+// champs absents de l'appel, effaçant au passage tout le reste de la saisie.
+export async function ecrireCampagne(id, { campagneId, campagneAvantReprise }) {
+  const maj = { campagneId: campagneId ? String(campagneId) : null, majLe: serverTimestamp() };
+  if (campagneAvantReprise !== undefined) {
+    maj.campagneAvantReprise = campagneAvantReprise ? String(campagneAvantReprise) : null;
+  }
+  return updateDoc(doc(db, 'interventions', id), maj);
 }

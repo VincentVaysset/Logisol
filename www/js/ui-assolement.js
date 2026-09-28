@@ -366,7 +366,8 @@ async function enregistrerCase(ctrl) {
       // Fumier/chaux saisis dans la colonne N+1 : imputés à la campagne DE LA
       // CULTURE QU'ILS PRÉPARENT (ex. apport de fond fait cet automne pour le
       // semis N+1), jamais à la campagne en cours — cf. la même règle déjà
-      // appliquée aux activités réelles (ui-intervention.js/campagneDeLaDate).
+      // appliquée aux activités réelles (campagnes.js/calculerCampagnes, via
+      // ui-intervention.js/campagneCalculee).
       await setPrevision(parcelleId, campagneN + 1, { fumierTHa: ctrl.value });
     } else if (champ === 'chauxTHaN1') {
       await setPrevision(parcelleId, campagneN + 1, { chauxTHa: ctrl.value });

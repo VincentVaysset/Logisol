@@ -199,6 +199,8 @@
       <div class="parametres-bloc">
         <div class="parametres-label">Configuration</div>
         <button type="button" id="btn-cultures-panel" class="btn btn-secondary" style="margin-top:8px">🌾 Gérer le référentiel Cultures</button>
+        <button type="button" id="btn-campagnes-panel" class="btn btn-secondary" style="margin-top:8px">📅 Campagnes agricoles</button>
+        <button type="button" id="btn-historique-ps-panel" class="btn btn-secondary" style="margin-top:8px">⚖️ Historique PS (moissons)</button>
       </div>
       <div class="fiche-actions">
         <button type="button" id="btn-logout" class="btn btn-danger">Déconnexion</button>
@@ -223,6 +225,43 @@
       </div>
       <div class="fiche-actions">
         <button type="button" id="cultures-panel-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campagnes agricoles (www/js/ui-campagnes.js) : quels types font
+       basculer la campagne (pivot) ou réarment la bascule (récolte), et
+       reprise de l'historique déjà enregistré avec la règle actuelle
+       (calculerCampagnes, campagnes.js). -->
+  <div id="campagnes-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>Campagnes agricoles</h2>
+      <p class="apercu-sous-titre">Pivot : ce type fait basculer la campagne à N+1. Récolte : ce type réarme la bascule pour le prochain pivot.</p>
+      <div id="campagnes-types-liste"></div>
+      <h3 style="margin:18px 0 4px">Reprise de l'historique</h3>
+      <p class="apercu-sous-titre">Recalcule la campagne de chaque activité déjà enregistrée avec la règle actuelle, et ne touche qu'aux écarts trouvés.</p>
+      <button type="button" id="campagnes-reprise-previsualiser" class="btn btn-secondary btn-mini">🔍 Prévisualiser</button>
+      <div id="campagnes-reprise-liste"></div>
+      <button type="button" id="campagnes-reprise-appliquer" class="btn btn-primary" hidden style="margin-top:8px"></button>
+      <div id="campagnes-reprise-annulables"></div>
+      <div class="fiche-actions">
+        <button type="button" id="campagnes-panel-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Historique PS (www/js/ui-historique-ps.js) : corrige en une fois les
+       moissons déjà enregistrées avec un poidsSpecifique saisi mais jamais
+       appliqué au calcul (cf. poids-specifique.js/corriger-ps.js). -->
+  <div id="historique-ps-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>Historique PS (moissons)</h2>
+      <p class="apercu-sous-titre">Moissons dont le poids spécifique a été saisi mais jamais appliqué au tonnage. Prévisualisation obligatoire, aucune migration silencieuse.</p>
+      <div id="historique-ps-liste"></div>
+      <button type="button" id="historique-ps-appliquer" class="btn btn-primary" hidden style="margin-top:8px"></button>
+      <div id="historique-ps-annulables"></div>
+      <div class="fiche-actions">
+        <button type="button" id="historique-ps-panel-fermer" class="btn btn-secondary">Fermer</button>
       </div>
     </div>
   </div>
@@ -613,6 +652,7 @@
         <span id="aliment-erreur-texte"></span>
         <button type="button" id="aliment-erreur-close" aria-label="Fermer">✕</button>
       </div>
+      <button type="button" id="aliment-vider" class="btn btn-secondary btn-mini" hidden>🗑️ Vider le stock (remise à zéro fin de campagne)</button>
       <h3 class="apercu-sous-titre">Mouvements</h3>
       <div id="aliment-mouvements"></div>
       <div class="fiche-actions">
@@ -1150,7 +1190,13 @@
             </div>
             <div style="flex:1">
               <label for="itv-campagne">Campagne</label>
-              <input type="number" id="itv-campagne" step="1" min="2000" max="2100" inputmode="numeric">
+              <input type="number" id="itv-campagne" step="1" min="2000" max="2100" inputmode="numeric" readonly>
+              <button type="button" id="itv-campagne-forcer-toggle" class="lien-section">Forcer la campagne</button>
+              <div id="itv-campagne-forcer-wrap" class="melange-pied" hidden>
+                <input type="number" id="itv-campagne-forcer" step="1" min="2000" max="2100" inputmode="numeric">
+                <button type="button" id="itv-campagne-forcer-valider" class="btn btn-secondary btn-mini">Valider</button>
+                <button type="button" id="itv-campagne-forcer-annuler" class="btn btn-secondary btn-mini">Annuler</button>
+              </div>
             </div>
           </div>
 
@@ -1229,9 +1275,19 @@
               </div>
             </div>
 
+            <!-- Paille / Foin : proposé uniquement sur une parcelle de
+                 céréales (blé, orge, triticale...). Sur prairie/luzerne/RGA,
+                 ce sélecteur reste caché — comportement inchangé, foin
+                 uniquement. -->
+            <div id="itv-produit-recolte" class="choix-row" hidden>
+              <button type="button" class="choix-btn" data-produit="PAILLE">🌾 Paille</button>
+              <button type="button" class="choix-btn" data-produit="FOIN">🌿 Foin</button>
+            </div>
+
             <!-- Identité du fourrage récolté : commune au pressage et au
                  séchage en grange, c'est elle qui suit le fourrage jusqu'aux
-                 rations. -->
+                 rations. Masqué pour un pressage de paille (litière, pas un
+                 fourrage de ration). -->
             <div id="itv-g-fourrage" hidden>
               <div class="row">
                 <div style="flex:1">
@@ -1276,7 +1332,8 @@
               </div>
             </div>
 
-            <!-- 🌽 Moisson -->
+            <!-- 🌽 Moisson : poids réel = capacité (m³) × remplissage (%) ×
+                 PS — cf. poids-specifique.js. PS vide = facteur 1 (badge). -->
             <div id="itv-g-moisson" hidden>
               <div class="row">
                 <div style="flex:1">
@@ -1284,12 +1341,22 @@
                   <input type="number" id="itv-nb-bennes" step="1" min="0" inputmode="numeric">
                 </div>
                 <div style="flex:1">
-                  <label for="itv-t-benne">Tonnage / benne (t)</label>
-                  <input type="number" id="itv-t-benne" step="any" min="0" inputmode="decimal">
+                  <label for="itv-capacite-benne">Capacité benne (m³)</label>
+                  <input type="number" id="itv-capacite-benne" step="any" min="0" inputmode="decimal">
                 </div>
               </div>
-              <label for="itv-ps">PS — poids spécifique (kg/hl)</label>
-              <input type="number" id="itv-ps" step="any" min="0" inputmode="decimal" placeholder="facultatif">
+              <div class="row">
+                <div style="flex:1">
+                  <label for="itv-remplissage">Remplissage (%)</label>
+                  <input type="number" id="itv-remplissage" step="1" min="0" max="100" inputmode="numeric" placeholder="100">
+                </div>
+                <div style="flex:1">
+                  <label for="itv-ps">PS — poids spécifique (t/m³ ou kg/hl)</label>
+                  <input type="number" id="itv-ps" step="any" min="0" inputmode="decimal" placeholder="facultatif">
+                </div>
+              </div>
+              <span id="itv-moisson-ps-badge" class="champ-aide" hidden>PS non renseigné — facteur 1 appliqué.</span>
+              <p id="itv-moisson-calcul" class="champ-aide" hidden></p>
             </div>
 
             <!-- 💩 Épandage fumier -->

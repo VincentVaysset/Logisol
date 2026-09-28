@@ -23,12 +23,17 @@ import { openEditMouvement } from './ui-mouvements.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
 import { toastSucces, toastErreur } from './toast.js';
+import { clePaille } from './stocks.js';
+import { getCellules } from './cellules.js';
+import { getEmplacements } from './emplacements.js';
+import { previsualiserVidage, viderStockPaille } from './vider-paille.js';
 
 const panel = document.getElementById('aliment-panel');
 const nomEl = document.getElementById('aliment-nom');
 const erreurBanner = document.getElementById('aliment-erreur');
 const erreurTexte = document.getElementById('aliment-erreur-texte');
 const mouvementsEl = document.getElementById('aliment-mouvements');
+const viderBtn = document.getElementById('aliment-vider');
 
 let cleCourante = null;
 
@@ -42,7 +47,34 @@ export function ouvrirFicheAliment(cle, label) {
   panel.hidden = false;
   hideErreur();
   nomEl.textContent = label || cle;
+  // Remise à zéro fin de campagne : proposée uniquement sur la fiche Paille
+  // (aucun suivi de consommation, cf. CLAUDE.md/ticket paille point 7).
+  if (viderBtn) viderBtn.hidden = cle !== clePaille();
   render();
+}
+
+// La paille n'a aucune sortie automatique (ni rations, ni bergerie) : c'est
+// le seul moyen de remettre son stock à 0 en fin de campagne — un mouvement
+// d'inventaire comme un autre ensuite, modifiable/supprimable ci-dessus.
+if (viderBtn) {
+  viderBtn.addEventListener('click', async () => {
+    hideErreur();
+    const { totalTonnes } = previsualiserVidage(getMouvements(), getCellules(), getEmplacements());
+    if (!(totalTonnes > 0)) { showErreur('Le stock de paille est déjà à 0 t.'); return; }
+    if (!confirm(`Vider ${formatTonnes(totalTonnes)} t de paille ?`)) return;
+    viderBtn.disabled = true;
+    try {
+      await viderStockPaille(getMouvements(), getCellules(), getEmplacements());
+      toastSucces('Stock de paille vidé.');
+      render();
+    } catch (err) {
+      const msg = (err && err.message) || err;
+      showErreur('Vidage impossible : ' + msg);
+      toastErreur('Vidage impossible : ' + msg);
+    } finally {
+      viderBtn.disabled = false;
+    }
+  });
 }
 
 function fermer() {

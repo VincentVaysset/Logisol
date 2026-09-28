@@ -18,7 +18,7 @@ import {
 } from './interventions-types.js';
 import { getMaterielById, getMateriels, onMaterielsChange, materielsPourAction } from './materiel.js';
 import {
-  createIntervention, updateIntervention, deleteIntervention, quantiteDeSaisie
+  createIntervention, updateIntervention, deleteIntervention, quantiteDeSaisie, getInterventions
 } from './interventions.js';
 import { releverMeteo, resumeMeteo } from './meteo.js';
 import { compresserPhoto, tailleLisible } from './photo.js';
@@ -27,6 +27,9 @@ import {
   TYPES_GRAIN, getBatiments, getBatimentById, accepteLots, accepteCellules,
   accepteFourrage, labelGrain, labelFourrage
 } from './batiments.js';
+import { calculerCampagnes } from './campagnes.js';
+import { tonnesReelles, psVersTonnesM3, psValide, estCerealeAliment } from './poids-specifique.js';
+import { psDefautDe, onPsDefautsChange, setPsDefaut } from './ps-defauts.js';
 
 // Formulaires de création des contenants, branchés depuis main.js. Un import
 // direct de ui-batiments.js créerait un cycle (il importe accueil.js, qui
@@ -44,11 +47,10 @@ import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getLots } from './lots.js';
 import { niveauContenant, createMouvement, updateMouvement, deleteMouvement, getMouvements } from './mouvements.js';
 import {
-  implantationEnCours, historiqueParcelle, setImplantation, cloturerImplantation, deleteImplantation,
-  campagneDeSemis
+  implantationEnCours, historiqueParcelle, setImplantation, cloturerImplantation, deleteImplantation
 } from './implantations.js';
 import { getCultureById, getCultures, onCulturesChange, addCulture } from './cultures-config.js';
-import { COUPES, FOURRAGES, cleFoin, labelFoin, cleCereale, labelCereale } from './stocks.js';
+import { COUPES, FOURRAGES, cleFoin, labelFoin, cleCereale, labelCereale, clePaille, labelPaille } from './stocks.js';
 import { conservationDuContenant } from './fourrages.js';
 import { prevision, culturePrev } from './assolement-previsionnel.js';
 import { toastSucces, toastErreur } from './toast.js';
@@ -57,7 +59,9 @@ const panel = document.getElementById('intervention-panel');
 const form = document.getElementById('itv-form');
 const el = {};
 [ 'title','back','steps','etape-1','etape-2','etape-3','cible','parcelles','pick-all',
-  'pick-none','pick-count','activites','date','campagne','chauffeur','chauffeurs','statut',
+  'pick-none','pick-count','activites','date','campagne',
+  'campagne-forcer-toggle','campagne-forcer-wrap','campagne-forcer','campagne-forcer-valider','campagne-forcer-annuler',
+  'chauffeur','chauffeurs','statut',
   'notes','details','details-toggle',
   'champ-produit','produit','quantite','unite','champ-materiel','materiel','materiel-id','tracteur-id','champ-duree',
   'newtype','newtype-toggle','newtype-nom','newtype-icone','newtype-cat','newtype-add',
@@ -69,9 +73,10 @@ const el = {};
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
   'g-surface','surface','surface-tout','surface-tracer','surface-aide',
   'g-fourrage','coupe','fourrage','fourrages','fourrage-aide',
+  'produit-recolte',
   'g-pressage','nb-bottes','poids-botte',
   'g-sechage','nb-remorques','t-remorque',
-  'g-moisson','nb-bennes','t-benne','ps',
+  'g-moisson','nb-bennes','capacite-benne','remplissage','ps','moisson-calcul','moisson-ps-badge',
   'g-fumier','nb-epandeurs','t-epandeur',
   'g-chaulage','dose-chaux',
   'flux-intro','flux-calcul','flux-source','flux-source-id','flux-dest',
@@ -112,6 +117,9 @@ let parcelles = [];
 let mouvementLie = null;    // mouvement déjà créé par cette activité, en édition
 let fluxEnregistre = null;  // intention de mouvement portée par l'activité
 let effetPrecedent = null;  // ce que cette activité avait déjà fait à la culture
+let campagneForceeActive = false;  // l'exploitant a explicitement figé la campagne calculée
+let produitRecolte = null;         // 'PAILLE' | 'FOIN' — choix du pressage sur céréale
+let moissonLegacy = {};            // tonnageBenne/poidsSpecifique d'une moisson saisie avant le modèle capacité×PS
 
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
 function showError(m) { el['error-text'].textContent = m; el['error-banner'].hidden = false; }
@@ -271,8 +279,10 @@ function exigerQuantiteRecolte() {
   const f = formulaireDe(t);
   // Sans coupe ni type, le fourrage entre en stock sans identité : il
   // n'apparaîtrait ni dans le croisement coupe × type, ni dans le choix des
-  // rations. C'est précisément ce qu'on cherche à tracer.
-  if (f === 'PRESSAGE' || f === 'SECHAGE') {
+  // rations. C'est précisément ce qu'on cherche à tracer. La paille échappe à
+  // cette règle : c'est de la litière, pas un fourrage à rattacher à une
+  // ration — un seul aliment "Paille", sans coupe ni type.
+  if ((f === 'PRESSAGE' || f === 'SECHAGE') && !(f === 'PRESSAGE' && produitRecolte === 'PAILLE')) {
     if (!el.coupe.value) throw new ErreurDeSaisie('Indique le numéro de coupe : c\'est lui qui identifie le fourrage jusqu\'à la ration.');
     if (!el.fourrage.value.trim()) throw new ErreurDeSaisie('Indique le type de fourrage (luzerne, prairie, RGA...) : sans lui, le stock ne peut pas être rattaché à une ration.');
   }
@@ -423,19 +433,45 @@ function appliquerType() {
 // --- Bloc de saisie propre au groupe --------------------------------------
 function groupeCourant() { return GROUPES[formulaireDe(typeCourant())] || null; }
 
+// Choix Paille / Foin d'un pressage — proposé (Paille par défaut) seulement
+// sur une parcelle de céréales ; sur prairie/luzerne/RGA, comportement
+// inchangé : foin uniquement, le sélecteur reste caché.
+function majProduitRecolte() {
+  const f = formulaireDe(typeCourant());
+  const cereale = f === 'PRESSAGE' && cible === 'PARCELLE' && parcelleEstCereale();
+  el['produit-recolte'].hidden = !cereale;
+  if (!cereale) { produitRecolte = null; return; }
+  if (produitRecolte !== 'PAILLE' && produitRecolte !== 'FOIN') produitRecolte = 'PAILLE';
+  el['produit-recolte'].querySelectorAll('[data-produit]').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.produit === produitRecolte);
+  });
+}
+el['produit-recolte'].querySelectorAll('[data-produit]').forEach((b) => {
+  b.addEventListener('click', () => {
+    produitRecolte = b.dataset.produit;
+    majProduitRecolte();
+    appliquerGroupe();
+  });
+});
+
 function appliquerGroupe() {
   const g = groupeCourant();
   Object.values(GROUPES).forEach((x) => { el[x.bloc].hidden = true; });
   el.groupe.hidden = !g;
   const f = formulaireDe(typeCourant());
-  const fourrage = f === 'PRESSAGE' || f === 'SECHAGE';
+  majProduitRecolte();
+  // La paille est de la litière, pas un fourrage à identifier par coupe/type :
+  // le bloc coupe/fourrage ne la concerne pas (cf. exigerQuantiteRecolte).
+  const paille = f === 'PRESSAGE' && produitRecolte === 'PAILLE';
+  const fourrage = (f === 'PRESSAGE' || f === 'SECHAGE') && !paille;
   el['g-fourrage'].hidden = !fourrage;
   if (fourrage) injecterFourrageDeLaParcelle();
   if (f === 'SEMIS') injecterCultureSemisDeLaParcelle();
   if (!g) { el['groupe-total'].hidden = true; return; }
   el[g.bloc].hidden = false;
   el['groupe-titre'].textContent = g.titre;
-  if (formulaireDe(typeCourant()) === 'SURFACE') majAideSurface();
+  if (f === 'SURFACE') majAideSurface();
+  if (f === 'MOISSON') { injecterPsDefaut(); majCalculMoisson(); }
   majTotalGroupe();
 }
 
@@ -505,6 +541,7 @@ function majTotalGroupe() {
     texte = `${q} t (${s.nbRemorques || 0} remorque${(s.nbRemorques || 0) > 1 ? 's' : ''})`;
   } else if (f === 'MOISSON' && q) {
     texte = `${q} t (${s.nbBennes || 0} benne${(s.nbBennes || 0) > 1 ? 's' : ''})`;
+    majCalculMoisson();
   } else if (f === 'FUMIER' && q) {
     const ha = surfaceSelectionnee();
     texte = `${q} t épandues` + (ha ? ` · ${arrondi(q / ha)} t/ha` : '');
@@ -520,9 +557,14 @@ function majTotalGroupe() {
   if (etape === 3) majCalculFlux();
 }
 
-['nb-bottes','poids-botte','nb-remorques','t-remorque','nb-bennes','t-benne',
+['nb-bottes','poids-botte','nb-remorques','t-remorque','nb-bennes',
  'nb-epandeurs','t-epandeur','dose-chaux','dose-semis','surface']
   .forEach((k) => el[k].addEventListener('input', majTotalGroupe));
+['capacite-benne','remplissage','ps'].forEach((k) => el[k].addEventListener('input', () => {
+  if (k === 'ps') el.ps.dataset.saisi = '1';
+  majCalculMoisson();
+  majTotalGroupe();
+}));
 
 /** Lit le bloc de groupe. Toujours appelé AVANT le premier await. */
 function lireSaisie() {
@@ -534,17 +576,33 @@ function lireSaisie() {
              doseKgHa: n('dose-semis'), cultureId: el.culture.value || null };
   }
   // Coupe et type de fourrage accompagnent les deux récoltes de fourrage :
-  // ce sont eux qui suivent le fourrage jusqu'à la ration.
+  // ce sont eux qui suivent le fourrage jusqu'à la ration. La paille n'en a
+  // pas besoin (litière, pas un fourrage de ration, cf. exigerQuantiteRecolte).
   if (f === 'PRESSAGE') {
+    const paille = produitRecolte === 'PAILLE';
     return { nbBottes: n('nb-bottes'), poidsBotteKg: n('poids-botte'),
-             numeroCoupe: n('coupe'), typeFourrage: el.fourrage.value.trim() };
+             numeroCoupe: paille ? null : n('coupe'),
+             typeFourrage: paille ? '' : el.fourrage.value.trim(),
+             produitRecolte: produitRecolte || null };
   }
   if (f === 'SECHAGE') {
     return { nbRemorques: n('nb-remorques'), tonnesParRemorque: n('t-remorque'),
              numeroCoupe: n('coupe'), typeFourrage: el.fourrage.value.trim() };
   }
   if (f === 'SURFACE')  return { surfaceHa: n('surface') };
-  if (f === 'MOISSON')  return { nbBennes: n('nb-bennes'), tonnageBenne: n('t-benne'), poidsSpecifique: n('ps') };
+  if (f === 'MOISSON') {
+    const espece = (especeDeduite() || {}).valeur || null;
+    const capacite = n('capacite-benne');
+    // Intervention ancienne pas encore touchée ici (pas de capacité saisie) :
+    // on repasse tonnageBenne/poidsSpecifique tels quels, jamais réinterprétés
+    // tout seuls (cf. moissonLegacy, ecrireSaisie ci-dessous).
+    if (capacite == null && moissonLegacy.tonnageBenne != null) {
+      return { nbBennes: n('nb-bennes'), tonnageBenne: moissonLegacy.tonnageBenne,
+               poidsSpecifique: moissonLegacy.poidsSpecifique, ps: n('ps'), typeAliment: espece };
+    }
+    return { nbBennes: n('nb-bennes'), capaciteBenne: capacite,
+             remplissageBenne: n('remplissage'), ps: n('ps'), typeAliment: espece };
+  }
   if (f === 'FUMIER')   return { nbEpandeurs: n('nb-epandeurs'), tonnageEpandeur: n('t-epandeur') };
   if (f === 'CHAULAGE') return { doseTonnesHa: n('dose-chaux') };
   return null;
@@ -552,6 +610,7 @@ function lireSaisie() {
 
 function ecrireSaisie(s) {
   s = s || {};
+  produitRecolte = s.produitRecolte || null;
   const v = (k, val) => { el[k].value = val == null ? '' : val; };
   v('semence', s.semence);
   peuplerCultures(s.cultureId || '');
@@ -564,8 +623,21 @@ function ecrireSaisie(s) {
   v('nb-remorques', s.nbRemorques);
   v('t-remorque', s.tonnesParRemorque);
   v('nb-bennes', s.nbBennes);
-  v('t-benne', s.tonnageBenne);
-  v('ps', s.poidsSpecifique);
+  if (s.capaciteBenne != null) {
+    v('capacite-benne', s.capaciteBenne);
+    v('remplissage', s.remplissageBenne);
+    moissonLegacy = {};
+  } else {
+    v('capacite-benne', null);
+    v('remplissage', null);
+    moissonLegacy = { tonnageBenne: s.tonnageBenne, poidsSpecifique: s.poidsSpecifique };
+  }
+  // ps (nouveau modèle) uniquement : poidsSpecifique (ancien champ, jamais
+  // appliqué) ne préremplit jamais ps — ce serait la migration silencieuse
+  // que "Corriger avec PS" existe justement pour éviter.
+  v('ps', s.ps);
+  delete el.ps.dataset.saisi;
+  if (s.ps != null) el.ps.dataset.saisi = '1';
   v('nb-epandeurs', s.nbEpandeurs);
   v('t-epandeur', s.tonnageEpandeur);
   v('dose-chaux', s.doseTonnesHa);
@@ -593,10 +665,6 @@ function peuplerCultures(valeur) {
 
 el.culture.addEventListener('change', () => {
   el.culture.dataset.saisi = '1';
-  // La campagne dépend de la culture choisie (dérobée = campagne en cours,
-  // toute autre = campagne visée par campagneDeSemis) : un changement manuel
-  // doit la recalculer, sauf si l'exploitant l'a lui-même déjà corrigée.
-  if (el.campagne.dataset.auto !== 'non') el.campagne.value = campagneDeLaDate();
 });
 
 el['culture-toggle'].addEventListener('click', () => {
@@ -639,11 +707,11 @@ function memeCulture(nomReel, nomAttendu) {
 }
 
 /** Culture attendue par l'assolement prévisionnel de la campagne en cours
- * (celle de la date du semis — cf. campagneDeLaDate, qui bascule déjà en
- * N+1 pour un semis d'automne), pour la première parcelle cochée qui en
- * porte une. */
+ * (celle calculée par campagnes.js/calculerCampagnes, via
+ * ui-intervention.js/campagneCalculee — qui bascule déjà en N+1 pour un
+ * semis d'automne), pour la première parcelle cochée qui en porte une. */
 function cultureAttendueDuSemis() {
-  const campagne = el.campagne.value || campagneDeLaDate();
+  const campagne = el.campagne.value || campagneCalculee();
   for (const id of selection) {
     const p = parcelles.find((x) => x.id === id);
     const prev = prevision(id, campagne);
@@ -697,13 +765,12 @@ function implantationsTouchees() {
 }
 
 function majEffetCulture() {
-  // La campagne suit le type d'activité ET la sélection de parcelles, pas
-  // seulement la date (cf. campagneDeLaDate : bascule vers N+1 pour un
-  // fumier/chaux/travail du sol fait en interculture) — recalculée à chaque
-  // fois que l'un des deux change, tant que l'exploitant ne l'a pas corrigée
-  // lui-même. majEffetCulture() est déjà appelée à ces quatre moments (type,
-  // sélection, statut, date) : un seul endroit pour rester synchronisé.
-  if (!el.campagne.value || el.campagne.dataset.auto !== 'non') el.campagne.value = campagneDeLaDate();
+  // La campagne suit le type d'activité ET la sélection de parcelles — elle
+  // est recalculée à chaque fois que l'un des deux change, tant que
+  // l'exploitant ne l'a pas figée (cf. campagneForceeActive). majEffetCulture()
+  // est déjà appelée à ces quatre moments (type, sélection, statut, date) :
+  // un seul endroit pour rester synchronisé avec campagneCalculee().
+  majCampagneAffichee();
   const effet = effetCultureDe(typeCourant());
   if (!effet || statut !== 'TERMINE') { el['effet-culture'].hidden = true; return; }
   const touchees = implantationsTouchees();
@@ -738,6 +805,50 @@ function injecterFourrageDeLaParcelle() {
 
 el.fourrage.addEventListener('input', () => { el.fourrage.dataset.saisi = '1'; });
 
+// --- PS (poids spécifique) de la moisson -----------------------------------
+// Le PS mémorisé par espèce (ps-defauts.js) préremplit le champ dès que
+// l'espèce moissonnée est connue — jamais si l'exploitant a déjà tapé une
+// valeur lui-même (el.ps.dataset.saisi), et modifiable à chaque saisie.
+function injecterPsDefaut() {
+  if (formulaireDe(typeCourant()) !== 'MOISSON') return;
+  if (el.ps.dataset.saisi) return;
+  const espece = (especeDeduite() || {}).valeur || null;
+  if (!espece) return;
+  const defaut = psDefautDe(espece);
+  if (defaut != null && el.ps.value === '') { el.ps.value = defaut; majCalculMoisson(); }
+}
+onPsDefautsChange(() => injecterPsDefaut());
+
+// Ligne de calcul en direct : "16 m³ × 100 % × 0,70 = 11,2 t" — affichée sous
+// le bloc moisson, jamais découverte à l'étape 3 (même principe que
+// majTotalGroupe pour les autres formulaires).
+function majCalculMoisson() {
+  if (formulaireDe(typeCourant()) !== 'MOISSON') {
+    el['moisson-calcul'].hidden = true;
+    el['moisson-ps-badge'].hidden = true;
+    return;
+  }
+  const cap = el['capacite-benne'].value === '' ? null : Number(el['capacite-benne'].value);
+  if (cap == null) {
+    el['moisson-calcul'].hidden = true;
+    el['moisson-ps-badge'].hidden = true;
+    return;
+  }
+  const remplissage = el['remplissage'].value === '' ? 100 : Number(el['remplissage'].value);
+  const psSaisi = el.ps.value === '' ? null : Number(el.ps.value);
+  const espece = (especeDeduite() || {}).valeur || null;
+  const psNormalise = psVersTonnesM3(psSaisi);
+  const facteur = psNormalise != null ? psNormalise : 1;
+  const total = tonnesReelles(cap, remplissage, psSaisi, espece);
+  let texte = `${cap} m³ × ${remplissage} % × ${arrondi(facteur)} = ${arrondi(total)} t / benne`;
+  if (psSaisi != null && !psValide(psNormalise)) {
+    texte += ' — PS hors plage habituelle (0,3–1,2 t/m³)';
+  }
+  el['moisson-calcul'].textContent = texte;
+  el['moisson-calcul'].hidden = false;
+  el['moisson-ps-badge'].hidden = psSaisi != null;
+}
+
 // Les types déjà rencontrés s'ajoutent aux libellés de référence : après une
 // saison, la liste est celle de l'exploitation.
 function majListeFourrages() {
@@ -755,7 +866,7 @@ function majListeFourrages() {
 // son propre vocabulaire (« Luz 3 » donne « Luzerne ») —, puis, à défaut, la
 // culture réellement en place.
 function cultureDeLaSelection() {
-  const campagne = el.campagne.value || campagneDeLaDate();
+  const campagne = el.campagne.value || campagneCalculee();
   for (const id of selection) {
     const p = parcelles.find((x) => x.id === id);
     const nomParcelle = p ? p.nom : 'la parcelle';
@@ -775,6 +886,26 @@ function cultureDeLaSelection() {
     }
   }
   return null;
+}
+
+// Une parcelle est "de céréales" si son assolement prévisionnel de la
+// campagne en cours porte un code grain (blé, orge, triticale...), ou à
+// défaut si sa culture réellement en place est de famille 'cereale' —
+// c'est ce qui décide si le pressage propose Paille (par défaut) et Foin,
+// ou seulement Foin (prairie/luzerne/RGA, comportement inchangé).
+function parcelleEstCereale() {
+  const campagne = el.campagne.value || campagneCalculee();
+  for (const id of selection) {
+    const prev = prevision(id, campagne);
+    const cp = prev && prev.cultureCode ? culturePrev(prev.cultureCode) : null;
+    if (cp && cp.grain) return true;
+  }
+  for (const id of selection) {
+    const impl = implantationEnCours(id, el.date.value || aujourdhui());
+    const culture = impl ? getCultureById(impl.cultureId) : null;
+    if (culture && culture.famille === 'cereale') return true;
+  }
+  return false;
 }
 
 // --- Mélange de semences ---------------------------------------------------
@@ -877,20 +1008,14 @@ async function relever(automatique) {
   }
 }
 el['meteo-refresh'].addEventListener('click', () => relever(false));
-el.campagne.addEventListener('input', () => {
-  el.campagne.dataset.auto = 'non';
-  if (!el['g-fourrage'].hidden && !el.fourrage.dataset.saisi) {
-    el.fourrage.value = '';
-    injecterFourrageDeLaParcelle();
-  }
-  if (!el['g-semis'].hidden) injecterCultureSemisDeLaParcelle();
-});
 el.date.addEventListener('change', () => {
   // majEffetCulture() resynchronise déjà la campagne (cf. sa définition) —
   // mais silencieusement (écriture directe de .value, sans évènement
   // "input"), donc la proposition de culture doit être recalculée ici.
   majEffetCulture();
   if (!el['g-semis'].hidden) injecterCultureSemisDeLaParcelle();
+  if (formulaireDe(typeCourant()) === 'PRESSAGE') { majProduitRecolte(); appliquerGroupe(); }
+  injecterPsDefaut();
   if (meteoCourante && meteoCourante.date === el.date.value) return;
   meteoCourante = null;
   afficherMeteo();
@@ -1031,7 +1156,7 @@ function especeDeduite() {
   if (formulaireDe(typeCourant()) !== 'MOISSON') return null;
   // Même ordre que pour le fourrage : le prévisionnel de la campagne, puis le
   // réel. « Blé 1 » au prévisionnel suffit à étiqueter la cellule en blé.
-  const campagne = el.campagne.value || campagneDeLaDate();
+  const campagne = el.campagne.value || campagneCalculee();
   for (const id of selection) {
     const prev = prevision(id, campagne);
     const cp = prev && prev.cultureCode ? culturePrev(prev.cultureCode) : null;
@@ -1244,6 +1369,11 @@ function reinitialiser() {
   mouvementLie = null;
   fluxEnregistre = null;
   effetPrecedent = null;
+  campagneForceeActive = false;
+  produitRecolte = null;
+  moissonLegacy = {};
+  el['campagne-forcer-wrap'].hidden = true;
+  el['campagne-forcer'].value = '';
   el['effet-culture'].hidden = true;
   el['culture-new'].hidden = true;
   el['culture-toggle'].textContent = '＋ Nouvelle culture';
@@ -1253,7 +1383,6 @@ function reinitialiser() {
    'flux-quantite', 'flux-poids', 'newtype-nom']
     .forEach((k) => { el[k].value = ''; });
   ecrireSaisie(null);
-  delete el.campagne.dataset.auto;
   appliquerGroupe();
   peuplerMateriels('');
   peuplerTracteurs('');
@@ -1267,52 +1396,67 @@ function reinitialiser() {
   majCibleBoutons();
 }
 
-// Une parcelle qui n'a plus d'implantation active mais en a déjà porté une
-// est en INTERCULTURE (chaumes) — ni "vide", ni encore sur l'ancienne
-// culture (cf. accueil.js/ouvrirApercu et ui-assolement.js/statutReel, même
-// logique). Sert ici à savoir si un travail fait sur cette parcelle prépare
-// la campagne suivante plutôt que de clore la précédente.
-function enInterculture(parcelleId, date) {
-  if (implantationEnCours(parcelleId, date)) return false;
-  return historiqueParcelle(parcelleId).length > 0;
+// Campagne agricole d'une activité — calculée par LA fonction unique
+// calculerCampagnes() (campagnes.js), rejouée sur l'historique réel de la
+// parcelle, jamais par un test ponctuel sur la date ou le type de l'activité
+// en cours. C'est ce qui garantit qu'une parcelle semée en 2027 voit aussi
+// ses activités suivantes (roulage, etc.) basculer en 2027 : elles partagent
+// exactement la même règle que le semis, au lieu de deux logiques distinctes
+// qui divergeaient (cf. campagnes.js, en-tête, pour l'historique du bug).
+function campagneParDefaut() {
+  const d = el.date.value || aujourdhui();
+  return d.slice(0, 4);
 }
 
-// Campagne agricole : l'année de la date saisie, proposée d'office. Une
-// récolte de juillet appartient à la campagne en cours, et corriger l'année à
-// la main reste possible pour un cas particulier.
-//
-// Deux exceptions automatiques, toutes deux réservées à une activité sur
-// PARCELLE :
-//   1) Fumier, chaux et travail du sol (déchaumage, labour, vibroculteur,
-//      moisson — effetCulture 'DETRUIT') faits PENDANT l'interculture d'une
-//      parcelle sélectionnée sont déjà de la préparation pour le prochain
-//      semis, pas un geste de fin de campagne — rattachés d'office à la
-//      campagne SUIVANTE. Une activité qui vient elle-même de clore la
-//      culture en place (ex. la moisson qui déclenche la clôture) ne
-//      bascule pas : au moment du calcul, l'implantation est encore active.
-//   2) Un Semis (effetCulture 'IMPLANTE') vise la campagne où sa culture
-//      sera récoltée/pâturée, jamais celle où on l'a semée — même règle que
-//      campagneDeSemis() (implantations.js), qui tague déjà l'implantation
-//      elle-même : un semis d'automne (août-décembre) appartient à l'année
-//      suivante, y compris pour le champ "campagne" de l'ACTIVITÉ. Seule une
-//      dérobée/CIPAN (culture de famille "derobee") fait exception : elle
-//      reste rattachée à la campagne EN COURS, en interculture — ce n'est
-//      pas la culture N+1 elle-même, juste une étape avant elle.
-function campagneDeLaDate() {
-  const d = el.date.value || aujourdhui();
-  const annee = d.slice(0, 4);
-  const t = typeCourant();
-  const effet = effetCultureDe(t);
-  if (cible === 'PARCELLE' && effet === 'IMPLANTE') {
-    const culture = getCultureById(el.culture.value);
-    if (culture && culture.famille === 'derobee') return annee;
-    return campagneDeSemis(d) || annee;
-  }
-  const preparationInterculture = cible === 'PARCELLE' &&
-    (formulaireDe(t) === 'FUMIER' || formulaireDe(t) === 'CHAULAGE' || effet === 'DETRUIT') &&
-    Array.from(selection).some((id) => enInterculture(id, d));
-  return preparationInterculture ? String(Number(annee) + 1) : annee;
+/** Historique des activités déjà enregistrées sur une parcelle, du plus
+ * ancien au plus récent — l'activité en cours d'édition en est exclue, pour
+ * ne pas se recalculer elle-même à partir de sa propre ancienne valeur. */
+function historiqueCampagne(parcelleId) {
+  return getInterventions()
+    .filter((i) => Array.isArray(i.parcelleIds) && i.parcelleIds.includes(parcelleId))
+    .filter((i) => !editingId || i.id !== editingId);
 }
+
+// Campagne calculée pour l'activité en cours de saisie, sur la première
+// parcelle cochée — rejoue tout l'historique de cette parcelle plus
+// l'activité en cours, et lit la valeur que calculerCampagnes() lui attribue.
+function campagneCalculee() {
+  if (cible !== 'PARCELLE' || !selection.size) return campagneParDefaut();
+  const parcelleId = Array.from(selection)[0];
+  const courante = {
+    id: editingId || '__en_cours__',
+    date: el.date.value || aujourdhui(),
+    typeId: typeChoisiId,
+    forcerCampagne: null
+  };
+  const activites = historiqueCampagne(parcelleId).concat([courante]);
+  const map = calculerCampagnes(activites, () => campagneParDefaut());
+  return map.get(courante.id) || campagneParDefaut();
+}
+
+// Le champ Campagne reste readonly et suit le calcul tant que l'exploitant
+// ne l'a pas explicitement figé via "Forcer la campagne" : sans ce garde-fou,
+// une bascule automatique écraserait silencieusement une correction ponctuelle
+// (cf. forcerCampagne, prioritaire dans calculerCampagnes()).
+function majCampagneAffichee() {
+  if (campagneForceeActive) return;
+  el.campagne.value = campagneCalculee();
+}
+
+el['campagne-forcer-toggle'].addEventListener('click', () => {
+  el['campagne-forcer-wrap'].hidden = !el['campagne-forcer-wrap'].hidden;
+  if (!el['campagne-forcer-wrap'].hidden) el['campagne-forcer'].value = el.campagne.value;
+});
+el['campagne-forcer-valider'].addEventListener('click', () => {
+  campagneForceeActive = true;
+  el.campagne.value = el['campagne-forcer'].value || el.campagne.value;
+  el['campagne-forcer-wrap'].hidden = true;
+});
+el['campagne-forcer-annuler'].addEventListener('click', () => {
+  campagneForceeActive = false;
+  el['campagne-forcer-wrap'].hidden = true;
+  majCampagneAffichee();
+});
 
 // Liste des chauffeurs déjà saisis, construite depuis le journal : aucune
 // table à tenir à jour, et le nom proposé est forcément un nom déjà utilisé
@@ -1334,10 +1478,10 @@ export function openCreateIntervention(opts = {}) {
     el.title.textContent = opts.note ? 'Nouvelle note' : 'Nouvelle activité';
     el.delete.hidden = true;
     el.date.value = aujourdhui();
-    el.campagne.value = campagneDeLaDate();
     cible = opts.cible || 'PARCELLE';
     majCibleBoutons();
     (opts.parcelleIds || []).forEach((id) => selection.add(id));
+    majCampagneAffichee();
     renderCibles();
     renderActivites();
     if (opts.note) {
@@ -1360,13 +1504,22 @@ export function openEditIntervention(itv) {
     el.title.textContent = itv.typeNom ? 'Modifier — ' + itv.typeNom : "Modifier l'activité";
     el.delete.hidden = false;
     el.date.value = itv.date || aujourdhui();
-    el.campagne.value = itv.campagneId || campagneDeLaDate();
     cible = itv.cibleType || 'PARCELLE';
     majCibleBoutons();
     (itv.parcelleIds || []).forEach((id) => selection.add(id));
     typeChoisiId = itv.typeId || null;
     statut = itv.statut || 'TERMINE';
     majStatutBoutons();
+    // Une campagne forcée (correction ponctuelle) reste affichée telle quelle
+    // et n'est pas recalculée à l'ouverture : forcerCampagne est prioritaire
+    // dans calculerCampagnes(), la rouvrir doit refléter exactement ça.
+    if (itv.forcerCampagne) {
+      campagneForceeActive = true;
+      el.campagne.value = itv.forcerCampagne;
+    } else {
+      el.campagne.value = itv.campagneId || '';
+      majCampagneAffichee();
+    }
     renderCibles();
     renderActivites();
     ecrireSaisie(itv.saisie);
@@ -1505,7 +1658,8 @@ form.addEventListener('submit', async (e) => {
     const saisie = lireSaisie();
     const data = {
       date: el.date.value,
-      campagneId: el.campagne.value || campagneDeLaDate(),
+      campagneId: el.campagne.value || campagneCalculee(),
+      forcerCampagne: campagneForceeActive ? (el.campagne.value || null) : null,
       typeId: typeChoisiId,
       typeNom: t ? t.nom : '',
       cibleType: cible,
@@ -1583,6 +1737,15 @@ form.addEventListener('submit', async (e) => {
     if (mode === 'create') await createIntervention(data);
     else if (editingId) await updateIntervention(editingId, data);
 
+    // Le PS saisi devient la valeur par défaut de la prochaine moisson de la
+    // même espèce (ticket PS, point 2 : "PS mémorisé par aliment, modifiable
+    // à chaque saisie") — jamais pour une intervention ancienne rouverte sans
+    // y toucher (saisie.ps resterait alors null, cf. lireSaisie/ecrireSaisie).
+    if (formulaire === 'MOISSON' && saisie && saisie.ps != null && saisie.typeAliment) {
+      const psNormalise = psVersTonnesM3(saisie.ps);
+      if (psNormalise != null) await setPsDefaut(saisie.typeAliment, psNormalise);
+    }
+
     fini = true; clearTimeout(minuteur);
     if (monToken === saveToken) {
       log('activité enregistrée' + (mouvementId ? ' (+ mouvement de stock)' : ''));
@@ -1637,7 +1800,12 @@ function construireMouvement(data, f) {
     // apparaître dans le croisement coupe × type, dans le détail du
     // contenant, et dans le choix de ration.
     const s = data.saisie || {};
-    if (s.numeroCoupe || s.typeFourrage) {
+    if (s.produitRecolte === 'PAILLE') {
+      // Litière, pas un fourrage de ration : un seul aliment "Paille", sans
+      // coupe ni type — cf. stocks.js/clePaille, main.js (exclue des rations).
+      mvt.categorieCle = clePaille();
+      mvt.categorieLabel = labelPaille();
+    } else if (s.numeroCoupe || s.typeFourrage) {
       const conservation = conservationDuContenant(destType, destId)
         || (destType === 'EMPLACEMENT_FOURRAGE' ? 'botte' : 'grange');
       mvt.typeFourrage = s.typeFourrage || null;

@@ -14,7 +14,7 @@
 // saisies à la main dans l'onglet Stocks (stocks.js) : une 1ʳᵉ coupe de
 // luzerne en botte est la même chose quelle que soit la porte d'entrée, donc
 // la même colonne et la même ration.
-import { cleFoin, labelFoin, cleCereale, labelCereale, labelCoupe, cleCommerce } from './stocks.js';
+import { cleFoin, labelFoin, cleCereale, labelCereale, labelCoupe, cleCommerce, clePaille } from './stocks.js';
 import { getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacementById } from './emplacements.js';
 import { niveauContenant } from './mouvements.js';
@@ -41,7 +41,7 @@ export function conservationDuContenant(type, id) {
 
 /**
  * Identité du lot porté par un mouvement.
- * @returns {{cle:string,label:string,famille:'foin'|'cereale'}|null}
+ * @returns {{cle:string,label:string,famille:'foin'|'cereale'|'paille'}|null}
  */
 export function identiteDuMouvement(m) {
   if (!m) return null;
@@ -51,7 +51,13 @@ export function identiteDuMouvement(m) {
     return {
       cle: m.categorieCle,
       label: m.categorieLabel || m.categorieCle,
-      famille: m.categorieCle.startsWith('cereale') ? 'cereale' : 'foin'
+      // La paille est identifiée à part : c'est ce qui permet de l'exclure
+      // du bilan des rations et du prévisionnel d'alimentation (elle n'a
+      // aucun suivi de consommation, cf. CLAUDE.md) sans la retirer de
+      // l'onglet Stocks, où elle doit rester visible.
+      famille: m.categorieCle.startsWith('cereale') ? 'cereale'
+        : m.categorieCle === clePaille() ? 'paille'
+        : 'foin'
     };
   }
   const conservation = m.conservation || conservationDuContenant(m.destinationType, m.destinationId);

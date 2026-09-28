@@ -148,13 +148,13 @@ export function familleAffichage(cat) {
 export function categorieCle(s) {
   if (s.categorie === 'foin') return cleFoin(s.conservation, s.coupe, s.fourrage);
   if (s.categorie === 'cereale') return cleCereale(s.espece);
-  return 'paille|botte';
+  return clePaille();
 }
 
 export function categorieLabel(s) {
   if (s.categorie === 'foin') return labelFoin(s.conservation, s.coupe, s.fourrage);
   if (s.categorie === 'cereale') return labelCereale(s.espece);
-  return 'Paille';
+  return labelPaille();
 }
 
 // --- Identité d'un lot de fourrage, PARTAGÉE -------------------------------
@@ -176,6 +176,14 @@ export function cleCereale(espece) {
 export function labelCereale(espece) {
   return `Céréale — ${espece || '?'}`;
 }
+
+// Paille : litière, jamais une ration (cf. CLAUDE.md, aucun suivi de
+// consommation) — une seule clé, sans coupe ni variété à distinguer,
+// contrairement au foin. « |botte » n'est qu'une convention de forme,
+// alignée sur les autres clés en 3 segments ; la paille n'existe que sous
+// cette seule forme, jamais séchée en grange.
+export function clePaille() { return 'paille|botte'; }
+export function labelPaille() { return 'Paille'; }
 
 // Un aliment du commerce n'est pas une récolte : pas de coupe, pas de
 // parcelle, juste un nom donné par Vincent. La clé sert uniquement à

@@ -719,6 +719,18 @@ header button {
 #cultures-liste .cat-card-detail { flex: 0 0 auto; }
 #cultures-liste .btn-mini { flex: 0 0 auto; }
 
+/* --- Campagnes agricoles / Historique PS (Paramètres) --- */
+#campagnes-types-liste .cat-card,
+#campagnes-reprise-liste .cat-card,
+#campagnes-reprise-annulables .cat-card,
+#historique-ps-liste .cat-card,
+#historique-ps-annulables .cat-card { flex-wrap: wrap; }
+.campagnes-check {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--text-muted); white-space: nowrap;
+}
+.campagnes-check input { margin: 0; }
+
 /* ========================================================================
    Barre de navigation basse (Ferme / Carte / Parcelles / Stocks / Troupeau /
    Bâtiments) — FIXE en bas de l'écran, hors du flux : elle ne peut ni
@@ -842,6 +854,14 @@ header button {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.feed-ps-correction {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.feed-ps-input { flex: 1 1 100px; min-width: 0; margin: 0; padding: 5px 7px; font-size: 12px; min-height: auto; }
 .feed-photo {
   flex: 0 0 52px;
   width: 52px;

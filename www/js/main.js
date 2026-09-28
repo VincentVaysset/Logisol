@@ -85,6 +85,12 @@ import {
 import { initMateriel, renderMateriels } from './ui-materiel.js';
 import { initRapports, setParcellesRapports } from './ui-rapports.js';
 import { initParametresCultures } from './ui-parametres.js';
+import { preparerCampagnes } from './campagnes.js';
+import { preparerReprise } from './reprise-campagnes.js';
+import { initParametresCampagnes, setParcellesCampagnes } from './ui-campagnes.js';
+import { watchPsDefauts } from './ps-defauts.js';
+import { initHistoriquePs, setParcellesHistoriquePs } from './ui-historique-ps.js';
+import { preparerHistoriquePs } from './historique-ps.js';
 
 let booted = false;
 let centrageInitialFait = false;
@@ -188,6 +194,8 @@ function recomputeAndRender() {
   setParcellesAssolement(enriched);
   setParcellesRapports(enriched);
   setParcellesReleve(enriched);
+  setParcellesCampagnes(enriched);
+  setParcellesHistoriquePs(enriched);
 
   majEtat({
     parcelles: enriched,
@@ -253,9 +261,13 @@ function categoriesFusionnees() {
 
 function recomputeStocksEtTroupeau() {
   const cats = categoriesFusionnees();
-  setCategories(cats);
+  // La paille est de la litière, pas un aliment : elle reste visible dans
+  // Stocks (cats complet) mais n'entre jamais dans le bilan des rations ni
+  // le prévisionnel d'alimentation, qui ne voient donc que le reste.
+  const catsSansPaille = cats.filter((c) => c.categorie !== 'paille');
+  setCategories(catsSansPaille);
   setCategoriesStocks(cats);
-  setCategoriesRations(cats);
+  setCategoriesRations(catsSansPaille);
   if (currentView === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (currentView === 'troupeau') renderTroupeau();
 }
@@ -597,6 +609,8 @@ function initParametres() {
   document.getElementById('btn-parametres').addEventListener('click', () => { panel.hidden = false; });
   document.getElementById('parametres-fermer').addEventListener('click', () => { panel.hidden = true; });
   initParametresCultures();
+  initParametresCampagnes();
+  initHistoriquePs();
 }
 
 // --- Navigation entre les trois vues --------------------------------------
@@ -857,11 +871,18 @@ async function boot() {
     watchMateriels();
     onEntretiensChange(() => { if (currentView === 'batiments') renderMateriels(); });
     watchEntretiens();
+    watchPsDefauts();
 
     await ensureCulturesSeeded();
     await ensureTypesSeeded();
     await ensureStadesSeeded();
     await ensureMaterielSeeded();
+    // Charge la dépendance réelle de campagnes.js (interventions-types.js)
+    // une fois pour toutes : calculerCampagnes() est synchrone ensuite,
+    // appelée à chaque frappe dans le tunnel de saisie.
+    await preparerCampagnes();
+    await preparerReprise();
+    await preparerHistoriquePs();
 
     const reprises = await migrerAnciensAssolements();
     if (reprises) log(reprises + ' ancien(s) assolement(s) repris en implantations');

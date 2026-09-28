@@ -13,6 +13,11 @@
 //                'DETRUIT' (le sol est retourné ou travaillé : ce qui poussait
 //                n'y est plus) ou 'IMPLANTE' (un semis clôture la précédente
 //                et en démarre une nouvelle). null = sans effet.
+//   pivotCampagne   — ce passage fait-il basculer la campagne agricole de la
+//                parcelle (cf. campagnes.js/calculerCampagnes) ? Modifiable
+//                depuis Paramètres, indépendamment d'effetCulture.
+//   recolteCampagne — ce passage réarme-t-il la bascule (une récolte a eu
+//                lieu, le prochain pivot ouvrira la campagne suivante) ?
 //
 // EXPLOITATION BIO : il n'y a volontairement AUCUN groupe « Protection /
 // Phyto ». Les anciens types de traitement des cultures sont masqués (voir
@@ -53,51 +58,61 @@ export const CATEGORIES = [
 // Liste de référence. Les types déjà présents en base sont mis à jour sur
 // place (mêmes documents, donc les interventions existantes gardent leur
 // rattachement) ; les manquants sont ajoutés. Rien n'est jamais supprimé.
+//
+// pivotCampagne/recolteCampagne par défaut : repris de l'ancienne inférence
+// effetCulture/flux (cf. campagnes.js/estPivotCampagne,estRecolteCampagne),
+// désormais des champs explicites modifiables depuis Paramètres.
 const TYPES_PAR_DEFAUT = [
   // --- 🌱 Semis ---
-  { nom: 'Semis (semoir + tasse-avant)', icone: '🌱', couleur: '#5b8c5a', categorie: 'SEMIS', cible: 'PARCELLE', flux: null, formulaire: 'SEMIS', effetCulture: 'IMPLANTE', champs: TRAVAIL },
+  { nom: 'Semis (semoir + tasse-avant)', icone: '🌱', couleur: '#5b8c5a', categorie: 'SEMIS', cible: 'PARCELLE', flux: null, formulaire: 'SEMIS', effetCulture: 'IMPLANTE', pivotCampagne: true, recolteCampagne: false, champs: TRAVAIL },
 
   // --- 🌾 Fourrages : préparation de l'andain, aucune entrée en stock ---
   // Rattacher un stock à la fauche ferait compter le fourrage deux fois :
   // seuls le pressage et le séchage en grange rentrent quelque chose.
-  { nom: 'Fauche',                       icone: '🚜', couleur: '#4f9c5f', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: null, formulaire: 'SURFACE', champs: TRAVAIL },
-  { nom: 'Pirouette / Fanage',           icone: '☀️', couleur: '#e0a326', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: null, formulaire: 'SURFACE', champs: TRAVAIL },
-  { nom: 'Andainage',                    icone: '🌾', couleur: '#d4a53f', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: null, formulaire: 'SURFACE', champs: TRAVAIL },
+  { nom: 'Fauche',                       icone: '🚜', couleur: '#4f9c5f', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: null, formulaire: 'SURFACE', pivotCampagne: false, recolteCampagne: false, champs: TRAVAIL },
+  { nom: 'Pirouette / Fanage',           icone: '☀️', couleur: '#e0a326', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: null, formulaire: 'SURFACE', pivotCampagne: false, recolteCampagne: false, champs: TRAVAIL },
+  { nom: 'Andainage',                    icone: '🌾', couleur: '#d4a53f', categorie: 'FOURRAGES', cible: 'PARCELLE', flux: null, formulaire: 'SURFACE', pivotCampagne: false, recolteCampagne: false, champs: TRAVAIL },
 
   // --- 📦 Récolte fourrages : entrée en stock OBLIGATOIRE ---
-  { nom: 'Pressage (bottes)',            icone: '🧻', couleur: '#b98b2f', categorie: 'RECOLTE_FOURRAGE', cible: 'PARCELLE', flux: 'ENTREE_STOCK', formulaire: 'PRESSAGE', champs: TRAVAIL },
-  { nom: 'Séchage en grange',            icone: '🚛', couleur: '#c98a3e', categorie: 'RECOLTE_FOURRAGE', cible: 'PARCELLE', flux: 'ENTREE_STOCK', formulaire: 'SECHAGE', champs: TRAVAIL },
+  // recolteCampagne: false — un pressage (foin ou paille) est UNE des
+  // récoltes possibles d'une parcelle, jamais celle qui clôt une campagne :
+  // une luzerne fauchée plusieurs fois par an ne doit pas réarmer la
+  // bascule à chaque coupe, et la paille n'est qu'un sous-produit de la
+  // moisson (déjà recolteCampagne) sur une céréale — cf. campagnes.js.
+  { nom: 'Pressage (bottes)',            icone: '🧻', couleur: '#b98b2f', categorie: 'RECOLTE_FOURRAGE', cible: 'PARCELLE', flux: 'ENTREE_STOCK', formulaire: 'PRESSAGE', pivotCampagne: false, recolteCampagne: false, champs: TRAVAIL },
+  { nom: 'Séchage en grange',            icone: '🚛', couleur: '#c98a3e', categorie: 'RECOLTE_FOURRAGE', cible: 'PARCELLE', flux: 'ENTREE_STOCK', formulaire: 'SECHAGE', pivotCampagne: false, recolteCampagne: true, champs: TRAVAIL },
 
   // --- 🌽 Moisson : entrée en stock OBLIGATOIRE, en cellule à grain ---
   // effetCulture: DETRUIT — la moisson clôt la culture en place à la date de
   // récolte (comme un déchaumage/labour) : la parcelle passe alors en
   // interculture (chaumes) plutôt que de rester bloquée sur la céréale
-  // récoltée jusqu'au prochain déchaumage.
-  { nom: 'Moisson',                      icone: '🌽', couleur: '#c98a3e', categorie: 'MOISSON', cible: 'PARCELLE', flux: 'ENTREE_STOCK', formulaire: 'MOISSON', effetCulture: 'DETRUIT', champs: TRAVAIL },
+  // récoltée jusqu'au prochain déchaumage. C'est aussi une récolte : elle
+  // réarme la bascule pour le prochain pivot (cf. campagnes.js).
+  { nom: 'Moisson',                      icone: '🌽', couleur: '#c98a3e', categorie: 'MOISSON', cible: 'PARCELLE', flux: 'ENTREE_STOCK', formulaire: 'MOISSON', effetCulture: 'DETRUIT', pivotCampagne: true, recolteCampagne: true, champs: TRAVAIL },
 
   // --- 💩 Épandage ---
-  { nom: 'Épandage fumier',              icone: '💩', couleur: '#8a6d5c', categorie: 'EPANDAGE', cible: 'PARCELLE', flux: null, formulaire: 'FUMIER', champs: TRAVAIL },
+  { nom: 'Épandage fumier',              icone: '💩', couleur: '#8a6d5c', categorie: 'EPANDAGE', cible: 'PARCELLE', flux: null, formulaire: 'FUMIER', pivotCampagne: false, recolteCampagne: false, champs: TRAVAIL },
 
   // --- ⚙️ Travail du sol & entretien ---
-  { nom: 'Déchaumage',                   icone: '🌾', couleur: '#a08a5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, effetCulture: 'DETRUIT',  champs: TRAVAIL },
-  { nom: 'Alignement pierres',           icone: '🪨', couleur: '#8d8878', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, champs: TRAVAIL },
-  { nom: 'Broyage pierres (casseuse)',   icone: '🧱', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, champs: TRAVAIL },
-  { nom: 'Labour',                       icone: '🔵', couleur: '#6b5344', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, effetCulture: 'DETRUIT',  champs: TRAVAIL },
-  { nom: 'Vibroculteur',                 icone: '〰️', couleur: '#8a7c5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, effetCulture: 'DETRUIT',  champs: TRAVAIL },
-  { nom: 'Roulage',                      icone: '🛞', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, champs: TRAVAIL },
-  { nom: 'Chaulage',                     icone: '🤍', couleur: '#b9b4a4', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: 'CHAULAGE', champs: TRAVAIL },
+  { nom: 'Déchaumage',                   icone: '🌾', couleur: '#a08a5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, effetCulture: 'DETRUIT', pivotCampagne: true, recolteCampagne: false, champs: TRAVAIL },
+  { nom: 'Alignement pierres',           icone: '🪨', couleur: '#8d8878', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: TRAVAIL },
+  { nom: 'Broyage pierres (casseuse)',   icone: '🧱', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: TRAVAIL },
+  { nom: 'Labour',                       icone: '🔵', couleur: '#6b5344', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, effetCulture: 'DETRUIT', pivotCampagne: true, recolteCampagne: false, champs: TRAVAIL },
+  { nom: 'Vibroculteur',                 icone: '〰️', couleur: '#8a7c5c', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, effetCulture: 'DETRUIT', pivotCampagne: true, recolteCampagne: false, champs: TRAVAIL },
+  { nom: 'Roulage',                      icone: '🛞', couleur: '#79765f', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: TRAVAIL },
+  { nom: 'Chaulage',                     icone: '🤍', couleur: '#b9b4a4', categorie: 'SOL', cible: 'PARCELLE', flux: null, formulaire: 'CHAULAGE', pivotCampagne: false, recolteCampagne: false, champs: TRAVAIL },
 
   // --- 🐑 Troupeau / élevage ---
-  { nom: 'Pâturage',                     icone: '🐑', couleur: '#3f6b3a', categorie: 'TROUPEAU', cible: 'PARCELLE', flux: null, formulaire: null, champs: ['duree', 'meteo'] },
-  { nom: 'Distribution alimentation',    icone: '🥣', couleur: '#5b8c5a', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: 'DISTRIBUTION', formulaire: null, champs: ['duree'] },
-  { nom: 'Allotement',                   icone: '🔀', couleur: '#6b8fa8', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, formulaire: null, champs: ['duree'] },
-  { nom: 'Soin',                         icone: '💉', couleur: '#a8557a', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, formulaire: null, champs: SOIN },
-  { nom: 'Traitement sanitaire',         icone: '🩺', couleur: '#b5546b', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, formulaire: null, champs: SOIN },
+  { nom: 'Pâturage',                     icone: '🐑', couleur: '#3f6b3a', categorie: 'TROUPEAU', cible: 'PARCELLE', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: ['duree', 'meteo'] },
+  { nom: 'Distribution alimentation',    icone: '🥣', couleur: '#5b8c5a', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: 'DISTRIBUTION', formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: ['duree'] },
+  { nom: 'Allotement',                   icone: '🔀', couleur: '#6b8fa8', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: ['duree'] },
+  { nom: 'Soin',                         icone: '💉', couleur: '#a8557a', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: SOIN },
+  { nom: 'Traitement sanitaire',         icone: '🩺', couleur: '#b5546b', categorie: 'TROUPEAU', cible: 'BERGERIE', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: SOIN },
 
   // --- 📝 Divers ---
-  { nom: 'Note',                         icone: '📝', couleur: '#79765f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, formulaire: null, champs: [] },
-  { nom: 'Observation',                  icone: '👁️', couleur: '#79765f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, formulaire: null, champs: ['meteo'] },
-  { nom: 'Autre',                        icone: '🔧', couleur: '#9a988f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, formulaire: null, champs: COMPLET }
+  { nom: 'Note',                         icone: '📝', couleur: '#79765f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: [] },
+  { nom: 'Observation',                  icone: '👁️', couleur: '#79765f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: ['meteo'] },
+  { nom: 'Autre',                        icone: '🔧', couleur: '#9a988f', categorie: 'AUTRE', cible: 'LES_DEUX', flux: null, formulaire: null, pivotCampagne: false, recolteCampagne: false, champs: COMPLET }
 ];
 
 
@@ -167,6 +182,29 @@ export function formulaireDe(type) {
 // parcelle labourée il y a trois mois.
 export function effetCultureDe(type) {
   return (type && type.effetCulture) || null;
+}
+
+// Drapeaux de campagnes.js/calculerCampagnes, portés par le type lui-même
+// (modifiables depuis Paramètres) — repli sur l'ancienne inférence
+// effetCulture/flux pour un type créé avant l'existence de ces deux champs.
+export function pivotCampagneDe(type) {
+  if (!type) return false;
+  if (typeof type.pivotCampagne === 'boolean') return type.pivotCampagne;
+  const e = effetCultureDe(type);
+  return e === 'DETRUIT' || e === 'IMPLANTE';
+}
+export function recolteCampagneDe(type) {
+  if (!type) return false;
+  if (typeof type.recolteCampagne === 'boolean') return type.recolteCampagne;
+  return fluxDe(type) === 'ENTREE_STOCK';
+}
+
+// Écrit les deux drapeaux depuis le panneau de configuration Paramètres.
+export async function setPivotRecolte(typeId, { pivotCampagne, recolteCampagne }) {
+  await setDoc(doc(db, 'interventions_types', typeId), {
+    pivotCampagne: !!pivotCampagne,
+    recolteCampagne: !!recolteCampagne
+  }, { merge: true });
 }
 
 // Une récolte DOIT rentrer son produit quelque part : c'est ce qui garantit
@@ -253,6 +291,12 @@ export async function ensureSeeded() {
         if ((existant.flux || null) !== (t.flux || null)) maj.flux = t.flux;
         if ((existant.formulaire || null) !== (t.formulaire || null)) maj.formulaire = t.formulaire;
         if ((existant.effetCulture || null) !== (t.effetCulture || null)) maj.effetCulture = t.effetCulture || null;
+        // pivotCampagne/recolteCampagne : seedés seulement s'ils sont encore
+        // absents (undefined) — une fois posés, une modification depuis le
+        // panneau Paramètres (setPivotRecolte) ne doit plus être écrasée à
+        // chaque ensureSeeded().
+        if (typeof existant.pivotCampagne !== 'boolean') maj.pivotCampagne = !!t.pivotCampagne;
+        if (typeof existant.recolteCampagne !== 'boolean') maj.recolteCampagne = !!t.recolteCampagne;
         if (!memesChamps(existant.champs, t.champs)) maj.champs = t.champs;
         if (existant.masque) maj.masque = false;
         if (existant.heritage) maj.heritage = false;
@@ -296,8 +340,10 @@ export async function addType(nom, icone, couleur, extra = {}) {
     formulaire: null,
     // Une action inventée ne touche pas à la culture en place sans que
     // l'exploitant l'ait demandé : détruire un assolement par surprise serait
-    // la pire des initiatives.
+    // la pire des initiatives, ni ne fait basculer de campagne.
     effetCulture: null,
+    pivotCampagne: false,
+    recolteCampagne: false,
     champs: TRAVAIL
   });
   return ref.id;

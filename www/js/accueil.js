@@ -3,6 +3,13 @@
 import { implantationEnCours, historiqueParcelle, dureeLisible } from './implantations.js';
 import { resumeMeteo } from './meteo.js';
 import { openCreateIntervention, openEditIntervention } from './ui-intervention.js';
+import { estCorrigeableAvecPs, corrigerAvecPs } from './corriger-ps.js';
+import { toastSucces, toastErreur } from './toast.js';
+
+// Id de l'activité dont le petit formulaire "Corriger avec PS" est déplié
+// dans le fil — une seule à la fois, jamais un état par carte (le fil est
+// entièrement redessiné à chaque changement, cf. renderFeed()).
+let corrigerPsOuvertPourId = null;
 
 const feedList = document.getElementById('feed-list');
 const apercuPanel = document.getElementById('apercu-panel');
@@ -59,12 +66,48 @@ export function renderFeed() {
   }
   feedList.innerHTML = interventions.map(carteIntervention).join('');
   feedList.querySelectorAll('.feed-item').forEach((el) => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.feed-ps-correction')) return;
       const itv = interventions.find((i) => i.id === el.dataset.id);
       if (itv) openEditIntervention(itv);
     });
   });
+  feedList.querySelectorAll('[data-ps-ouvrir]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      corrigerPsOuvertPourId = btn.dataset.psOuvrir;
+      renderFeed();
+    });
+  });
+  feedList.querySelectorAll('[data-ps-annuler]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      corrigerPsOuvertPourId = null;
+      renderFeed();
+    });
+  });
+  feedList.querySelectorAll('[data-ps-valider]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.psValider;
+      const input = feedList.querySelector(`[data-ps-input="${cssEchap(id)}"]`);
+      const ps = input ? Number(input.value) : NaN;
+      if (!(ps > 0)) { toastErreur('PS invalide.'); return; }
+      btn.disabled = true;
+      try {
+        await corrigerAvecPs(id, ps);
+        toastSucces('PS appliqué, quantité recalculée.');
+        corrigerPsOuvertPourId = null;
+      } catch (err) {
+        toastErreur('Correction impossible : ' + ((err && err.message) || err));
+      } finally {
+        renderFeed();
+      }
+    });
+  });
 }
+
+// CSS.escape n'existe pas partout en WebView Android ancienne — un
+// remplacement minimal suffit ici (l'id vient de Firestore, jamais de
+// caractères spéciaux CSS en pratique).
+function cssEchap(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g, '\\$&'); }
 
 function carteIntervention(itv) {
   // Une activité peut porter sur des parcelles OU des bergeries : on cherche
@@ -84,7 +127,14 @@ function carteIntervention(itv) {
         (itv.quantite != null ? ` ${itv.quantite}${itv.unite ? ' ' + escapeHtml(itv.unite) : ''}` : '')
     );
   }
-  resumeSaisie(itv).forEach((d) => details.push(escapeHtml(d)));
+  // Pressage paille : "X t" (le tonnage réel rentré), pas le compte de bottes
+  // — resumeSaisie() affiche déjà nbBottes pour un pressage foin, mais la
+  // paille ne suit pas de coupe/type et le tonnage est ce qui compte.
+  if ((itv.saisie || {}).produitRecolte === 'PAILLE' && itv.flux && itv.flux.quantite != null) {
+    details.push(escapeHtml(itv.flux.quantite + ' t'));
+  } else {
+    resumeSaisie(itv).forEach((d) => details.push(escapeHtml(d)));
+  }
   if (itv.materielNom) details.push('🛠️ ' + escapeHtml(itv.materielNom));
   if (itv.materiel) details.push(escapeHtml(itv.materiel));
   if (itv.chauffeur) details.push('👤 ' + escapeHtml(itv.chauffeur));
@@ -92,12 +142,15 @@ function carteIntervention(itv) {
   const meteo = resumeMeteo(itv.meteo);
   if (meteo) details.push(escapeHtml(meteo));
 
+  const corrigeable = estCorrigeableAvecPs(itv);
+  const psOuvert = corrigeable && corrigerPsOuvertPourId === itv.id;
+
   return `
   <article class="feed-item" data-id="${escapeAttr(itv.id)}">
     <div class="feed-icon" style="background:${escapeAttr(couleurType(itv))}">${escapeHtml(iconeType(itv))}</div>
     <div class="feed-body">
       <div class="feed-line1">
-        <span class="feed-type">${escapeHtml(itv.typeNom || 'Intervention')}</span>
+        <span class="feed-type">${escapeHtml(libelleType(itv))}</span>
         ${itv.statut === 'A_FAIRE' ? '<span class="badge-afaire">à faire</span>' : ''}
         <span class="feed-date">${escapeHtml(dateLisible(itv.date))}</span>
       </div>
@@ -106,9 +159,22 @@ function carteIntervention(itv) {
       }</div>
       ${details.length ? `<div class="feed-details">${details.join(' · ')}</div>` : ''}
       ${itv.notes ? `<div class="feed-notes">${escapeHtml(itv.notes)}</div>` : ''}
+      ${corrigeable ? `<div class="feed-ps-correction">${psOuvert ? `
+        <input type="number" step="0.01" class="feed-ps-input" data-ps-input="${escapeAttr(itv.id)}" placeholder="PS (t/m³ ou kg/hL)">
+        <button type="button" class="btn btn-secondary btn-mini" data-ps-valider="${escapeAttr(itv.id)}">✔️ Valider</button>
+        <button type="button" class="btn btn-secondary btn-mini" data-ps-annuler="${escapeAttr(itv.id)}">✕</button>
+      ` : `<button type="button" class="btn btn-secondary btn-mini" data-ps-ouvrir="${escapeAttr(itv.id)}">⚖️ Corriger avec PS</button>`}</div>` : ''}
     </div>
     ${itv.photo ? `<img class="feed-photo" src="${escapeAttr(itv.photo)}" alt="">` : ''}
   </article>`;
+}
+
+// "Pressage paille" plutôt que le nom générique du type (« Pressage
+// (bottes) ») : le journal doit dire ce qui a été récolté, pas juste le
+// geste — cf. ticket paille, point 4.
+function libelleType(itv) {
+  if ((itv.saisie || {}).produitRecolte === 'PAILLE') return 'Pressage paille';
+  return itv.typeNom || 'Intervention';
 }
 
 function typeDe(itv) {
@@ -166,7 +232,7 @@ export function ouvrirApercu(parcelle) {
           .map(
             (i) => `<div class="apercu-activite" data-id="${escapeAttr(i.id)}">
               <span class="apercu-activite-icone">${escapeHtml(iconeType(i))}</span>
-              <span class="apercu-activite-nom">${escapeHtml(i.typeNom || 'Intervention')}</span>
+              <span class="apercu-activite-nom">${escapeHtml(libelleType(i))}</span>
               <span class="apercu-activite-date">${escapeHtml(dateLisible(i.date))}</span>
             </div>`
           )
@@ -222,10 +288,18 @@ function resumeSaisie(itv) {
       (s.tonnesParRemorque != null ? ` × ${s.tonnesParRemorque} t` : ''));
   }
   if (s.nbBennes != null) {
-    out.push(s.nbBennes + ' benne' + (s.nbBennes > 1 ? 's' : '') +
-      (s.tonnageBenne != null ? ` × ${s.tonnageBenne} t` : ''));
+    if (s.capaciteBenne != null) {
+      // Nouveau modèle : capacité × remplissage × PS (cf. poids-specifique.js).
+      out.push(`${s.nbBennes} benne${s.nbBennes > 1 ? 's' : ''} × ${s.capaciteBenne} m³` +
+        (s.remplissageBenne != null ? ` × ${s.remplissageBenne} %` : '') +
+        (s.ps != null ? ` × PS ${s.ps}` : ''));
+    } else {
+      out.push(s.nbBennes + ' benne' + (s.nbBennes > 1 ? 's' : '') +
+        (s.tonnageBenne != null ? ` × ${s.tonnageBenne} t` : ''));
+      if (s.ps != null) out.push('PS ' + s.ps);
+    }
   }
-  if (s.poidsSpecifique != null) out.push('PS ' + s.poidsSpecifique);
+  if (s.poidsSpecifique != null && s.ps == null) out.push('PS ' + s.poidsSpecifique + ' (non appliqué)');
   if (s.nbEpandeurs != null) {
     out.push(s.nbEpandeurs + ' épandeur' + (s.nbEpandeurs > 1 ? 's' : '') +
       (s.tonnageEpandeur != null ? ` × ${s.tonnageEpandeur} t` : ''));
