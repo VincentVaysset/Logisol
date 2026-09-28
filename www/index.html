@@ -537,18 +537,14 @@
         <p id="previsionnel-erreur" class="champ-aide champ-aide-erreur" hidden></p>
         <button type="button" id="previsionnel-ajouter" class="btn btn-secondary btn-mini">➕ Ajouter au plan</button>
       </div>
-    </div>
 
-    <div id="troupeau-actuel">
-      <div id="troupeau-alerte" class="alerte" hidden></div>
-      <div id="troupeau-totaux" class="tuiles"></div>
-      <p class="champ-aide">Tuiles et tableau ci-dessous : plan par STADE physiologique (ancien système, cf. « Rations par stade »). Pour le stock disponible et l'achat à prévoir qui font foi, voir l'onglet « Historique &amp; bilan » — basé sur les rations distribuées, jamais les deux à la fois.</p>
-
-      <h3 class="section-titre">Stades × stocks</h3>
+      <!-- Ration théorique par stade (stades.js) : sert désormais de
+           RÉFÉRENCE/PRÉVISIONNEL uniquement — ce n'est plus elle qui dit ce
+           qu'un lot consomme réellement (cf. sous-vue Ration actuelle, qui ne
+           lit que les distributions). Rapatriée ici depuis "Ration actuelle". -->
+      <h3 class="section-titre">Référence : stades × stocks</h3>
+      <p class="champ-aide">Ration théorique configurée par stade physiologique, croisée avec les stocks — un plan de référence, pas un consommé réel.</p>
       <div id="troupeau-tableau" class="table-scroll"></div>
-
-      <h3 class="section-titre">Lots</h3>
-      <div id="troupeau-lots"></div>
 
       <h3 class="section-titre">
         <button type="button" id="btn-rations-toggle" class="lien-section">Rations par stade ▾</button>
@@ -557,11 +553,17 @@
       <!-- Suggestions pour le nom d'un aliment du commerce (concentrés achetés
            courants) — le champ reste libre, cf. stocks.js/CONCENTRES_ACHETES. -->
       <datalist id="rc-concentres-suggestions"></datalist>
+    </div>
 
-      <!-- Distribution réelle en cours par lot (affectations.js) — système
-           additif au tableau stades × stocks ci-dessus, qui reste tel quel. -->
-      <h3 class="section-titre">Distribution en cours (par lot)</h3>
-      <div id="troupeau-distributions-actuelles"></div>
+    <!-- Lots + ration distribuée en cours (affectations.js) — seule source
+         des tuiles ci-dessus. Bouton "Changer" sur chaque carte, en plus du
+         clic qui ouvre la fiche complète. -->
+    <div id="troupeau-actuel">
+      <div id="troupeau-alerte" class="alerte" hidden></div>
+      <div id="troupeau-totaux" class="tuiles"></div>
+
+      <h3 class="section-titre">Lots</h3>
+      <div id="troupeau-lots"></div>
     </div>
 
     <!-- Historique & bilan : bannière de cumul de campagne (par stock
@@ -569,9 +571,13 @@
          lots confondus — 100% dérivé du même historique que l'onglet
          « Ration actuelle », aucune saisie propre. -->
     <div id="troupeau-historique" hidden>
+      <p class="champ-aide">Bannière et journal ci-dessous : historique des périodes par stade (ancien système). Le chiffre qui fait foi est le tableau « Bilan par aliment » plus bas — migre cet historique vers les distributions pour qu'il y compte.</p>
       <div id="troupeau-campagne" class="campagne-banniere"></div>
       <h3 class="section-titre">Périodes de consommation enregistrées</h3>
       <div id="troupeau-journal"></div>
+      <button type="button" id="btn-migrer-distributions" class="btn btn-secondary btn-mini">🔄 Migrer ces périodes vers les distributions</button>
+      <p class="champ-aide">Additif et rejouable sans risque : rien n'est supprimé ni dupliqué. Fait compter cet historique dans le bilan par aliment ci-dessous, qui ne lit que les distributions.</p>
+      <div id="migration-resultat" hidden></div>
 
       <h3 class="section-titre">Distributions (ration directe)</h3>
       <div id="troupeau-distributions-journal"></div>

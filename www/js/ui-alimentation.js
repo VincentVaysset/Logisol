@@ -1,9 +1,11 @@
-// Vue Troupeau : lots d'animaux, rations par stade (multi-ingrédients :
-// fourrage ferme + céréale ferme + aliments du commerce nommés à la main),
-// plan de périodes par lot (stade × dates × effectif, y compris à l'avance),
-// et le tableau croisant les stades physiologiques avec les stocks
-// disponibles — l'objectif visuel du module : voir d'un coup d'œil ce que
-// chaque stade tire sur quel stock, et combien de temps ça tient.
+// Vue Troupeau : lots d'animaux, fiche lot (identité + plan de périodes par
+// stade, historique, non touché — cf. lots.js/planifierPeriode) et rendu
+// des sous-vues Ration actuelle / Historique & bilan (le contenu propre à
+// Prévisionnel et au bilan vit dans ui-rations.js, rattaché ici via
+// renderTroupeauRations()). Le plan par stade (ration théorique, tableau
+// croisé) est désormais affiché sous Prévisionnel : ce fichier ne calcule
+// plus ce qu'un lot consomme réellement, ça vient exclusivement des
+// distributions (cf. totauxDistribution/lotsSansDistribution).
 import { getStades, getStadeById, onStadesChange, setComposants, composantsDuStade, totalRation } from './stades.js';
 import {
   getLots, getPrelevements, createLot, updateLot, deleteLot,
@@ -11,11 +13,13 @@ import {
   synchroniserStadeCache, joursNourris, besoinJournalierKg, tonnesConsommees, estActive
 } from './lots.js';
 
-import { construireTableau, lotsSansStock, autonomieLisible, regrouperColonnesParFamille } from './alimentation.js';
+import { construireTableau, autonomieLisible, regrouperColonnesParFamille } from './alimentation.js';
 import {
   ouvrirSectionRationsLot, fermerSectionRationsLot,
-  initTroupeauRations, renderTroupeauRations, setOuvrirFicheLot
+  initTroupeauRations, renderTroupeauRations,
+  totauxDistribution, lotsSansDistribution, resumeComposants
 } from './ui-rations.js';
+import { affectationEnCours, composantsAffectation } from './affectations.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
@@ -108,7 +112,6 @@ export function initAlimentation() {
       afficherSousVue();
     });
   });
-  setOuvrirFicheLot(openEditLot);
   initTroupeauRations();
 }
 
@@ -471,10 +474,13 @@ export function renderVue() {
   });
   derniereVue = vue;
 
-  const orphelins = lotsSansStock(getLots(), getPrelevements());
+  // Sans ration distribuée ACTUELLEMENT (affectations.js) — plus sans stade
+  // affecté : le stade (ci-dessous, "Stades × stocks") est redevenu un plan
+  // prévisionnel, ce n'est plus lui qui dit ce qu'un lot consomme réellement.
+  const orphelins = lotsSansDistribution();
   if (orphelins.length) {
     alerteEl.innerHTML =
-      `⚠️ ${orphelins.length} lot${orphelins.length > 1 ? 's' : ''} sans stock affecté : ` +
+      `⚠️ ${orphelins.length} lot${orphelins.length > 1 ? 's' : ''} sans ration distribuée : ` +
       escapeHtml(orphelins.map((l) => l.nom).join(', ')) +
       ' — leur consommation n\'est comptée nulle part.';
     alerteEl.hidden = false;
@@ -482,16 +488,21 @@ export function renderVue() {
     alerteEl.hidden = true;
   }
 
+  // Seule source de ces trois chiffres désormais : les distributions
+  // (rations-calc.js/totauxDistribution, cf. ui-rations.js) — jamais les
+  // prélèvements par stade, qui ne sont plus un consommé réel (cf. onglet
+  // Prévisionnel).
+  const totDistrib = totauxDistribution();
+  const totalBrebis = getLots().reduce((n, l) => n + (Number(l.nbBrebis) || 0), 0);
   totauxEl.innerHTML = [
-    tuile('Brebis', vue.totaux.nbBrebis, '', 'brebis'),
-    tuile('Besoin / jour', Math.round(vue.totaux.besoinJourKg), ' kg', 'besoin'),
-    tuile('Tiré des stocks', Math.round(vue.totaux.tireJourKg), ' kg/j', 'tire'),
-    tuile('Stock restant', formatTonnes(vue.totaux.restant), ' t', 'restant'),
-    tuile('Déjà consommé', formatTonnes(vue.totaux.consomme), ' t', 'consomme')
+    tuile('Brebis', totalBrebis, '', 'brebis'),
+    tuile('Besoin / jour', Math.round(totDistrib.besoinJourKg), ' kg', 'besoin'),
+    tuile('Stock restant', formatTonnes(totDistrib.disponibleT), ' t', 'restant'),
+    tuile('Déjà consommé', formatTonnes(totDistrib.consommeT), ' t', 'consomme')
   ].join('');
 
   renderTableau(vue);
-  renderLots(vue);
+  renderLots();
   renderRations();
   renderCampagne(vue);
   renderJournal();
@@ -560,7 +571,11 @@ function renderTableau(vue) {
     </table>`;
 }
 
-function renderLots(vue) {
+// La liste des lots de "Ration actuelle" montre la distribution RÉELLE en
+// cours (affectations.js), jamais le stade — c'est désormais la seule
+// source pour savoir ce qu'un lot mange, cf. les tuiles ci-dessus
+// (totauxDistribution) et l'alerte (lotsSansDistribution).
+function renderLots() {
   const lots = getLots();
   if (!lots.length) {
     lotsEl.innerHTML = '<p class="list-empty">Aucun lot. Utilise « ➕ Lot » pour en créer un.</p>';
@@ -568,30 +583,31 @@ function renderLots(vue) {
   }
   lotsEl.innerHTML = lots
     .map((lot) => {
-      const stade = getStadeById(stadeActifId(lot.id) || lot.stadeId);
-      const actifs = prelevementsActifs(lot.id, getPrelevements());
-      const besoinTotal = actifs.reduce((n, p) => n + besoinJournalierKg(p), 0);
-      const detail = actifs.length
-        ? actifs.map((p) => {
-            const colonne = vue.colonnes.find((c) => c.cle === p.categorieCle);
-            return `🌾 ${escapeHtml(p.categorieLabel || p.categorieCle)}` +
-              (colonne && !colonne.commerce && colonne.autonomieJours != null ? ` · reste ${autonomieLisible(colonne.autonomieJours)}` : '');
-          }).join(' · ')
-        : '<span class="sans-stock">aucun stock affecté</span>';
+      const aff = affectationEnCours(lot);
+      const composants = aff ? composantsAffectation(aff) : [];
+      const sousLigne = aff ? 'depuis le ' + dateLisible(aff.dateDebut) : 'Aucune ration distribuée';
       return `
       <div class="lot-card" data-id="${escapeAttr(lot.id)}">
-        <span class="pastille" style="background:${escapeAttr(stade ? stade.couleur : '#9a988f')}"></span>
         <div class="lot-card-body">
           <div class="lot-card-nom">${escapeHtml(lot.nom || 'Lot')} <span class="lot-card-nb">${lot.nbBrebis} brebis</span></div>
-          <div class="lot-card-sub">${escapeHtml(stade ? stade.nom : 'stade non défini')}${actifs.length ? ' · ' + Math.round(besoinTotal) + ' kg/j' : ''}</div>
-          <div class="lot-card-stock">${detail}</div>
+          <div class="lot-card-sub">${escapeHtml(sousLigne)}</div>
+          <div class="lot-card-stock">${aff ? resumeComposants(composants) : '<span class="sans-stock">aucune ration distribuée</span>'}</div>
         </div>
+        <button type="button" class="btn btn-secondary btn-mini bouton-changer-ration" data-id="${escapeAttr(lot.id)}">🔄 Changer</button>
       </div>`;
     })
     .join('');
   lotsEl.querySelectorAll('.lot-card').forEach((el) => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (ev) => {
+      if (ev.target.closest('.bouton-changer-ration')) return;
       const lot = getLots().find((l) => l.id === el.dataset.id);
+      if (lot) openEditLot(lot);
+    });
+  });
+  lotsEl.querySelectorAll('.bouton-changer-ration').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const lot = getLots().find((l) => l.id === btn.dataset.id);
       if (lot) openEditLot(lot);
     });
   });
@@ -740,7 +756,7 @@ function renderCampagne(vue) {
   campagneEl.innerHTML = `
     <div class="campagne-entete">
       <div>
-        <span class="campagne-label">Total consommé (campagne)</span>
+        <span class="campagne-label">Total consommé — périodes par stade (historique)</span>
         <span class="campagne-total">${formatTonnes(total)} tonnes</span>
       </div>
       <span class="campagne-brebis">${vue.totaux.nbBrebis} brebis</span>

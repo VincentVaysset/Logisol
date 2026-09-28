@@ -13,11 +13,14 @@ import {
   distribuerRation, supprimerAffectation, tonnesComposant, composantsAffectation,
   precedenteFermeePar, rouvrirAffectation
 } from './affectations.js';
-import { bilanParAliment, prevuCampagneParAliment } from './rations-calc.js';
+import {
+  bilanParAliment, prevuCampagneParAliment, stockDisponibleParItem, besoinJournalierParStock
+} from './rations-calc.js';
 import {
   getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
 } from './plan-campagne.js';
-import { getLots } from './lots.js';
+import { getLots, getPrelevements } from './lots.js';
+import { migrerTousLesLots } from './migration-distributions.js';
 import { getStades, onStadesChange } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
@@ -28,10 +31,8 @@ class ErreurDeSaisie extends Error {}
 
 let categories = [];       // catégories fusionnées (mêmes que Stocks/Troupeau)
 let lotCourant = null;     // lot dont la fiche est ouverte (fourni par ui-alimentation.js)
-let openEditLotFn = null;  // câblé par ui-alimentation.js pour éviter un import circulaire au chargement
 
 export function setCategoriesRations(list) { categories = list || []; }
-export function setOuvrirFicheLot(fn) { openEditLotFn = fn; }
 
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
 
@@ -96,7 +97,7 @@ function lireComposantsDe(container) {
   }).filter((c) => c.stockCle && c.kgParAnimalJour > 0);
 }
 
-function resumeComposants(composants) {
+export function resumeComposants(composants) {
   return composants.length
     ? composants.map((c) => `${escapeHtml(c.stockLabel)} : ${c.kgParAnimalJour} kg/j`).join(' · ')
     : '🌱 Pâturage (aucun aliment de stock)';
@@ -188,43 +189,61 @@ function renderPrevisionnel() {
   });
 }
 
-// ============================================================================
-// Ration actuelle : distribution en cours par lot
-// ============================================================================
-const distribActuellesEl = document.getElementById('troupeau-distributions-actuelles');
-
-function renderDistributionsActuelles() {
-  if (!distribActuellesEl) return;
-  const lots = getLots();
-  distribActuellesEl.innerHTML = lots.length
-    ? lots.map((lot) => {
-        const aff = affectationEnCours(lot);
-        const composants = aff ? composantsAffectation(aff) : [];
-        return `<div class="lot-card" data-id="${escapeAttr(lot.id)}">
-          <div class="lot-card-body">
-            <div class="lot-card-nom">${escapeHtml(lot.nom || 'Lot')} <span class="lot-card-nb">${lot.nbBrebis} brebis</span></div>
-            <div class="lot-card-sub">${aff ? escapeHtml('depuis le ' + dateLisible(aff.dateDebut)) : 'Aucune ration distribuée'}</div>
-            <div class="lot-card-stock">${aff ? resumeComposants(composants) : ''}</div>
-          </div>
-          <button type="button" class="btn btn-secondary btn-mini bouton-changer-ration" data-id="${escapeAttr(lot.id)}">🔄 Changer</button>
-        </div>`;
-      }).join('')
-    : '<p class="list-empty">Aucun lot. Utilise « ➕ Lot » pour en créer un.</p>';
-
-  distribActuellesEl.querySelectorAll('.bouton-changer-ration').forEach((btn) => {
-    btn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      const lot = getLots().find((l) => l.id === btn.dataset.id);
-      if (lot && openEditLotFn) openEditLotFn(lot);
-    });
-  });
-}
 
 // ============================================================================
 // Historique & bilan
 // ============================================================================
 const distribJournalEl = document.getElementById('troupeau-distributions-journal');
 const bilanEl = document.getElementById('troupeau-bilan');
+const btnMigrer = document.getElementById('btn-migrer-distributions');
+const migrationResultatEl = document.getElementById('migration-resultat');
+
+// Compare le stock disponible par aliment avant/après une migration —
+// seuls les aliments dont le disponible a vraiment bougé sont remontés.
+function comparerDisponible(avant, apres) {
+  const cles = new Set([...avant.map((d) => d.cle), ...apres.map((d) => d.cle)]);
+  const lignes = [];
+  cles.forEach((cle) => {
+    const a = avant.find((d) => d.cle === cle);
+    const b = apres.find((d) => d.cle === cle);
+    const va = a ? a.disponible : 0;
+    const vb = b ? b.disponible : 0;
+    if (Math.abs(va - vb) > 0.001) lignes.push({ label: (b || a).label, avant: va, apres: vb });
+  });
+  return lignes.sort((x, y) => String(x.label).localeCompare(String(y.label), 'fr'));
+}
+
+async function surMigrer() {
+  if (!confirm("Migrer les périodes par stade déjà enregistrées vers les distributions ? Additif et rejouable : rien n'est supprimé ni recréé en double.")) return;
+  btnMigrer.disabled = true;
+  migrationResultatEl.hidden = true;
+  try {
+    const dispoAvant = stockDisponibleParItem(categories, getLots());
+    const resultat = await migrerTousLesLots(getLots(), getPrelevements());
+    // "après" calculé sur resultat.lotsApres (fusion locale), pas sur un
+    // nouvel appel à getLots() : ne dépend pas du délai de l'écouteur
+    // Firestore, même principe que le reste de l'appli (affichage optimiste).
+    const dispoApres = stockDisponibleParItem(categories, resultat.lotsApres);
+    const ecarts = comparerDisponible(dispoAvant, dispoApres);
+
+    const resume = resultat.groupesMigres > 0
+      ? `${resultat.groupesMigres} période(s) migrée(s) sur ${resultat.lotsTouches} lot(s).`
+      : 'Rien à migrer — tout était déjà fait.';
+    const detail = ecarts.length
+      ? ecarts.map((e) => `${escapeHtml(e.label)} : ${formatTonnes(e.avant)} t → ${formatTonnes(e.apres)} t`).join(' · ')
+      : '';
+    migrationResultatEl.innerHTML = `<div class="alerte">${escapeHtml(resume)}${detail ? '<br>' + detail : ''}</div>`;
+    migrationResultatEl.hidden = false;
+    toastSucces(resume);
+  } catch (err) {
+    const msg = (err && err.message) || err;
+    migrationResultatEl.innerHTML = `<div class="alerte">Migration incomplète : ${escapeHtml(msg)}</div>`;
+    migrationResultatEl.hidden = false;
+    toastErreur('Migration incomplète : ' + msg);
+  } finally {
+    btnMigrer.disabled = false;
+  }
+}
 
 function renderDistributionsJournal() {
   if (!distribJournalEl) return;
@@ -325,6 +344,27 @@ export function renderAchatPrevoir(cible) {
     ⚠️ Achat à prévoir (campagne ${escapeHtml(campagneCourante())}) :
     ${aAcheter.map((b) => `${escapeHtml(b.label)} — ${formatTonnes(b.aAcheter)} t`).join(' · ')}
   </div>`;
+}
+
+// Totaux agrégés depuis les distributions — SEULE source des tuiles
+// "Stock restant"/"Déjà consommé"/"Besoin par jour" de la sous-vue Ration
+// actuelle (ui-alimentation.js/renderVue()) : il n'existe plus qu'un
+// endroit qui calcule ces trois chiffres.
+export function totauxDistribution() {
+  const dispo = stockDisponibleParItem(categories, getLots());
+  const besoin = besoinJournalierParStock(getLots());
+  return {
+    disponibleT: dispo.reduce((n, d) => n + d.disponible, 0),
+    consommeT: dispo.reduce((n, d) => n + d.consomme, 0),
+    besoinJourKg: besoin.reduce((n, b) => n + b.kgParJour, 0)
+  };
+}
+
+// Lots sans ration distribuée actuellement — remplace lotsSansStock()
+// (alimentation.js, prélèvements) pour l'alerte de la sous-vue Ration
+// actuelle, désormais basée sur les distributions.
+export function lotsSansDistribution() {
+  return getLots().filter((l) => !affectationEnCours(l));
 }
 
 // ============================================================================
@@ -447,6 +487,8 @@ export function initTroupeauRations() {
   btnChangerRation.addEventListener('click', surChangerRation);
 
   onPoidsBottesChange(() => { if (!bilanEl.closest('#troupeau-historique').hidden) renderBilan(); });
+
+  btnMigrer.addEventListener('click', surMigrer);
 }
 
 // Appelé depuis ui-alimentation.js/renderVue() à chaque recalcul global, pour
@@ -454,7 +496,6 @@ export function initTroupeauRations() {
 // même principe que le reste de la vue Troupeau (non touché).
 export function renderTroupeauRations() {
   renderPrevisionnel();
-  renderDistributionsActuelles();
   renderDistributionsJournal();
   renderBilan();
 }
