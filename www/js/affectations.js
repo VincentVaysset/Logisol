@@ -123,8 +123,24 @@ export async function distribuerRation(lot, { composants = [], dateDebut, dateFi
   return nouvelle;
 }
 
+// La distribution que "affectation" a fermée en démarrant (sa dateDebut est
+// la dateFin de la précédente) — celle-là même que supprimerAffectation() ne
+// rouvre jamais toute seule (cf. en-tête de fichier).
+export function precedenteFermeePar(lot, affectation) {
+  if (!affectation) return null;
+  return affectationsLot(lot).find((a) => a.id !== affectation.id && a.dateFin === affectation.dateDebut) || null;
+}
+
 export async function supprimerAffectation(lot, affectationId) {
   const affectations = affectationsLot(lot).filter((a) => a.id !== affectationId);
+  return updateDoc(doc(db, 'lots_animaux', lot.id), { affectations, majLe: serverTimestamp() });
+}
+
+// Rouvre une distribution refermée (dateFin remise à null) — jamais fait
+// automatiquement : c'est un choix explicite proposé après suppression de la
+// distribution qui l'avait fermée (cf. ui-rations.js).
+export async function rouvrirAffectation(lot, affectationId) {
+  const affectations = affectationsLot(lot).map((a) => (a.id === affectationId ? { ...a, dateFin: null } : a));
   return updateDoc(doc(db, 'lots_animaux', lot.id), { affectations, majLe: serverTimestamp() });
 }
 

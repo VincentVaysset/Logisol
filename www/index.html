@@ -595,6 +595,25 @@
   </div>
   <input type="file" id="input-geojson" accept=".json,.geojson,application/geo+json,application/json" hidden>
 
+  <!-- Fiche aliment (onglet Stocks) : tous les mouvements qui concernent cet
+       aliment (récoltes, achats, ventes, pertes, distributions...), avec
+       Modifier/Supprimer par ligne. Ouverte en touchant une carte de
+       catégorie dans Stocks. -->
+  <div id="aliment-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2 id="aliment-nom">Aliment</h2>
+      <div id="aliment-erreur" class="fiche-error-banner" hidden>
+        <span id="aliment-erreur-texte"></span>
+        <button type="button" id="aliment-erreur-close" aria-label="Fermer">✕</button>
+      </div>
+      <h3 class="apercu-sous-titre">Mouvements</h3>
+      <div id="aliment-mouvements"></div>
+      <div class="fiche-actions">
+        <button type="button" id="aliment-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Aperçu d'un bâtiment, ouvert en le touchant sur la carte.
        Volontairement séparé du formulaire d'édition : depuis la carte, on
        veut d'abord SAVOIR ce qu'il y a dedans. -->

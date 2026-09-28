@@ -63,6 +63,7 @@ import { watchBatiments, onBatimentsChange, typeBatiment } from './batiments.js'
 import { watchCellules, onCellulesChange } from './cellules.js';
 import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
 import { watchMouvements, onMouvementsChange, getMouvements } from './mouvements.js';
+import { rafraichirFicheAliment } from './ui-fiche-aliment.js';
 import { agregerMouvements, fusionnerCategories } from './fourrages.js';
 import { watchPrevisions, onPrevisionsChange, migrerRGT0 } from './assolement-previsionnel.js';
 import {
@@ -850,7 +851,7 @@ async function boot() {
     watchCellules();
     onEmplacementsChange(() => recomputeBatiments());
     watchEmplacements();
-    onMouvementsChange(() => { recomputeBatiments(); recomputeStocksEtTroupeau(); });
+    onMouvementsChange(() => { recomputeBatiments(); recomputeStocksEtTroupeau(); rafraichirFicheAliment(); });
     watchMouvements();
     onMaterielsChange(() => { if (currentView === 'batiments') renderMateriels(); });
     watchMateriels();

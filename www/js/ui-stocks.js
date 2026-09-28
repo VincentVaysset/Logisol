@@ -8,6 +8,7 @@ import { getMouvements } from './mouvements.js';
 import { getCellules } from './cellules.js';
 import { getEmplacements } from './emplacements.js';
 import { renderAchatPrevoir } from './ui-rations.js';
+import { ouvrirFicheAliment } from './ui-fiche-aliment.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { toastSucces, toastErreur } from './toast.js';
@@ -336,12 +337,15 @@ export function renderVue() {
     const net = stockNetParCategorie(getMouvements(), getCellules(), getEmplacements());
     netEl.innerHTML = net.length
       ? net.map((g) => `
-        <div class="cat-card">
+        <div class="cat-card cat-card-cliquable" data-cle="${escapeAttr(g.cle)}" data-label="${escapeAttr(g.label)}">
           <div class="cat-card-nom">${escapeHtml(g.label)}</div>
           <div class="cat-card-detail">${g.bottes > 0 ? Math.round(g.bottes) + ' bottes restantes' : 'en vrac'}</div>
           <div class="cat-card-tonnes">${formatTonnes(g.tonnes)} t</div>
         </div>`).join('')
       : '<p class="list-empty">Aucun stock en cellule ou en hangar pour l\'instant — une récolte saisie sans contenant (onglet Stocks) n\'est pas décomptée ici.</p>';
+    netEl.querySelectorAll('[data-cle]').forEach((el) => {
+      el.addEventListener('click', () => ouvrirFicheAliment(el.dataset.cle, el.dataset.label));
+    });
   }
 
   // Le croisement se construit sur les catégories FUSIONNÉES : un pressage
@@ -374,12 +378,15 @@ export function renderVue() {
   const cats = categories;
   categoriesEl.innerHTML = cats.length
     ? cats.map((c) => `
-      <div class="cat-card">
+      <div class="cat-card cat-card-cliquable" data-cle="${escapeAttr(c.cle)}" data-label="${escapeAttr(c.label)}">
         <div class="cat-card-nom">${escapeHtml(c.label)}</div>
         <div class="cat-card-detail">${detailCategorie(c)}</div>
         <div class="cat-card-tonnes">${formatTonnes(c.tonnes)} t</div>
       </div>`).join('')
     : '<p class="list-empty">Aucune récolte saisie.</p>';
+  categoriesEl.querySelectorAll('[data-cle]').forEach((el) => {
+    el.addEventListener('click', () => ouvrirFicheAliment(el.dataset.cle, el.dataset.label));
+  });
 
   lignesEl.innerHTML = stocks.length
     ? stocks.map((s) => `

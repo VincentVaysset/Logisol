@@ -10,7 +10,8 @@ import {
 } from './poids-bottes.js';
 import {
   affectationsLot, historiqueAffectations, affectationEnCours,
-  distribuerRation, supprimerAffectation, tonnesComposant, composantsAffectation
+  distribuerRation, supprimerAffectation, tonnesComposant, composantsAffectation,
+  precedenteFermeePar, rouvrirAffectation
 } from './affectations.js';
 import { bilanParAliment, prevuCampagneParAliment } from './rations-calc.js';
 import {
@@ -383,9 +384,19 @@ function renderAffectationsLot(lot) {
   lotListeEl.querySelectorAll('[data-affectation]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       if (!confirm('Supprimer cette distribution ? Cette action est irréversible.')) return;
+      const id = btn.dataset.affectation;
+      const supprimee = affectationsLot(lot).find((a) => a.id === id);
+      // La distribution qu'elle avait refermée ne se rouvre jamais toute
+      // seule — c'est un choix qu'on propose, pas un automatisme.
+      const precedente = precedenteFermeePar(lot, supprimee);
       try {
-        await supprimerAffectation(lot, btn.dataset.affectation);
-        renderAffectationsLot({ ...lot, affectations: affectationsLot(lot).filter((a) => a.id !== btn.dataset.affectation) });
+        await supprimerAffectation(lot, id);
+        let lotMaj = { ...lot, affectations: affectationsLot(lot).filter((a) => a.id !== id) };
+        if (precedente && confirm(`Rouvrir la distribution précédente (${resumeComposants(composantsAffectation(precedente))}) ?`)) {
+          await rouvrirAffectation(lot, precedente.id);
+          lotMaj = { ...lotMaj, affectations: affectationsLot(lotMaj).map((a) => (a.id === precedente.id ? { ...a, dateFin: null } : a)) };
+        }
+        renderAffectationsLot(lotMaj);
       } catch (err) {
         showErreurLot('Suppression impossible : ' + ((err && err.message) || err));
       }

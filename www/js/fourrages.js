@@ -310,3 +310,32 @@ export function stockNetParCategorie(mouvements, cellules, emplacements) {
     .filter((g) => g.tonnes > 0.001 || g.bottes > 0.5)
     .sort((a, b) => b.tonnes - a.tonnes);
 }
+
+/**
+ * Tous les mouvements qui concernent un aliment donné — pour la fiche
+ * aliment de l'onglet Stocks (ui-fiche-aliment.js).
+ *
+ * Les ENTRÉES (récolte, achat) s'identifient directement (identiteDuMouvement).
+ * Les SORTIES (vente, perte, alimentation, transfert) ne portent, elles,
+ * aucune identité propre (cf. en-tête de fichier : ce que tire une sortie
+ * n'est jamais précisé au champ) — on les rattache donc au(x) contenant(s)
+ * qui ont réellement reçu cet aliment, même logique que
+ * ventilationContenant() au niveau d'UN contenant, étendue ici à TOUS ceux
+ * qui portent cette clé.
+ */
+export function mouvementsDeAliment(cle, mouvements) {
+  const conteneurs = new Set();
+  mouvements.forEach((m) => {
+    const id = identiteDuMouvement(m);
+    if (id && id.cle === cle && ENTREES.includes(m.typeMouvement) && m.destinationType && m.destinationId) {
+      conteneurs.add(m.destinationType + '|' + m.destinationId);
+    }
+  });
+  return mouvements
+    .filter((m) => {
+      const id = identiteDuMouvement(m);
+      if (id && id.cle === cle) return true;
+      return !!(m.sourceType && m.sourceId && conteneurs.has(m.sourceType + '|' + m.sourceId));
+    })
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+}

@@ -30,11 +30,19 @@ function msDe(ts) {
   return 0;
 }
 
+let courantes = [];
+
+// Cache local, en plus du callback historique : évite de faire remonter la
+// liste jusqu'ici depuis main.js à chaque nouvel usage (cf. stocks.js/lots.js
+// et la plupart des autres modules, qui suivent déjà ce principe).
+export function getInterventions() { return courantes; }
+
 export function watchInterventions(onChange) {
   return onSnapshot(COL, (snap) => {
     const list = [];
     snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
     list.sort(parDateDecroissante);
+    courantes = list;
     onChange(list);
   });
 }
