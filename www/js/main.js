@@ -54,7 +54,7 @@ import {
   setCategories as setCategoriesStocks, renderVue as renderStocks
 } from './ui-stocks.js';
 import {
-  initAlimentation, setCategories, renderVue as renderTroupeau
+  initAlimentation, renderVue as renderTroupeau
 } from './ui-alimentation.js';
 import { watchPoidsBottes } from './poids-bottes.js';
 import { watchPlanCampagne } from './plan-campagne.js';
@@ -265,7 +265,6 @@ function recomputeStocksEtTroupeau() {
   // Stocks (cats complet) mais n'entre jamais dans le bilan des rations ni
   // le prévisionnel d'alimentation, qui ne voient donc que le reste.
   const catsSansPaille = cats.filter((c) => c.categorie !== 'paille');
-  setCategories(catsSansPaille);
   setCategoriesStocks(cats);
   setCategoriesRations(catsSansPaille);
   if (currentView === 'stocks') { renderStocks(); renderStockageParBatiment(); }

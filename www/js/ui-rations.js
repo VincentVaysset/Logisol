@@ -14,7 +14,7 @@ import {
   precedenteFermeePar, rouvrirAffectation
 } from './affectations.js';
 import {
-  stockDisponibleParItem, besoinJournalierParStock,
+  besoinJournalierParStock,
   consommationParStock, couverturePrevisionnelle, bilanParLot, totalParAlimentTousLots,
   campagnesDistribuees
 } from './rations-calc.js';
@@ -22,8 +22,7 @@ import {
   getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
 } from './plan-campagne.js';
 import { openEditLot } from './ui-alimentation.js';
-import { getLots, getPrelevements } from './lots.js';
-import { migrerTousLesLots } from './migration-distributions.js';
+import { getLots } from './lots.js';
 import { getStades, onStadesChange } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
@@ -282,55 +281,6 @@ function renderSortiesManuelles() {
 // ============================================================================
 const distribJournalEl = document.getElementById('troupeau-distributions-journal');
 const bilanEl = document.getElementById('troupeau-bilan');
-const btnMigrer = document.getElementById('btn-migrer-distributions');
-const migrationResultatEl = document.getElementById('migration-resultat');
-
-// Compare le stock disponible par aliment avant/après une migration —
-// seuls les aliments dont le disponible a vraiment bougé sont remontés.
-function comparerDisponible(avant, apres) {
-  const cles = new Set([...avant.map((d) => d.cle), ...apres.map((d) => d.cle)]);
-  const lignes = [];
-  cles.forEach((cle) => {
-    const a = avant.find((d) => d.cle === cle);
-    const b = apres.find((d) => d.cle === cle);
-    const va = a ? a.disponible : 0;
-    const vb = b ? b.disponible : 0;
-    if (Math.abs(va - vb) > 0.001) lignes.push({ label: (b || a).label, avant: va, apres: vb });
-  });
-  return lignes.sort((x, y) => String(x.label).localeCompare(String(y.label), 'fr'));
-}
-
-async function surMigrer() {
-  if (!confirm("Migrer les périodes par stade déjà enregistrées vers les distributions ? Additif et rejouable : rien n'est supprimé ni recréé en double.")) return;
-  btnMigrer.disabled = true;
-  migrationResultatEl.hidden = true;
-  try {
-    const dispoAvant = stockDisponibleParItem(categories, getLots());
-    const resultat = await migrerTousLesLots(getLots(), getPrelevements());
-    // "après" calculé sur resultat.lotsApres (fusion locale), pas sur un
-    // nouvel appel à getLots() : ne dépend pas du délai de l'écouteur
-    // Firestore, même principe que le reste de l'appli (affichage optimiste).
-    const dispoApres = stockDisponibleParItem(categories, resultat.lotsApres);
-    const ecarts = comparerDisponible(dispoAvant, dispoApres);
-
-    const resume = resultat.groupesMigres > 0
-      ? `${resultat.groupesMigres} période(s) migrée(s) sur ${resultat.lotsTouches} lot(s).`
-      : 'Rien à migrer — tout était déjà fait.';
-    const detail = ecarts.length
-      ? ecarts.map((e) => `${escapeHtml(e.label)} : ${formatTonnes(e.avant)} t → ${formatTonnes(e.apres)} t`).join(' · ')
-      : '';
-    migrationResultatEl.innerHTML = `<div class="alerte">${escapeHtml(resume)}${detail ? '<br>' + detail : ''}</div>`;
-    migrationResultatEl.hidden = false;
-    toastSucces(resume);
-  } catch (err) {
-    const msg = (err && err.message) || err;
-    migrationResultatEl.innerHTML = `<div class="alerte">Migration incomplète : ${escapeHtml(msg)}</div>`;
-    migrationResultatEl.hidden = false;
-    toastErreur('Migration incomplète : ' + msg);
-  } finally {
-    btnMigrer.disabled = false;
-  }
-}
 
 function renderDistributionsJournal() {
   if (!distribJournalEl) return;
@@ -620,8 +570,6 @@ export function initTroupeauRations() {
   btnChangerRation.addEventListener('click', surChangerRation);
 
   onPoidsBottesChange(() => { if (!bilanEl.closest('#troupeau-historique').hidden) renderBilan(); });
-
-  btnMigrer.addEventListener('click', surMigrer);
 }
 
 // Appelé depuis ui-alimentation.js/renderVue() à chaque recalcul global, pour

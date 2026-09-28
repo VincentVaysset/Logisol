@@ -576,21 +576,6 @@
         <button type="button" id="previsionnel-ajouter" class="btn btn-secondary btn-mini">➕ Ajouter au plan</button>
       </div>
 
-      <!-- Ration théorique par stade (stades.js) : sert désormais de
-           RÉFÉRENCE/PRÉVISIONNEL uniquement — ce n'est plus elle qui dit ce
-           qu'un lot consomme réellement (cf. sous-vue Ration actuelle, qui ne
-           lit que les distributions). Rapatriée ici depuis "Ration actuelle". -->
-      <h3 class="section-titre">Référence : stades × stocks</h3>
-      <p class="champ-aide">Ration théorique configurée par stade physiologique, croisée avec les stocks — un plan de référence, pas un consommé réel.</p>
-      <div id="troupeau-tableau" class="table-scroll"></div>
-
-      <h3 class="section-titre">
-        <button type="button" id="btn-rations-toggle" class="lien-section">Rations par stade ▾</button>
-      </h3>
-      <div id="troupeau-rations" hidden></div>
-      <!-- Suggestions pour le nom d'un aliment du commerce (concentrés achetés
-           courants) — le champ reste libre, cf. stocks.js/CONCENTRES_ACHETES. -->
-      <datalist id="rc-concentres-suggestions"></datalist>
     </div>
 
     <!-- Lots + ration distribuée en cours (affectations.js) — seule source
@@ -604,19 +589,11 @@
       <div id="troupeau-lots"></div>
     </div>
 
-    <!-- Historique & bilan : bannière de cumul de campagne (par stock
-         d'origine) + journal de toutes les périodes de prélèvement, tous
-         lots confondus — 100% dérivé du même historique que l'onglet
-         « Ration actuelle », aucune saisie propre. -->
+    <!-- Historique & bilan : 100% dérivé des distributions (ration directe),
+         aucune saisie propre. L'ancien système par stade (périodes de
+         prélèvement) a été retiré de l'UI — la collection Firestore
+         "prelevements" n'est pas supprimée pour autant. -->
     <div id="troupeau-historique" hidden>
-      <p class="champ-aide">Bannière et journal ci-dessous : historique des périodes par stade (ancien système). Le chiffre qui fait foi est le tableau « Bilan par lot » plus bas — migre cet historique vers les distributions pour qu'il y compte.</p>
-      <div id="troupeau-campagne" class="campagne-banniere"></div>
-      <h3 class="section-titre">Périodes de consommation enregistrées</h3>
-      <div id="troupeau-journal"></div>
-      <button type="button" id="btn-migrer-distributions" class="btn btn-secondary btn-mini">🔄 Migrer ces périodes vers les distributions</button>
-      <p class="champ-aide">Additif et rejouable sans risque : rien n'est supprimé ni dupliqué. Fait compter cet historique dans le bilan par lot ci-dessous, qui ne lit que les distributions.</p>
-      <div id="migration-resultat" hidden></div>
-
       <h3 class="section-titre">Sorties alimentation manuelles</h3>
       <p class="champ-aide">Sorties de stock saisies à la main pour le troupeau, avant les distributions — désormais toujours exclues du calcul de stock (une distribution décrit la même consommation). Supprime les doublons, ou marque "Exclure du calcul" pour garder la trace sans qu'elles comptent nulle part.</p>
       <div id="troupeau-sorties-manuelles"></div>
@@ -1037,46 +1014,9 @@
         </div>
       </form>
 
-      <!-- Plan de périodes : le lot une fois enregistré peut recevoir
-           plusieurs périodes datées (stade + début + fin optionnelle +
-           effectif), y compris à l'avance (plan de campagne) — indépendant du
-           formulaire ci-dessus, qui ne porte que l'identité du lot. -->
-      <div id="lot-periodes-section" hidden>
-        <h3 class="apercu-sous-titre">Plan de périodes (stade × dates × effectif)</h3>
-        <div id="lot-periodes-liste" class="apercu-activites"></div>
-
-        <div class="groupe-saisie">
-          <div class="groupe-titre">➕ Nouvelle période</div>
-
-          <label for="lot-p-stade">Stade physiologique</label>
-          <select id="lot-p-stade"></select>
-          <p id="lot-p-ration-info" class="champ-aide"></p>
-
-          <div id="lot-p-composants"></div>
-
-          <label for="lot-p-debut">Début</label>
-          <input type="date" id="lot-p-debut">
-
-          <label for="lot-p-fin">Fin (optionnelle — laisser vide si indéterminée)</label>
-          <input type="date" id="lot-p-fin">
-
-          <label for="lot-p-effectif">Effectif sur cette période</label>
-          <input type="number" id="lot-p-effectif" step="1" min="1" inputmode="numeric">
-
-          <div class="besoin-calcule">
-            <span>Besoin journalier de cette période</span>
-            <strong id="lot-p-besoin-calc">0 kg/j</strong>
-          </div>
-
-          <p id="lot-p-erreur" class="champ-aide champ-aide-erreur" hidden></p>
-          <button type="button" id="lot-p-ajouter" class="btn btn-secondary btn-mini">➕ Ajouter au plan</button>
-        </div>
-      </div>
-
-      <!-- Ration distribuée (réel) : système ADDITIF au plan de périodes par
-           stade ci-dessus, indépendant de lui. Composants choisis dans la
-           liste Stocks, jamais ressaisis — une liste vide est un pâturage
-           valide, pas une erreur. -->
+      <!-- Ration distribuée (réel) : composants choisis dans la liste
+           Stocks, jamais ressaisis — une liste vide est un pâturage valide,
+           pas une erreur. -->
       <div id="lot-rations-section" hidden>
         <h3 class="apercu-sous-titre">Ration distribuée</h3>
         <div id="lot-r-liste" class="apercu-activites"></div>
