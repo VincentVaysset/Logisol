@@ -1,86 +1,41 @@
-// Vue Rations : recettes nommées (composants = stocks existants, jamais
-// ressaisis), affectation à un lot depuis sa fiche (onglet Troupeau), et
-// l'alerte « achat à prévoir » partagée avec l'onglet Stocks (une seule
-// fonction de rendu, appelée depuis les deux — aucun doublon de saisie ni de
-// calcul, cf. rations-calc.js).
+// Rations distribuées (réel, par lot) + plan de campagne prévisionnel +
+// bilan — intégrés aux sous-onglets EXISTANTS de la vue Troupeau
+// (ui-alimentation.js, non touché dans sa logique de fiche/rendu propre) :
+// « Prévisionnel », « Ration actuelle », « Historique & bilan ». Aucun
+// nouvel onglet, aucune ressaisie d'aliment — tout composant se choisit
+// dans la liste Stocks (catégories fusionnées, mêmes clés que partout
+// ailleurs dans l'appli).
 import {
-  getRations, getRationById, onRationsChange,
-  createRation, updateRation, deleteRation, totalRation,
   onPoidsBottesChange, poidsBotteStock, setPoidsBotteStock
-} from './rations.js';
+} from './poids-bottes.js';
 import {
-  affectationsLot, historiqueAffectations,
-  affecterRation, supprimerAffectation, tonnesComposant
+  affectationsLot, historiqueAffectations, affectationEnCours,
+  distribuerRation, supprimerAffectation, tonnesComposant, composantsAffectation
 } from './affectations.js';
-import { projectionAchat, stockDisponibleParItem, finCampagne } from './rations-calc.js';
+import { bilanParAliment, prevuCampagneParAliment } from './rations-calc.js';
+import {
+  getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
+} from './plan-campagne.js';
 import { getLots } from './lots.js';
+import { getStades, onStadesChange } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
 import { toastSucces, toastErreur } from './toast.js';
 
-const panel = document.getElementById('ration-panel');
-const form = document.getElementById('ration-form');
-const titleEl = document.getElementById('ration-title');
-const inputNom = document.getElementById('ration-nom');
-const composantsEl = document.getElementById('ration-composants');
-const btnAjouterComposant = document.getElementById('ration-composant-ajouter');
-const btnSave = document.getElementById('ration-save');
-const btnDelete = document.getElementById('ration-delete');
-const errorBanner = document.getElementById('ration-error-banner');
-const errorText = document.getElementById('ration-error-text');
-
-const listeEl = document.getElementById('rations-liste');
-const achatPrevoirEl = document.getElementById('rations-achat-prevoir');
-const disponibleEl = document.getElementById('rations-disponible');
-
-// Zone d'affectation dans la fiche lot (ui-alimentation.js gère le reste de
-// la fiche ; on y greffe cette section, sans toucher à son code).
-const lotSection = document.getElementById('lot-rations-section');
-const lotListeEl = document.getElementById('lot-r-liste');
-const lotSelect = document.getElementById('lot-r-select');
-const lotInfo = document.getElementById('lot-r-info');
-const lotDebut = document.getElementById('lot-r-debut');
-const lotFin = document.getElementById('lot-r-fin');
-const lotErreur = document.getElementById('lot-r-erreur');
-const btnAffecter = document.getElementById('lot-r-affecter');
-
 class ErreurDeSaisie extends Error {}
 
-let editingId = null;
 let categories = [];       // catégories fusionnées (mêmes que Stocks/Troupeau)
 let lotCourant = null;     // lot dont la fiche est ouverte (fourni par ui-alimentation.js)
-let horizonPersonnalise = null;
-
-function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
-function showError(m) { errorText.textContent = m; errorBanner.hidden = false; }
-function hideError() { errorBanner.hidden = true; errorText.textContent = ''; }
-document.getElementById('ration-error-close').addEventListener('click', hideError);
+let openEditLotFn = null;  // câblé par ui-alimentation.js pour éviter un import circulaire au chargement
 
 export function setCategoriesRations(list) { categories = list || []; }
+export function setOuvrirFicheLot(fn) { openEditLotFn = fn; }
 
-const horizonInput = document.getElementById('rations-horizon');
+function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
 
-export function initRations() {
-  horizonInput.value = finCampagne();
-  horizonInput.addEventListener('change', () => {
-    horizonPersonnalise = horizonInput.value || null;
-    renderVue();
-  });
-  document.getElementById('btn-new-ration').addEventListener('click', openCreate);
-  document.getElementById('ration-cancel').addEventListener('click', fermer);
-  btnAjouterComposant.addEventListener('click', () => {
-    composantsEl.insertAdjacentHTML('beforeend', ligneComposant());
-    cablerLigneComposant(composantsEl.lastElementChild);
-  });
-  form.addEventListener('submit', enregistrer);
-  btnDelete.addEventListener('click', supprimer);
-  onRationsChange(() => { renderListe(); if (lotCourant) peuplerSelectRation(); });
-
-  btnAffecter.addEventListener('click', surAffecter);
-}
-
-// --- Sélecteur de stock, partagé fiche ration + fiche lot ------------------
+// --- Sélecteur de stock, partagé entre le plan prévisionnel et la ration
+// distribuée d'un lot : toujours la même liste, jamais une ressaisie. -------
 function optionsStock(valeurChoisie) {
   const parFamille = new Map();
   categories.forEach((c) => {
@@ -99,14 +54,13 @@ function optionsStock(valeurChoisie) {
     }).join('');
 }
 
-// --- Fiche Ration -----------------------------------------------------------
 function ligneComposant(c = {}) {
-  return `<div class="ration-composant-ligne" data-id="${escapeAttr(c.id || '')}">
+  return `<div class="ration-composant-ligne">
     <select class="rc-stock">
-      <option value="">— Choisir un stock —</option>
+      <option value="">— Choisir un aliment —</option>
       ${optionsStock(c.stockCle)}
     </select>
-    <input type="number" class="rc-dose" step="0.01" min="0" inputmode="decimal" value="${c.kgParAnimalJour != null ? c.kgParAnimalJour : ''}">
+    <input type="number" class="rc-dose" step="0.01" min="0" inputmode="decimal" placeholder="kg/j" value="${c.kgParAnimalJour != null ? c.kgParAnimalJour : ''}">
     <span class="rc-unite">kg/j</span>
     <button type="button" class="rc-suppr" aria-label="Retirer ce composant">✕</button>
   </div>`;
@@ -116,8 +70,21 @@ function cablerLigneComposant(ligne) {
   ligne.querySelector('.rc-suppr').addEventListener('click', () => ligne.remove());
 }
 
-function lireComposants() {
-  return Array.from(composantsEl.querySelectorAll('.ration-composant-ligne')).map((ligne) => {
+function ajouterLigneVide(container) {
+  container.insertAdjacentHTML('beforeend', ligneComposant());
+  cablerLigneComposant(container.lastElementChild);
+}
+
+function remplirComposants(container, composants) {
+  container.innerHTML = '';
+  (composants && composants.length ? composants : [{}]).forEach((c) => {
+    container.insertAdjacentHTML('beforeend', ligneComposant(c));
+    cablerLigneComposant(container.lastElementChild);
+  });
+}
+
+function lireComposantsDe(container) {
+  return Array.from(container.querySelectorAll('.ration-composant-ligne')).map((ligne) => {
     const select = ligne.querySelector('.rc-stock');
     const cat = categories.find((c) => c.cle === select.value);
     return {
@@ -128,186 +95,255 @@ function lireComposants() {
   }).filter((c) => c.stockCle && c.kgParAnimalJour > 0);
 }
 
-function reinitialiser() {
-  hideError();
-  btnSave.disabled = false;
-  btnSave.textContent = 'Enregistrer';
-  inputNom.value = '';
-  composantsEl.innerHTML = '';
+function resumeComposants(composants) {
+  return composants.length
+    ? composants.map((c) => `${escapeHtml(c.stockLabel)} : ${c.kgParAnimalJour} kg/j`).join(' · ')
+    : '🌱 Pâturage (aucun aliment de stock)';
 }
 
-export function openCreate() {
-  editingId = null;
-  panel.hidden = false;
-  reinitialiser();
-  titleEl.textContent = 'Nouvelle ration';
-  btnDelete.hidden = true;
-  composantsEl.insertAdjacentHTML('beforeend', ligneComposant());
-  cablerLigneComposant(composantsEl.lastElementChild);
-  log('formulaire ration ouvert (création)');
+// ============================================================================
+// Prévisionnel
+// ============================================================================
+const previsionnelSection = document.getElementById('troupeau-previsionnel');
+const campagneLabelEl = document.getElementById('previsionnel-campagne-label');
+const prevuEl = document.getElementById('previsionnel-prevu');
+const planListeEl = document.getElementById('previsionnel-liste');
+const selectStadePlan = document.getElementById('previsionnel-stade');
+const inputEffectifPlan = document.getElementById('previsionnel-effectif');
+const inputDebutPlan = document.getElementById('previsionnel-debut');
+const inputFinPlan = document.getElementById('previsionnel-fin');
+const composantsPlanEl = document.getElementById('previsionnel-composants');
+const btnComposantPlan = document.getElementById('previsionnel-composant-ajouter');
+const erreurPlanEl = document.getElementById('previsionnel-erreur');
+const btnAjouterPlan = document.getElementById('previsionnel-ajouter');
+
+function peuplerStadesPlan(stades) {
+  const valeur = selectStadePlan.value;
+  selectStadePlan.innerHTML = stades.map((s) => `<option value="${escapeAttr(s.id)}">${escapeHtml(s.nom)}</option>`).join('');
+  if (valeur && stades.some((s) => s.id === valeur)) selectStadePlan.value = valeur;
 }
 
-export function openEditRation(ration) {
-  editingId = ration.id;
-  panel.hidden = false;
-  reinitialiser();
-  titleEl.textContent = 'Modifier — ' + (ration.nom || 'ration');
-  btnDelete.hidden = false;
-  inputNom.value = ration.nom || '';
-  (ration.composants || []).forEach((c) => {
-    composantsEl.insertAdjacentHTML('beforeend', ligneComposant(c));
-    cablerLigneComposant(composantsEl.lastElementChild);
-  });
-  if (!composantsEl.children.length) {
-    composantsEl.insertAdjacentHTML('beforeend', ligneComposant());
-    cablerLigneComposant(composantsEl.lastElementChild);
-  }
-}
-
-function fermer() { panel.hidden = true; editingId = null; }
-
-async function enregistrer(e) {
-  e.preventDefault();
-  hideError();
-  btnSave.disabled = true;
-  btnSave.textContent = 'Enregistrement...';
+async function surAjouterLignePlan() {
+  erreurPlanEl.hidden = true;
+  btnAjouterPlan.disabled = true;
   try {
-    const nom = inputNom.value.trim();
-    const composants = lireComposants();
-    if (!nom) throw new ErreurDeSaisie('Donne un nom à la ration.');
-    if (!composants.length) throw new ErreurDeSaisie('Ajoute au moins un composant avec un stock et une dose.');
-    if (editingId) await updateRation(editingId, { nom, composants });
-    else await createRation({ nom, composants });
-    log('ration enregistrée');
-    toastSucces('Ration enregistrée.');
-    fermer();
+    const stade = getStades().find((s) => s.id === selectStadePlan.value);
+    const ligne = {
+      stadeId: stade ? stade.id : null,
+      stadeNom: stade ? stade.nom : '',
+      effectifPrevu: inputEffectifPlan.value,
+      dateDebut: inputDebutPlan.value,
+      dateFin: inputFinPlan.value,
+      composants: lireComposantsDe(composantsPlanEl)
+    };
+    await ajouterLignePlan(campagneCourante(), ligne);
+    log('ligne de plan ajoutée');
+    toastSucces('Ligne ajoutée au plan.');
+    inputEffectifPlan.value = '';
+    inputDebutPlan.value = '';
+    inputFinPlan.value = '';
+    remplirComposants(composantsPlanEl, []);
   } catch (err) {
-    const msg = err instanceof ErreurDeSaisie ? err.message : `Erreur d'enregistrement : ${(err && err.message) || err}`;
-    showError(msg);
-    toastErreur(`Échec de l'enregistrement de la ration : ${msg}`);
+    const msg = (err && err.message) || err;
+    erreurPlanEl.textContent = msg;
+    erreurPlanEl.hidden = false;
+    toastErreur('Ligne non ajoutée : ' + msg);
   } finally {
-    btnSave.disabled = false;
-    btnSave.textContent = 'Enregistrer';
+    btnAjouterPlan.disabled = false;
   }
 }
 
-async function supprimer() {
-  if (!editingId) return;
-  if (!confirm('Supprimer cette ration ? Les affectations déjà faites gardent leur instantané et ne sont pas modifiées.')) return;
-  btnDelete.disabled = true;
-  try { await deleteRation(editingId); toastSucces('Ration supprimée.'); fermer(); }
-  catch (err) { const msg = (err && err.message) || err; showError(msg); toastErreur(`Échec de la suppression : ${msg}`); }
-  finally { btnDelete.disabled = false; }
-}
+function renderPrevisionnel() {
+  const campagne = campagneCourante();
+  campagneLabelEl.textContent = campagne;
+  const plan = getPlan();
 
-// --- Liste des rations + alerte achat à prévoir -----------------------------
-export function renderVue() {
-  renderListe();
-  renderDisponible();
-  renderAchatPrevoir(achatPrevoirEl);
-}
-
-onPoidsBottesChange(() => { if (!document.getElementById('rations-view').hidden) renderDisponible(); });
-
-function renderListe() {
-  const rations = getRations();
-  listeEl.innerHTML = rations.length
-    ? rations.map((r) => `
-      <div class="cat-card" data-id="${escapeAttr(r.id)}" style="cursor:pointer">
-        <div class="cat-card-nom">${escapeHtml(r.nom)}</div>
-        <div class="cat-card-detail">${(r.composants || []).map((c) => `${escapeHtml(c.stockLabel)} : ${c.kgParAnimalJour} kg/j`).join(' · ')}</div>
-        <div class="cat-card-tonnes">${totalRation(r.composants)} kg/j</div>
+  const prevu = prevuCampagneParAliment(plan);
+  prevuEl.innerHTML = prevu.length
+    ? prevu.map((p) => `<div class="cat-card">
+        <div class="cat-card-nom">${escapeHtml(p.label)}</div>
+        <div class="cat-card-tonnes">${formatTonnes(p.tonnes)} t</div>
       </div>`).join('')
-    : '<p class="list-empty">Aucune ration. Utilise « ➕ Ration » pour composer une première recette.</p>';
-  listeEl.querySelectorAll('[data-id]').forEach((el) => {
-    el.addEventListener('click', () => {
-      const r = getRationById(el.dataset.id);
-      if (r) openEditRation(r);
+    : '<p class="list-empty">Aucune ligne de plan pour l\'instant.</p>';
+
+  const lignes = (plan.stades || []).slice().sort((a, b) => (a.dateDebut < b.dateDebut ? -1 : 1));
+  planListeEl.innerHTML = lignes.length
+    ? lignes.map((l) => `<div class="apercu-activite">
+        <div class="apercu-activite-corps">
+          <span class="apercu-activite-nom">${escapeHtml(l.stadeNom || 'Stade non défini')} — ${l.effectifPrevu || 0} brebis</span>
+          <span class="apercu-activite-date">${escapeHtml(dateLisible(l.dateDebut))} → ${escapeHtml(dateLisible(l.dateFin))}</span>
+          <span class="apercu-activite-detail">${resumeComposants(l.composants || [])}</span>
+        </div>
+        <button type="button" class="btn-icone-suppr" data-ligne="${escapeAttr(l.id)}" aria-label="Supprimer cette ligne">✕</button>
+      </div>`).join('')
+    : '<p class="list-empty">Aucune ligne planifiée.</p>';
+
+  planListeEl.querySelectorAll('[data-ligne]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer cette ligne du plan ?')) return;
+      try { await supprimerLignePlan(campagne, btn.dataset.ligne); }
+      catch (err) { toastErreur('Suppression impossible : ' + ((err && err.message) || err)); }
     });
   });
 }
 
-// Rendu partagé de l'alerte « achat à prévoir » — appelé depuis l'onglet
-// Rations ET l'onglet Stocks (ui-stocks.js), sur le même calcul
-// (rations-calc.js/projectionAchat), jamais recalculé deux fois séparément.
+// ============================================================================
+// Ration actuelle : distribution en cours par lot
+// ============================================================================
+const distribActuellesEl = document.getElementById('troupeau-distributions-actuelles');
+
+function renderDistributionsActuelles() {
+  if (!distribActuellesEl) return;
+  const lots = getLots();
+  distribActuellesEl.innerHTML = lots.length
+    ? lots.map((lot) => {
+        const aff = affectationEnCours(lot);
+        const composants = aff ? composantsAffectation(aff) : [];
+        return `<div class="lot-card" data-id="${escapeAttr(lot.id)}">
+          <div class="lot-card-body">
+            <div class="lot-card-nom">${escapeHtml(lot.nom || 'Lot')} <span class="lot-card-nb">${lot.nbBrebis} brebis</span></div>
+            <div class="lot-card-sub">${aff ? escapeHtml('depuis le ' + dateLisible(aff.dateDebut)) : 'Aucune ration distribuée'}</div>
+            <div class="lot-card-stock">${aff ? resumeComposants(composants) : ''}</div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-mini bouton-changer-ration" data-id="${escapeAttr(lot.id)}">🔄 Changer</button>
+        </div>`;
+      }).join('')
+    : '<p class="list-empty">Aucun lot. Utilise « ➕ Lot » pour en créer un.</p>';
+
+  distribActuellesEl.querySelectorAll('.bouton-changer-ration').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const lot = getLots().find((l) => l.id === btn.dataset.id);
+      if (lot && openEditLotFn) openEditLotFn(lot);
+    });
+  });
+}
+
+// ============================================================================
+// Historique & bilan
+// ============================================================================
+const distribJournalEl = document.getElementById('troupeau-distributions-journal');
+const bilanEl = document.getElementById('troupeau-bilan');
+
+function renderDistributionsJournal() {
+  if (!distribJournalEl) return;
+  const toutes = [];
+  getLots().forEach((lot) => {
+    historiqueAffectations(lot).forEach((a) => toutes.push({ lot, a }));
+  });
+  toutes.sort((x, y) => (x.a.dateDebut < y.a.dateDebut ? 1 : x.a.dateDebut > y.a.dateDebut ? -1 : 0));
+
+  distribJournalEl.innerHTML = toutes.length
+    ? toutes.map(({ lot, a }) => {
+        const actif = !a.dateFin || a.dateFin > aujourdhui();
+        const badge = a.dateFin
+          ? `${dateLisible(a.dateDebut)} au ${dateLisible(a.dateFin)}`
+          : `En cours (depuis le ${dateLisible(a.dateDebut)})`;
+        const composants = composantsAffectation(a);
+        return `<div class="periode-card">
+          <div class="periode-entete">
+            <div>
+              <span class="periode-badge ${actif ? 'periode-badge-encours' : ''}">${escapeHtml(badge)}</span>
+              <h3 class="periode-titre">${escapeHtml(lot.nom || 'Lot')} — ${a.nbBrebis || 0} brebis</h3>
+            </div>
+          </div>
+          <p class="periode-sub">${resumeComposants(composants)}</p>
+        </div>`;
+      }).join('')
+    : '<p class="list-empty">Aucune ration distribuée pour l\'instant.</p>';
+}
+
+const poidsBottesEl = document.getElementById('troupeau-poids-bottes');
+
+// Poids moyen calculé si aucun réglage manuel n'existe encore : moyenne des
+// entrées déjà comptées pour cet aliment (tonnes/bottes de la catégorie),
+// jamais utilisée pour le calcul du tonnage lui-même.
+function poidsBotteEffectif(cle) {
+  const cat = categories.find((c) => c.cle === cle);
+  const moyenneCalculee = cat && cat.nbBottes > 0 ? Math.round((cat.tonnes * 1000) / cat.nbBottes) : 0;
+  return poidsBotteStock(cle) || moyenneCalculee;
+}
+
+function renderBilan() {
+  if (!bilanEl) return;
+  const bilan = bilanParAliment(categories, getLots(), getPlan());
+  if (!bilan.length) {
+    bilanEl.innerHTML = '<p class="list-empty">Aucun aliment prévu, distribué ou en stock pour l\'instant.</p>';
+    if (poidsBottesEl) poidsBottesEl.innerHTML = '';
+    return;
+  }
+  bilanEl.innerHTML = `<table class="tableau">
+    <thead><tr>
+      <th>Aliment</th><th>Prévu</th><th>Consommé</th><th>Reste prévu</th><th>Stock dispo</th><th>À acheter</th>
+    </tr></thead>
+    <tbody>
+      ${bilan.map((b) => {
+        const poids = poidsBotteEffectif(b.cle);
+        const bottes = poids > 0 ? Math.round((b.stockDispo * 1000) / poids) : null;
+        return `<tr class="bilan-ligne bilan-${b.statut}">
+          <td>${escapeHtml(b.label)}${b.depassement ? ' <span class="bilan-badge">Dépassement</span>' : ''}</td>
+          <td>${formatTonnes(b.prevu)} t</td>
+          <td>${formatTonnes(b.consomme)} t</td>
+          <td>${formatTonnes(b.restePrevu)} t</td>
+          <td>${formatTonnes(b.stockDispo)} t${bottes != null ? ` <small>(~${bottes} bottes)</small>` : ''}</td>
+          <td>${b.aAcheter > 0 ? formatTonnes(b.aAcheter) + ' t' : '—'}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+
+  if (poidsBottesEl) {
+    const fourrages = bilan.filter((b) => categories.some((c) => c.cle === b.cle && c.nbBottes > 0));
+    poidsBottesEl.innerHTML = fourrages.length
+      ? fourrages.map((b) => `<span class="poids-botte-reglage">
+          ${escapeHtml(b.label)} : <input type="number" class="poids-botte-input" data-cle="${escapeAttr(b.cle)}" step="1" min="0" value="${poidsBotteEffectif(b.cle) || ''}"> kg/botte
+        </span>`).join('')
+      : '';
+    poidsBottesEl.querySelectorAll('.poids-botte-input').forEach((input) => {
+      input.addEventListener('change', async () => {
+        try { await setPoidsBotteStock(input.dataset.cle, input.value); renderBilan(); }
+        catch (err) { toastErreur('Poids/botte non enregistré : ' + ((err && err.message) || err)); }
+      });
+    });
+  }
+}
+
+// Rendu partagé de l'alerte « achat à prévoir » — appelé depuis Troupeau ET
+// l'onglet Stocks (ui-stocks.js), sur le même bilan (rations-calc.js), jamais
+// recalculé deux fois séparément.
 export function renderAchatPrevoir(cible) {
   if (!cible) return;
-  const horizon = horizonPersonnalise || finCampagne();
-  const manques = projectionAchat(categories, getLots(), { horizon });
-  if (!manques.length) {
+  const aAcheter = bilanParAliment(categories, getLots(), getPlan()).filter((b) => b.aAcheter > 0);
+  if (!aAcheter.length) {
     cible.hidden = true;
     cible.innerHTML = '';
     return;
   }
   cible.hidden = false;
   cible.innerHTML = `<div class="alerte">
-    ⚠️ Achat à prévoir d'ici le ${escapeHtml(dateLisible(horizon))} :
-    ${manques.map((m) => `${escapeHtml(m.label)} — ${formatTonnes(m.manqueTonnes)} t`).join(' · ')}
+    ⚠️ Achat à prévoir (campagne ${escapeHtml(campagneCourante())}) :
+    ${aAcheter.map((b) => `${escapeHtml(b.label)} — ${formatTonnes(b.aAcheter)} t`).join(' · ')}
   </div>`;
 }
 
-// Disponible par aliment, avec poids/botte réglable pour l'estimation en
-// bottes — jamais utilisé pour calculer le tonnage lui-même (toujours dérivé
-// du journal réel), seulement pour cette conversion d'affichage.
-function renderDisponible() {
-  if (!disponibleEl) return;
-  const items = stockDisponibleParItem(categories, getLots());
-  if (!items.length) {
-    disponibleEl.innerHTML = '<p class="list-empty">Aucun stock ni consommation enregistrés pour l\'instant.</p>';
-    return;
-  }
-  disponibleEl.innerHTML = items
-    .sort((a, b) => b.disponible - a.disponible)
-    .map((it) => {
-      const cat = categories.find((c) => c.cle === it.cle);
-      const moyenneCalculee = cat && cat.nbBottes > 0 ? Math.round((cat.tonnes * 1000) / cat.nbBottes) : 0;
-      const poids = poidsBotteStock(it.cle) || moyenneCalculee;
-      const bottes = poids > 0 ? Math.round((it.disponible * 1000) / poids) : null;
-      return `<div class="cat-card">
-        <div class="cat-card-nom">${escapeHtml(it.label)}</div>
-        <div class="cat-card-detail">
-          entrées ${formatTonnes(it.entrees)} t · consommé ${formatTonnes(it.consomme)} t
-          ${bottes != null ? ` · ~${bottes} bottes` : ''}
-          <span class="poids-botte-reglage">
-            poids/botte <input type="number" class="poids-botte-input" data-cle="${escapeAttr(it.cle)}" step="1" min="0" value="${poids || ''}" placeholder="${moyenneCalculee || ''}"> kg
-          </span>
-        </div>
-        <div class="cat-card-tonnes ${it.disponible < 0 ? 'urgent' : ''}">${formatTonnes(it.disponible)} t</div>
-      </div>`;
-    }).join('');
-  disponibleEl.querySelectorAll('.poids-botte-input').forEach((input) => {
-    input.addEventListener('change', async () => {
-      try { await setPoidsBotteStock(input.dataset.cle, input.value); }
-      catch (err) { toastErreur('Poids/botte non enregistré : ' + ((err && err.message) || err)); }
-    });
-  });
-}
+// ============================================================================
+// Fiche lot : section « Ration distribuée » (composée à la volée)
+// ============================================================================
+const lotSection = document.getElementById('lot-rations-section');
+const lotListeEl = document.getElementById('lot-r-liste');
+const lotComposantsEl = document.getElementById('lot-r-composants');
+const btnComposantLot = document.getElementById('lot-r-composant-ajouter');
+const lotDebut = document.getElementById('lot-r-debut');
+const lotFin = document.getElementById('lot-r-fin');
+const lotErreur = document.getElementById('lot-r-erreur');
+const btnChangerRation = document.getElementById('lot-r-affecter');
 
-// --- Section « Ration appliquée » de la fiche lot ---------------------------
-function peuplerSelectRation() {
-  const rations = getRations();
-  lotSelect.innerHTML = rations.length
-    ? rations.map((r) => `<option value="${escapeAttr(r.id)}">${escapeHtml(r.nom)} (${totalRation(r.composants)} kg/j)</option>`).join('')
-    : '<option value="">— Aucune ration créée —</option>';
-  majInfoRation();
-}
-
-function majInfoRation() {
-  const r = getRationById(lotSelect.value);
-  lotInfo.textContent = r
-    ? `${(r.composants || []).map((c) => `${c.stockLabel} : ${c.kgParAnimalJour} kg/j`).join(' · ')} — soit ${totalRation(r.composants)} kg/j/animal`
-    : '';
-}
-lotSelect.addEventListener('change', majInfoRation);
-
-// Appelé par ui-alimentation.js à l'ouverture/fermeture de la fiche lot —
-// section volontairement indépendante du plan de périodes par stade
-// (#lot-periodes-section), qui reste géré tel quel par ui-alimentation.js.
 export function ouvrirSectionRationsLot(lot) {
   lotCourant = lot;
   lotSection.hidden = false;
   hideErreurLot();
-  peuplerSelectRation();
+  const aff = affectationEnCours(lot);
+  remplirComposants(lotComposantsEl, aff ? composantsAffectation(aff) : []);
   lotDebut.value = aujourdhui();
   lotFin.value = '';
   renderAffectationsLot(lot);
@@ -329,23 +365,24 @@ function renderAffectationsLot(lot) {
         const dates = a.dateFin
           ? `${dateLisible(a.dateDebut)} → ${dateLisible(a.dateFin)}`
           : `depuis le ${dateLisible(a.dateDebut)}${active ? ' · en cours' : ''}`;
-        const conso = (a.snapshot || [])
-          .map((c) => `${escapeHtml(c.stockLabel)} : ${formatTonnes(tonnesComposant(a, c))} t consommées`)
-          .join(' · ');
+        const composants = composantsAffectation(a);
+        const conso = composants.length
+          ? composants.map((c) => `${escapeHtml(c.stockLabel)} : ${formatTonnes(tonnesComposant(a, c))} t consommées`).join(' · ')
+          : '🌱 Pâturage';
         return `<div class="apercu-activite">
           <div class="apercu-activite-corps">
-            <span class="apercu-activite-nom">${escapeHtml(a.rationNom || 'Ration')} — ${a.nbBrebis || 0} brebis</span>
+            <span class="apercu-activite-nom">${a.nbBrebis || 0} brebis</span>
             <span class="apercu-activite-date">${escapeHtml(dates)}</span>
             <span class="apercu-activite-detail">${conso}</span>
           </div>
-          <button type="button" class="btn-icone-suppr" data-affectation="${escapeAttr(a.id)}" aria-label="Supprimer cette affectation">✕</button>
+          <button type="button" class="btn-icone-suppr" data-affectation="${escapeAttr(a.id)}" aria-label="Supprimer cette distribution">✕</button>
         </div>`;
       }).join('')
-    : '<p class="list-empty">Aucune ration affectée à ce lot.</p>';
+    : '<p class="list-empty">Aucune ration distribuée à ce lot.</p>';
 
   lotListeEl.querySelectorAll('[data-affectation]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer cette affectation ? Cette action est irréversible.')) return;
+      if (!confirm('Supprimer cette distribution ? Cette action est irréversible.')) return;
       try {
         await supprimerAffectation(lot, btn.dataset.affectation);
         renderAffectationsLot({ ...lot, affectations: affectationsLot(lot).filter((a) => a.id !== btn.dataset.affectation) });
@@ -356,29 +393,59 @@ function renderAffectationsLot(lot) {
   });
 }
 
-async function surAffecter() {
+async function surChangerRation() {
   hideErreurLot();
   if (!lotCourant) return;
-  btnAffecter.disabled = true;
+  btnChangerRation.disabled = true;
   try {
-    const ration = getRationById(lotSelect.value);
-    if (!ration) throw new ErreurDeSaisie('Choisis une ration.');
+    const composants = lireComposantsDe(lotComposantsEl);
     const dateDebut = lotDebut.value || aujourdhui();
     const dateFin = lotFin.value || null;
-    const resultat = await affecterRation(lotCourant, ration, { dateDebut, dateFin });
+    const resultat = await distribuerRation(lotCourant, { composants, dateDebut, dateFin });
     lotCourant = { ...lotCourant, affectations: affectationsLot(lotCourant).filter((a) => a.id !== resultat.id).concat([resultat]) };
-    log('ration affectée au lot');
-    toastSucces('Ration affectée.');
+    log('ration distribuée au lot');
+    toastSucces(composants.length ? 'Ration distribuée.' : 'Pâturage enregistré.');
     lotDebut.value = aujourdhui();
     lotFin.value = '';
+    remplirComposants(lotComposantsEl, []);
     renderAffectationsLot(lotCourant);
   } catch (err) {
     const msg = err instanceof ErreurDeSaisie ? err.message : `Erreur d'enregistrement : ${(err && err.message) || err}`;
     showErreurLot(msg);
-    toastErreur(`Échec de l'affectation : ${msg}`);
+    toastErreur(`Échec de la distribution : ${msg}`);
   } finally {
-    btnAffecter.disabled = false;
+    btnChangerRation.disabled = false;
   }
+}
+
+// ============================================================================
+// Init + rendu global
+// ============================================================================
+export function initTroupeauRations() {
+  onStadesChange(peuplerStadesPlan);
+  ajouterLigneVide(composantsPlanEl);
+  btnComposantPlan.addEventListener('click', () => ajouterLigneVide(composantsPlanEl));
+  btnAjouterPlan.addEventListener('click', surAjouterLignePlan);
+  // Le plan alimente aussi le bilan (sous-vue Historique) : un changement de
+  // plan doit se refléter là même si on n'est pas en train de regarder la
+  // sous-vue Prévisionnel.
+  onPlanChange(() => renderTroupeauRations());
+
+  ajouterLigneVide(lotComposantsEl);
+  btnComposantLot.addEventListener('click', () => ajouterLigneVide(lotComposantsEl));
+  btnChangerRation.addEventListener('click', surChangerRation);
+
+  onPoidsBottesChange(() => { if (!bilanEl.closest('#troupeau-historique').hidden) renderBilan(); });
+}
+
+// Appelé depuis ui-alimentation.js/renderVue() à chaque recalcul global, pour
+// que les trois sous-vues restent à jour quelle que soit celle affichée —
+// même principe que le reste de la vue Troupeau (non touché).
+export function renderTroupeauRations() {
+  renderPrevisionnel();
+  renderDistributionsActuelles();
+  renderDistributionsJournal();
+  renderBilan();
 }
 
 function escapeHtml(s) {

@@ -68,7 +68,8 @@ export function identiteDuMouvement(m) {
   // Achat sans contenant suivi (concentré, amendement bio...) : identifié par
   // son produit commercial, comme un aliment du commerce (cf. stades.js) —
   // sinon un tel achat resterait invisible des catégories de stock et donc
-  // impossible à choisir comme composant d'une ration (rations.js).
+  // impossible à choisir comme aliment d'une ration distribuée ou d'un plan
+  // de campagne (cf. affectations.js / plan-campagne.js).
   if (m.typeMouvement === 'ENTREE_ACHAT' && m.destinationType === 'AUTRE' && m.produit) {
     return { cle: cleCommerce(m.produit), label: m.produit, famille: 'commerce' };
   }

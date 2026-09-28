@@ -327,9 +327,9 @@ export function renderVue() {
     tuile('Paille', t.paille, 'paille')
   ].join('');
 
-  // Même calcul, même alerte que l'onglet Rations (rations-calc.js/
-  // projectionAchat) : un seul rendu partagé, pour ne jamais afficher deux
-  // chiffres différents d'un onglet à l'autre.
+  // Même calcul, même alerte que la sous-vue Historique & bilan de l'onglet
+  // Troupeau (rations-calc.js/bilanParAliment) : un seul rendu partagé, pour
+  // ne jamais afficher deux chiffres différents d'un onglet à l'autre.
   renderAchatPrevoir(achatPrevoirEl);
 
   if (netEl) {

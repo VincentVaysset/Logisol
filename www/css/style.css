@@ -1092,6 +1092,16 @@ header button {
 .tableau tfoot td, .tableau tfoot th { background: rgba(5,150,105,0.06); font-weight: 700; }
 .tableau .urgent { color: var(--danger); font-weight: 700; }
 
+/* --- Bilan par aliment (Troupeau / Historique & bilan) : vert couvert,
+   orange marge juste, rouge achat à prévoir — cf. rations-calc.js/statut. --- */
+.bilan-ligne.bilan-vert td:first-child { border-left: 3px solid var(--success); }
+.bilan-ligne.bilan-orange td:first-child { border-left: 3px solid var(--warning); }
+.bilan-ligne.bilan-rouge td:first-child { border-left: 3px solid var(--danger); background: rgba(209,88,79,0.06); }
+.bilan-badge {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; color: #fff;
+  background: var(--danger); border-radius: 5px; padding: 1px 5px; margin-left: 4px;
+}
+
 /* --- Assolement prévisionnel --- */
 .sous-vues { margin-bottom: 12px; }
 #assolement-vue[hidden], #parcelles-liste[hidden] { display: none; }
@@ -1265,12 +1275,7 @@ header button {
 .sans-stock { color: var(--danger); }
 .cat-card-tonnes.urgent { color: var(--danger); }
 
-/* --- Disponible par aliment (onglet Rations) : détail plus long qu'ailleurs
-   (entrées/consommé/bottes + réglage de poids), donc pas en une seule
-   ligne forcée comme les autres cartes .cat-card-detail. --- */
-#rations-disponible .cat-card { align-items: flex-start; flex-wrap: wrap; }
-#rations-disponible .cat-card-detail { white-space: normal; flex: 1 1 100%; }
-.poids-botte-reglage { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+.poids-botte-reglage { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; margin-bottom: 4px; }
 .poids-botte-input { width: 52px; margin: 0; padding: 3px 5px; font-size: 11px; min-height: auto; }
 
 /* --- Rations éditables, par stade, multi-ingrédients ---

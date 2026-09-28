@@ -56,10 +56,9 @@ import {
 import {
   initAlimentation, setCategories, renderVue as renderTroupeau
 } from './ui-alimentation.js';
-import { watchRations, watchPoidsBottes } from './rations.js';
-import {
-  initRations, setCategoriesRations, renderVue as renderRationsVue
-} from './ui-rations.js';
+import { watchPoidsBottes } from './poids-bottes.js';
+import { watchPlanCampagne } from './plan-campagne.js';
+import { setCategoriesRations } from './ui-rations.js';
 import { watchBatiments, onBatimentsChange, typeBatiment } from './batiments.js';
 import { watchCellules, onCellulesChange } from './cellules.js';
 import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
@@ -101,7 +100,7 @@ let latestBatiments = [];
 let enrichedById = new Map();
 let implantationsByParcelle = new Map();
 
-const VUES = ['ferme', 'carte', 'liste', 'stocks', 'troupeau', 'rations', 'batiments'];
+const VUES = ['ferme', 'carte', 'liste', 'stocks', 'troupeau', 'batiments'];
 let currentView = 'ferme';
 
 const mapEl = document.getElementById('map');
@@ -114,7 +113,6 @@ const assolementVueEl = document.getElementById('assolement-vue');
 let sousVueParcelles = 'liste';
 const stocksViewEl = document.getElementById('stocks-view');
 const troupeauViewEl = document.getElementById('troupeau-view');
-const rationsViewEl = document.getElementById('rations-view');
 const batimentsViewEl = document.getElementById('batiments-view');
 const tabsEl = document.getElementById('tabs');
 const fabCarte = document.getElementById('fab-carte');
@@ -259,7 +257,6 @@ function recomputeStocksEtTroupeau() {
   setCategoriesRations(cats);
   if (currentView === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (currentView === 'troupeau') renderTroupeau();
-  if (currentView === 'rations') renderRationsVue();
 }
 
 // Bâtiments : la carte les affiche dans les vues Ferme et Carte, la vue
@@ -622,7 +619,6 @@ function setView(vue) {
   listViewEl.hidden = vue !== 'liste';
   stocksViewEl.hidden = vue !== 'stocks';
   troupeauViewEl.hidden = vue !== 'troupeau';
-  rationsViewEl.hidden = vue !== 'rations';
   batimentsViewEl.hidden = vue !== 'batiments';
   fabCarte.hidden = vue !== 'carte';
   carteSecteurFiltreEl.hidden = vue !== 'carte' || !secteursDisponibles;
@@ -636,7 +632,6 @@ function setView(vue) {
   if (vue === 'liste') renderListView(Array.from(enrichedById.values()));
   if (vue === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (vue === 'troupeau') renderTroupeau();
-  if (vue === 'rations') renderRationsVue();
   if (vue === 'batiments') { renderBatiments(); renderMateriels(); }
   if (vue === 'ferme' || vue === 'carte') {
     // #map vient de changer de taille (ou de redevenir visible) : Leaflet ne
@@ -713,7 +708,6 @@ async function boot() {
     document.getElementById('alerte-regles-retest').addEventListener('click', revérifierRegles);
     initStocks({ onChange: recomputeStocksEtTroupeau });
     initAlimentation();
-    initRations();
     initBatiments({ onChange: recomputeBatiments });
     initMateriel();
     initAssolement();
@@ -847,7 +841,7 @@ async function boot() {
     watchLots();
     onPrelevementsChange(() => recomputeStocksEtTroupeau());
     watchPrelevements();
-    watchRations();
+    watchPlanCampagne();
     watchPoidsBottes();
 
     onBatimentsChange((list) => { latestBatiments = list; recomputeBatiments(); });

@@ -12,7 +12,10 @@ import {
 } from './lots.js';
 
 import { construireTableau, lotsSansStock, autonomieLisible, regrouperColonnesParFamille } from './alimentation.js';
-import { ouvrirSectionRationsLot, fermerSectionRationsLot } from './ui-rations.js';
+import {
+  ouvrirSectionRationsLot, fermerSectionRationsLot,
+  initTroupeauRations, renderTroupeauRations, setOuvrirFicheLot
+} from './ui-rations.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
@@ -50,6 +53,7 @@ const tableauEl = document.getElementById('troupeau-tableau');
 const lotsEl = document.getElementById('troupeau-lots');
 const rationsEl = document.getElementById('troupeau-rations');
 const sousVuesEl = document.getElementById('troupeau-sous-vues');
+const vuePrevisionnelEl = document.getElementById('troupeau-previsionnel');
 const vueActuelleEl = document.getElementById('troupeau-actuel');
 const vueHistoriqueEl = document.getElementById('troupeau-historique');
 const campagneEl = document.getElementById('troupeau-campagne');
@@ -104,9 +108,12 @@ export function initAlimentation() {
       afficherSousVue();
     });
   });
+  setOuvrirFicheLot(openEditLot);
+  initTroupeauRations();
 }
 
 function afficherSousVue() {
+  vuePrevisionnelEl.hidden = sousVueTroupeau !== 'previsionnel';
   vueActuelleEl.hidden = sousVueTroupeau !== 'actuel';
   vueHistoriqueEl.hidden = sousVueTroupeau !== 'historique';
   sousVuesEl.querySelectorAll('[data-sousvue]').forEach((b) => {
@@ -488,6 +495,7 @@ export function renderVue() {
   renderRations();
   renderCampagne(vue);
   renderJournal();
+  renderTroupeauRations();
   afficherSousVue();
 }
 
