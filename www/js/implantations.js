@@ -26,6 +26,7 @@ import { db } from './firebase-config.js';
 import {
   collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
+import { calculerCampagnes } from './campagnes.js';
 
 const COL_NAME = 'implantations';
 const COL = collection(db, COL_NAME);
@@ -114,12 +115,13 @@ export function historiqueParcelle(parcelleId, liste = courantes) {
     .sort((a, b) => (a.dateSemis < b.dateSemis ? 1 : -1));
 }
 
-// À quelle campagne appartient un semis, d'après sa seule date — jamais
-// demandé à l'exploitant : convention agricole standard, un semis d'automne
-// (août à décembre) fait la campagne de l'année SUIVANTE (il pousse pour la
-// récolte/pâture de l'an prochain), le reste de l'année fait celle en cours.
-// C'est ce qui distingue, sans aucune case à remplir, un RG trèfle semé en
-// septembre 2026 (campagne 2027) d'un blé semé en mars 2026 (campagne 2026).
+// Heuristique GLOBALE "quelle campagne est-ce aujourd'hui", indépendante de
+// toute parcelle — utilisée par plan-campagne.js pour choisir le plan
+// d'alimentation du troupeau à afficher par défaut, qui n'a pas de notion de
+// parcelle ni d'historique d'activités. NE SERT PLUS à calculer campagneVisee
+// (cf. setImplantation ci-dessous) : une implantation, elle, appartient à UNE
+// parcelle dont l'historique décide de la bascule — c'est exactement le bug
+// que campagnes.js/calculerCampagnes() corrige (cf. son en-tête).
 export function campagneDeSemis(dateSemis) {
   const m = String(dateSemis || '').match(/^(\d{4})-(\d{2})/);
   if (!m) return null;
@@ -128,14 +130,55 @@ export function campagneDeSemis(dateSemis) {
   return String(mois >= 8 ? annee + 1 : annee);
 }
 
+// Dépendances chargées à la demande (Firestore), comme campagnes.js/
+// reprise-campagnes.js : campagneViseeDe() n'en a besoin qu'à l'écriture
+// d'une implantation, jamais au chargement du module.
+let modulesReels = null;
+async function chargerModulesReels() {
+  if (!modulesReels) {
+    const [itvM, typesM] = await Promise.all([
+      import('./interventions.js'), import('./interventions-types.js')
+    ]);
+    modulesReels = { getInterventions: itvM.getInterventions, getTypeById: typesM.getTypeById };
+  }
+  return modulesReels;
+}
+
+const SEMIS_SYNTHETIQUE = '__semis_en_cours__';
+
+// campagneVisee d'une implantation — TOUJOURS dérivée de calculerCampagnes()
+// (campagnes.js), jamais recalculée par une règle séparée : un semis est un
+// pivot comme un autre pour la parcelle, il doit suivre EXACTEMENT la même
+// bascule que le reste de son historique (pâturage, récolte...), sinon on
+// retombe dans le bug d'origine (deux logiques qui divergent). Un semis
+// synthétique, typé pivot, est ajouté à l'historique réel de la parcelle
+// pour lire la valeur que la fonction unique lui attribuerait.
+async function campagneViseeDe(parcelleId, dateSemis) {
+  const { getInterventions, getTypeById } = await chargerModulesReels();
+  const historique = (getInterventions() || [])
+    .filter((i) => Array.isArray(i.parcelleIds) && i.parcelleIds.includes(parcelleId));
+  const synthetique = { id: SEMIS_SYNTHETIQUE, date: dateSemis, typeId: SEMIS_SYNTHETIQUE, forcerCampagne: null };
+  const deps = {
+    getTypeById: (id) => (id === SEMIS_SYNTHETIQUE ? { pivotCampagne: true, recolteCampagne: false } : getTypeById(id))
+  };
+  const map = calculerCampagnes(historique.concat([synthetique]), undefined, deps);
+  return map.get(SEMIS_SYNTHETIQUE) || null;
+}
+
 // Enregistre une implantation. Si "cloturerPrecedente" est vrai, l'implantation
 // encore ouverte sur cette parcelle est fermée la veille du nouveau semis —
-// c'est le cas normal d'une rotation (on retourne pour ressemer). La campagne
-// (campagneVisee) est déduite automatiquement de dateSemis : c'est ce qui
-// permet à l'assolement prévisionnel de rattacher un semis d'automne à la
-// bonne case sans jamais faire deviner une année à l'exploitant
-// (cf. ui-assolement.js/cultureReelle).
-export async function setImplantation({ parcelleId, cultureId, dateSemis, dateFin = null, notes = '' }, { cloturerPrecedente = true } = {}) {
+// c'est le cas normal d'une rotation (on retourne pour ressemer).
+//
+// campagneVisee : passe-la explicitement quand l'appelant l'a déjà calculée
+// (ui-intervention.js, pour l'activité Semis elle-même — même valeur que
+// data.campagneId, calculée une seule fois par calculerCampagnes(), jamais
+// recalculée ici en double). Sans cette valeur (ex. ui.js, édition directe
+// de la fiche parcelle, hors tunnel d'activité), elle est dérivée sur place
+// via campagneViseeDe() ci-dessus — jamais via une règle séparée.
+export async function setImplantation(
+  { parcelleId, cultureId, dateSemis, dateFin = null, notes = '', campagneVisee = undefined },
+  { cloturerPrecedente = true } = {}
+) {
   if (!parcelleId || !cultureId || !dateSemis) {
     throw new Error('Parcelle, culture et date de semis sont obligatoires.');
   }
@@ -154,10 +197,12 @@ export async function setImplantation({ parcelleId, cultureId, dateSemis, dateFi
     }
   }
 
+  const campagne = campagneVisee !== undefined ? campagneVisee : await campagneViseeDe(parcelleId, dateSemis);
+
   const id = implantationId(parcelleId, dateSemis);
   await setDoc(
     doc(db, COL_NAME, id),
-    { parcelleId, cultureId, dateSemis, dateFin, notes, campagneVisee: campagneDeSemis(dateSemis), majLe: serverTimestamp() },
+    { parcelleId, cultureId, dateSemis, dateFin, notes, campagneVisee: campagne, majLe: serverTimestamp() },
     { merge: true }
   );
   return id;

@@ -1598,9 +1598,11 @@ async function appliquerEffetCulture(data, precedent) {
         trace.cloturees.push({ id: precedente.id, finPrecedente: precedente.dateFin || null });
       }
       // setImplantation clôture la précédente la veille et ouvre la nouvelle ;
-      // la campagne (prévisionnel) se déduit seule de la date de semis.
+      // campagneVisee reprend EXACTEMENT data.campagneId (déjà calculée par
+      // calculerCampagnes() pour cette activité Semis elle-même) — jamais
+      // recalculée une seconde fois par une règle séparée (cf. implantations.js).
       const id = await setImplantation(
-        { parcelleId, cultureId, dateSemis: data.date, notes: '' },
+        { parcelleId, cultureId, dateSemis: data.date, notes: '', campagneVisee: data.campagneId },
         { cloturerPrecedente: true }
       );
       trace.creees.push(id);
