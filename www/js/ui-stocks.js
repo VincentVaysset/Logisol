@@ -3,10 +3,11 @@ import {
   CATEGORIES, CONSERVATIONS, COUPES, FOURRAGES, labelCoupe,
   createStock, updateStock, deleteStock, calculerTonnes, totauxParFamille
 } from './stocks.js';
-import { croiseCoupeFourrage, stockNetParCategorie } from './fourrages.js';
+import { croiseCoupeFourrage, stockDisponibleCanonique } from './fourrages.js';
 import { getMouvements } from './mouvements.js';
 import { getCellules } from './cellules.js';
 import { getEmplacements } from './emplacements.js';
+import { getLots } from './lots.js';
 import { renderAchatPrevoir } from './ui-rations.js';
 import { ouvrirFicheAliment } from './ui-fiche-aliment.js';
 import { aujourdhui } from './implantations.js';
@@ -334,7 +335,10 @@ export function renderVue() {
   renderAchatPrevoir(achatPrevoirEl);
 
   if (netEl) {
-    const net = stockNetParCategorie(getMouvements(), getCellules(), getEmplacements());
+    // stockDisponibleCanonique() : LA seule fonction de stock restant de
+    // l'appli (fourrages.js) — la même que celle appelée par la tuile
+    // "Stock restant" de Troupeau (cf. ui-rations.js/totauxDistribution()).
+    const net = stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots());
     netEl.innerHTML = net.length
       ? net.map((g) => `
         <div class="cat-card cat-card-cliquable" data-cle="${escapeAttr(g.cle)}" data-label="${escapeAttr(g.label)}">

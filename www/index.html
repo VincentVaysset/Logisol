@@ -488,7 +488,7 @@
     <div id="stocks-totaux" class="tuiles"></div>
     <div id="stocks-achat-prevoir" hidden></div>
     <h3 class="section-titre">Stock disponible</h3>
-    <p class="champ-aide">Récoltes + achats, moins ventes, consommation animaux et interventions au champ — recalculé depuis le journal des mouvements.</p>
+    <p class="champ-aide">Récoltes + achats, moins ventes/pertes (journal des mouvements) et moins la consommation réelle des distributions de ration — même calcul, même chiffre que la tuile « Stock restant » de Troupeau.</p>
     <div id="stocks-net"></div>
     <h3 class="section-titre">Foin — coupe × type de fourrage</h3>
     <div id="stocks-croise" class="table-scroll"></div>
@@ -617,6 +617,10 @@
       <button type="button" id="btn-migrer-distributions" class="btn btn-secondary btn-mini">🔄 Migrer ces périodes vers les distributions</button>
       <p class="champ-aide">Additif et rejouable sans risque : rien n'est supprimé ni dupliqué. Fait compter cet historique dans le bilan par aliment ci-dessous, qui ne lit que les distributions.</p>
       <div id="migration-resultat" hidden></div>
+
+      <h3 class="section-titre">Sorties alimentation manuelles</h3>
+      <p class="champ-aide">Sorties de stock saisies à la main pour le troupeau, avant les distributions — désormais toujours exclues du calcul de stock (une distribution décrit la même consommation). Supprime les doublons, ou marque "Exclure du calcul" pour garder la trace sans qu'elles comptent nulle part.</p>
+      <div id="troupeau-sorties-manuelles"></div>
 
       <h3 class="section-titre">Distributions (ration directe)</h3>
       <div id="troupeau-distributions-journal"></div>

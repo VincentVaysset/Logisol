@@ -71,7 +71,21 @@ function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
 function showError(m) { el['error-text'].textContent = m; el['error-banner'].hidden = false; }
 function hideError() { el['error-banner'].hidden = true; }
 
-el.type.innerHTML = TYPES_MOUVEMENT.map((t) => `<option value="${t.value}">${t.icone} ${t.label}</option>`).join('');
+// Plus de nouvelle sortie alimentation manuelle : l'alimentation du troupeau
+// passe désormais par les distributions (ui-rations.js/distribuerRation) —
+// un mouvement SORTIE_ALIMENTATION saisi ici ferait double emploi avec elles
+// (cf. fourrages.js/stockDisponibleCanonique, qui l'exclut du calcul). Un
+// mouvement déjà enregistré avec ce type reste normalement modifiable :
+// l'option n'est désactivée qu'à la création (permettreAlimentation=false).
+function peuplerTypesMouvement(permettreAlimentation) {
+  const valeur = el.type.value;
+  el.type.innerHTML = TYPES_MOUVEMENT.map((t) => {
+    const bloque = t.value === 'SORTIE_ALIMENTATION' && !permettreAlimentation;
+    return `<option value="${t.value}" ${bloque ? 'disabled' : ''}>${t.icone} ${t.label}${bloque ? ' — via Distributions (Troupeau)' : ''}</option>`;
+  }).join('');
+  if (valeur) el.type.value = valeur;
+}
+peuplerTypesMouvement(false);
 el['source-type'].innerHTML = SOURCES.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
 el['dest-type'].innerHTML = DESTINATIONS.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
 el.produit.innerHTML = PRODUITS_ACHAT_VENTE.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
@@ -328,6 +342,7 @@ export function openCreateMouvement(prefill = {}) {
   try {
     el.title.textContent = 'Nouveau mouvement';
     el.delete.hidden = true;
+    peuplerTypesMouvement(false);
     el.date.value = aujourdhui();
     el.type.value = prefill.typeMouvement || 'ENTREE_RECOLTE';
     el.quantite.value = '';
@@ -357,6 +372,10 @@ export function openEditMouvement(m) {
   try {
     el.title.textContent = 'Modifier — ' + typeMouvement(m.typeMouvement).label;
     el.delete.hidden = false;
+    // Un mouvement SORTIE_ALIMENTATION déjà enregistré reste éditable tel
+    // quel (permettreAlimentation=true) : seule la CRÉATION d'un nouveau est
+    // bloquée (cf. openCreateMouvement).
+    peuplerTypesMouvement(m.typeMouvement === 'SORTIE_ALIMENTATION');
     el.date.value = m.date || aujourdhui();
     el.type.value = m.typeMouvement;
     appliquerType();

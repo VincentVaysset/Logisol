@@ -265,6 +265,13 @@ function nettoyer(data) {
   // sert qu'à retrouver sur combien de jours la quantité totale a été
   // calculée — ni l'un ni l'autre n'est recalculé après coup.
   m.dateFin = data.dateFin || null;
+  // Marque un mouvement comme exclu du stock canonique (fourrages.js/
+  // stockDisponibleCanonique) sans le supprimer — sert à écarter un doublon
+  // (ex. une sortie alimentation manuelle qui fait double emploi avec une
+  // distribution) tout en gardant la trace. N'affecte PAS le niveau d'un
+  // contenant précis (niveauContenant reste inchangé, lui décrit un fait
+  // physique réel) : seulement l'agrégat par aliment de toute l'exploitation.
+  m.excluCalcul = !!data.excluCalcul;
   return m;
 }
 

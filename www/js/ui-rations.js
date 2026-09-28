@@ -14,7 +14,8 @@ import {
   precedenteFermeePar, rouvrirAffectation
 } from './affectations.js';
 import {
-  bilanParAliment, prevuCampagneParAliment, stockDisponibleParItem, besoinJournalierParStock
+  bilanParAliment, prevuCampagneParAliment, stockDisponibleParItem, besoinJournalierParStock,
+  consommationParStock
 } from './rations-calc.js';
 import {
   getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
@@ -26,6 +27,10 @@ import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
 import { toastSucces, toastErreur } from './toast.js';
+import { stockDisponibleCanonique } from './fourrages.js';
+import { getMouvements, updateMouvement, deleteMouvement } from './mouvements.js';
+import { getCellules } from './cellules.js';
+import { getEmplacements } from './emplacements.js';
 
 class ErreurDeSaisie extends Error {}
 
@@ -191,6 +196,71 @@ function renderPrevisionnel() {
 
 
 // ============================================================================
+// Sorties alimentation manuelles (nettoyage) — cf. stockDisponibleCanonique()
+// ============================================================================
+// Ces mouvements SORTIE_ALIMENTATION, saisis avant l'existence des
+// distributions, sont désormais TOUJOURS exclus du stock canonique (cf.
+// fourrages.js) : les compter en plus d'une distribution ferait double
+// emploi. Cette liste sert seulement à faire le ménage — rien n'est
+// supprimé tant que Vincent ne clique pas lui-même sur "Supprimer".
+const sortiesManuellesEl = document.getElementById('troupeau-sorties-manuelles');
+
+function renderSortiesManuelles() {
+  if (!sortiesManuellesEl) return;
+  const liste = getMouvements()
+    .filter((m) => m.typeMouvement === 'SORTIE_ALIMENTATION')
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  if (!liste.length) {
+    sortiesManuellesEl.innerHTML = '<p class="list-empty">Aucune sortie alimentation manuelle enregistrée.</p>';
+    return;
+  }
+  sortiesManuellesEl.innerHTML = liste.map((m) => `
+    <div class="periode-card" data-id="${escapeAttr(m.id)}">
+      <div class="periode-entete">
+        <div>
+          <span class="periode-badge">${escapeHtml(dateLisible(m.date))}</span>
+          <h3 class="periode-titre">${escapeHtml(m.categorieLabel || m.destinationNom || m.libelle || 'Sortie alimentation')}</h3>
+        </div>
+        <span class="periode-tonnage">${formatTonnes(m.quantite)} ${m.unite === 'bottes' ? 'bottes' : 't'}</span>
+      </div>
+      <p class="periode-sub">${m.excluCalcul ? '🚫 Exclue du calcul (déjà écartée)' : 'Déjà exclue du stock canonique — ne compte plus nulle part'}</p>
+      <div class="fiche-actions" style="margin-top:8px">
+        <button type="button" class="btn btn-secondary btn-mini sortie-manuelle-exclure" data-id="${escapeAttr(m.id)}">${m.excluCalcul ? '↩ Réinclure' : '🚫 Exclure du calcul'}</button>
+        <button type="button" class="btn btn-danger btn-mini sortie-manuelle-supprimer" data-id="${escapeAttr(m.id)}">🗑️ Supprimer</button>
+      </div>
+    </div>`).join('');
+
+  sortiesManuellesEl.querySelectorAll('.sortie-manuelle-exclure').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const m = getMouvements().find((x) => x.id === btn.dataset.id);
+      if (!m) return;
+      btn.disabled = true;
+      try {
+        await updateMouvement(m.id, { ...m, excluCalcul: !m.excluCalcul });
+        toastSucces(m.excluCalcul ? 'Sortie réincluse.' : 'Sortie exclue du calcul.');
+      } catch (err) {
+        toastErreur('Modification impossible : ' + ((err && err.message) || err));
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+  sortiesManuellesEl.querySelectorAll('.sortie-manuelle-supprimer').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer cette sortie alimentation manuelle ? Cette action est irréversible.')) return;
+      btn.disabled = true;
+      try {
+        await deleteMouvement(btn.dataset.id);
+        toastSucces('Sortie supprimée.');
+      } catch (err) {
+        toastErreur('Suppression impossible : ' + ((err && err.message) || err));
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+// ============================================================================
 // Historique & bilan
 // ============================================================================
 const distribJournalEl = document.getElementById('troupeau-distributions-journal');
@@ -346,16 +416,19 @@ export function renderAchatPrevoir(cible) {
   </div>`;
 }
 
-// Totaux agrégés depuis les distributions — SEULE source des tuiles
-// "Stock restant"/"Déjà consommé"/"Besoin par jour" de la sous-vue Ration
-// actuelle (ui-alimentation.js/renderVue()) : il n'existe plus qu'un
-// endroit qui calcule ces trois chiffres.
+// Totaux agrégés pour les tuiles "Stock restant"/"Déjà consommé"/"Besoin par
+// jour" de la sous-vue Ration actuelle (ui-alimentation.js/renderVue()).
+// "Stock restant" appelle stockDisponibleCanonique() (fourrages.js) — LA
+// même fonction que l'onglet Stocks, aucune autre source (cf. audit
+// troupeau/stocks) ; "Déjà consommé" reste propre aux distributions
+// (consommationParStock), un chiffre troupeau, pas un stock.
 export function totauxDistribution() {
-  const dispo = stockDisponibleParItem(categories, getLots());
+  const dispo = stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots());
+  const consomme = consommationParStock(getLots());
   const besoin = besoinJournalierParStock(getLots());
   return {
-    disponibleT: dispo.reduce((n, d) => n + d.disponible, 0),
-    consommeT: dispo.reduce((n, d) => n + d.consomme, 0),
+    disponibleT: dispo.reduce((n, d) => n + d.tonnes, 0),
+    consommeT: consomme.reduce((n, c) => n + c.tonnes, 0),
     besoinJourKg: besoin.reduce((n, b) => n + b.kgParJour, 0)
   };
 }
@@ -496,6 +569,7 @@ export function initTroupeauRations() {
 // même principe que le reste de la vue Troupeau (non touché).
 export function renderTroupeauRations() {
   renderPrevisionnel();
+  renderSortiesManuelles();
   renderDistributionsJournal();
   renderBilan();
 }

@@ -18,6 +18,7 @@ import { cleFoin, labelFoin, cleCereale, labelCereale, labelCoupe, cleCommerce, 
 import { getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacementById } from './emplacements.js';
 import { niveauContenant } from './mouvements.js';
+import { consommationParStock } from './rations-calc.js';
 
 function arrondi3(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
 
@@ -315,6 +316,37 @@ export function stockNetParCategorie(mouvements, cellules, emplacements) {
   return Array.from(parCle.values())
     .filter((g) => g.tonnes > 0.001 || g.bottes > 0.5)
     .sort((a, b) => b.tonnes - a.tonnes);
+}
+
+// LA fonction unique du stock restant, appelée à l'identique par l'onglet
+// Stocks (stocks-net) et par la tuile "Stock restant" de Troupeau — plus
+// aucune autre source ne calcule ce chiffre (cf. audit troupeau/stocks) :
+//   entrées + sorties manuelles du journal (ventes, pertes, transferts,
+//   inventaires) − consommation dérivée des distributions de ration
+//   (rations-calc.js, jamais un mouvement de stock écrit pour elles).
+//
+// Les mouvements SORTIE_ALIMENTATION (ancienne saisie manuelle d'une sortie
+// pour le troupeau, désormais remplacée par les distributions) sont exclus
+// du calcul, de même que tout mouvement marqué excluCalcul — sans ça, une
+// sortie alimentation déjà enregistrée à la main compterait EN PLUS de la
+// distribution qui décrit la même consommation, et le stock semblerait plus
+// bas qu'il ne l'est réellement. Ces mouvements ne sont pas supprimés (cf.
+// "Sorties alimentation manuelles", ui-rations.js) : seulement écartés d'ici.
+export function stockDisponibleCanonique(mouvements, cellules, emplacements, lots, date) {
+  const retenus = (mouvements || []).filter((m) => m.typeMouvement !== 'SORTIE_ALIMENTATION' && !m.excluCalcul);
+  const net = stockNetParCategorie(retenus, cellules, emplacements);
+  const parCle = new Map(net.map((g) => [g.cle, { ...g }]));
+  consommationParStock(lots || [], date).forEach((c) => {
+    if (!parCle.has(c.cle)) parCle.set(c.cle, { cle: c.cle, label: c.label, tonnes: 0, bottes: 0 });
+    const g = parCle.get(c.cle);
+    g.tonnes = arrondi3(g.tonnes - c.tonnes);
+  });
+  // Un aliment distribué au-delà de son stock net (sur-affecté, ou consommé
+  // avant la saisie de sa récolte) doit rester VISIBLE, y compris négatif —
+  // le cacher masquerait justement l'écart à corriger. Seul l'ordre
+  // d'affichage est refait ici (stockNetParCategorie triait sur le stock
+  // brut, avant déduction des distributions).
+  return Array.from(parCle.values()).sort((a, b) => b.tonnes - a.tonnes);
 }
 
 /**

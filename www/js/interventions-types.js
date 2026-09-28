@@ -141,7 +141,14 @@ const HERITAGE = [
 // Traitement des cultures : hors sujet sur une exploitation Bio. Masqués du
 // choix d'activité (et non supprimés, cf. ci-dessus). « Traitement
 // sanitaire », qui concerne le troupeau et non les cultures, reste proposé.
-const MASQUES = ['Désherbage', 'Traitement', 'Traitement phytosanitaire', 'Protection', 'Phyto'];
+//
+// « Distribution alimentation » : masqué depuis le refactor Prévisionnel/
+// Distribué (audit troupeau/stocks) — l'alimentation du troupeau passe
+// désormais exclusivement par les distributions (ui-rations.js/
+// distribuerRation), plus par une activité de tunnel qui écrivait un
+// mouvement SORTIE_ALIMENTATION manuel (double compte avec les
+// distributions, cf. fourrages.js/stockDisponibleCanonique).
+const MASQUES = ['Désherbage', 'Traitement', 'Traitement phytosanitaire', 'Protection', 'Phyto', 'Distribution alimentation'];
 
 let courants = [];
 const listeners = new Set();
