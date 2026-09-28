@@ -609,12 +609,12 @@
          lots confondus — 100% dérivé du même historique que l'onglet
          « Ration actuelle », aucune saisie propre. -->
     <div id="troupeau-historique" hidden>
-      <p class="champ-aide">Bannière et journal ci-dessous : historique des périodes par stade (ancien système). Le chiffre qui fait foi est le tableau « Bilan par aliment » plus bas — migre cet historique vers les distributions pour qu'il y compte.</p>
+      <p class="champ-aide">Bannière et journal ci-dessous : historique des périodes par stade (ancien système). Le chiffre qui fait foi est le tableau « Bilan par lot » plus bas — migre cet historique vers les distributions pour qu'il y compte.</p>
       <div id="troupeau-campagne" class="campagne-banniere"></div>
       <h3 class="section-titre">Périodes de consommation enregistrées</h3>
       <div id="troupeau-journal"></div>
       <button type="button" id="btn-migrer-distributions" class="btn btn-secondary btn-mini">🔄 Migrer ces périodes vers les distributions</button>
-      <p class="champ-aide">Additif et rejouable sans risque : rien n'est supprimé ni dupliqué. Fait compter cet historique dans le bilan par aliment ci-dessous, qui ne lit que les distributions.</p>
+      <p class="champ-aide">Additif et rejouable sans risque : rien n'est supprimé ni dupliqué. Fait compter cet historique dans le bilan par lot ci-dessous, qui ne lit que les distributions.</p>
       <div id="migration-resultat" hidden></div>
 
       <h3 class="section-titre">Sorties alimentation manuelles</h3>
@@ -624,8 +624,11 @@
       <h3 class="section-titre">Distributions (ration directe)</h3>
       <div id="troupeau-distributions-journal"></div>
 
-      <h3 class="section-titre">Bilan par aliment</h3>
-      <p class="champ-aide">Source de consommation retenue ici : les rations distribuées (ci-dessus), jamais les périodes par stade — un aliment n'est donc jamais décompté deux fois. Prévu (plan de campagne) et consommé ne sont fondus nulle part ailleurs que dans ce tableau.</p>
+      <div class="vue-head vue-head-sous">
+        <h3 class="section-titre section-titre-inline">Bilan par lot</h3>
+        <select id="troupeau-bilan-campagne"></select>
+      </div>
+      <p class="champ-aide">Ce qui a été RÉELLEMENT distribué, cumulé par lot sur la campagne choisie — jamais le prévu ni une notion de suffisance/achat (cf. Prévisionnel). Un aliment n'est compté qu'ici, jamais deux fois.</p>
       <div id="troupeau-bilan" class="table-scroll"></div>
       <p class="champ-aide">Poids moyen de botte, réglable par aliment — pour l'estimation en bottes ci-dessus uniquement, jamais pour calculer un tonnage.</p>
       <div id="troupeau-poids-bottes"></div>

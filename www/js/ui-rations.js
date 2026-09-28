@@ -14,12 +14,14 @@ import {
   precedenteFermeePar, rouvrirAffectation
 } from './affectations.js';
 import {
-  bilanParAliment, stockDisponibleParItem, besoinJournalierParStock,
-  consommationParStock, couverturePrevisionnelle
+  stockDisponibleParItem, besoinJournalierParStock,
+  consommationParStock, couverturePrevisionnelle, bilanParLot, totalParAlimentTousLots,
+  campagnesDistribuees
 } from './rations-calc.js';
 import {
   getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
 } from './plan-campagne.js';
+import { openEditLot } from './ui-alimentation.js';
 import { getLots, getPrelevements } from './lots.js';
 import { migrerTousLesLots } from './migration-distributions.js';
 import { getStades, onStadesChange } from './stades.js';
@@ -353,9 +355,45 @@ function renderDistributionsJournal() {
             </div>
           </div>
           <p class="periode-sub">${resumeComposants(composants)}</p>
+          <div class="fiche-actions" style="margin-top:8px">
+            <button type="button" class="btn btn-secondary btn-mini distrib-modifier" data-lot="${escapeAttr(lot.id)}">✏️ Modifier</button>
+            <button type="button" class="btn btn-danger btn-mini distrib-supprimer" data-lot="${escapeAttr(lot.id)}" data-affectation="${escapeAttr(a.id)}">🗑️ Supprimer</button>
+          </div>
         </div>`;
       }).join('')
     : '<p class="list-empty">Aucune ration distribuée pour l\'instant.</p>';
+
+  // Corrigeable/supprimable directement depuis le journal (étape 2c) : même
+  // chemin que la fiche lot (renderAffectationsLot), "Modifier" ouvre
+  // simplement cette fiche — la ration se change par "Changer la ration",
+  // jamais une édition en place d'une distribution déjà refermée.
+  distribJournalEl.querySelectorAll('.distrib-modifier').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const lot = getLots().find((l) => l.id === btn.dataset.lot);
+      if (lot) openEditLot(lot);
+    });
+  });
+  distribJournalEl.querySelectorAll('.distrib-supprimer').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Supprimer cette distribution ? Cette action est irréversible.')) return;
+      const lot = getLots().find((l) => l.id === btn.dataset.lot);
+      if (!lot) return;
+      const id = btn.dataset.affectation;
+      const supprimee = affectationsLot(lot).find((a) => a.id === id);
+      const precedente = precedenteFermeePar(lot, supprimee);
+      btn.disabled = true;
+      try {
+        await supprimerAffectation(lot, id);
+        if (precedente && confirm(`Rouvrir la distribution précédente (${resumeComposants(composantsAffectation(precedente))}) ?`)) {
+          await rouvrirAffectation(lot, precedente.id);
+        }
+        toastSucces('Distribution supprimée.');
+      } catch (err) {
+        toastErreur('Suppression impossible : ' + ((err && err.message) || err));
+        btn.disabled = false;
+      }
+    });
+  });
 }
 
 const poidsBottesEl = document.getElementById('troupeau-poids-bottes');
@@ -369,39 +407,68 @@ function poidsBotteEffectif(cle) {
   return poidsBotteStock(cle) || moyenneCalculee;
 }
 
+const bilanCampagneEl = document.getElementById('troupeau-bilan-campagne');
+let campagneBilanChoisie = null;
+
+function peuplerCampagneBilan() {
+  if (!bilanCampagneEl) return;
+  const campagnes = campagnesDistribuees(getLots());
+  if (!campagneBilanChoisie || !campagnes.includes(campagneBilanChoisie)) {
+    campagneBilanChoisie = campagnes[0] || campagneCourante();
+  }
+  bilanCampagneEl.innerHTML = campagnes
+    .map((c) => `<option value="${escapeAttr(c)}" ${c === campagneBilanChoisie ? 'selected' : ''}>${escapeHtml(c)}</option>`)
+    .join('');
+}
+if (bilanCampagneEl) {
+  bilanCampagneEl.addEventListener('change', () => {
+    campagneBilanChoisie = bilanCampagneEl.value;
+    renderBilan();
+  });
+}
+
+// Bilan par LOT (étape 2c) : uniquement ce qui a été distribué, jamais de
+// prévu/à acheter (ça, c'est Prévisionnel — cf. couverturePrevisionnelle) —
+// Fourrages/Céréales/Aliments par lot, détail par aliment, total tous lots.
 function renderBilan() {
   if (!bilanEl) return;
-  const bilan = bilanParAliment(categories, getLots(), getPlan());
-  if (!bilan.length) {
-    bilanEl.innerHTML = '<p class="list-empty">Aucun aliment prévu, distribué ou en stock pour l\'instant.</p>';
+  peuplerCampagneBilan();
+  const bilanLots = bilanParLot(getLots(), campagneBilanChoisie).filter((bl) => bl.items.length);
+  if (!bilanLots.length) {
+    bilanEl.innerHTML = '<p class="list-empty">Aucune distribution enregistrée pour cette campagne.</p>';
     if (poidsBottesEl) poidsBottesEl.innerHTML = '';
     return;
   }
+  const totalTousLots = totalParAlimentTousLots(bilanLots);
+  const somme = (champ) => bilanLots.reduce((n, bl) => n + bl[champ], 0);
+
   bilanEl.innerHTML = `<table class="tableau">
-    <thead><tr>
-      <th>Aliment</th><th>Prévu</th><th>Consommé</th><th>Reste prévu</th><th>Stock dispo</th><th>À acheter</th>
-    </tr></thead>
+    <thead><tr><th>Lot</th><th>Fourrages</th><th>Céréales</th><th>Aliments</th><th>Détail</th></tr></thead>
     <tbody>
-      ${bilan.map((b) => {
-        const poids = poidsBotteEffectif(b.cle);
-        const bottes = poids > 0 ? Math.round((b.stockDispo * 1000) / poids) : null;
-        return `<tr class="bilan-ligne bilan-${b.statut}">
-          <td>${escapeHtml(b.label)}${b.depassement ? ' <span class="bilan-badge">Dépassement</span>' : ''}</td>
-          <td>${formatTonnes(b.prevu)} t</td>
-          <td>${formatTonnes(b.consomme)} t</td>
-          <td>${formatTonnes(b.restePrevu)} t</td>
-          <td>${formatTonnes(b.stockDispo)} t${bottes != null ? ` <small>(~${bottes} bottes)</small>` : ''}</td>
-          <td>${b.aAcheter > 0 ? formatTonnes(b.aAcheter) + ' t' : '—'}</td>
-        </tr>`;
-      }).join('')}
+      ${bilanLots.map((bl) => `<tr>
+        <td>${escapeHtml(bl.lotNom)}</td>
+        <td>${formatTonnes(bl.fourrages)} t</td>
+        <td>${formatTonnes(bl.cereales)} t</td>
+        <td>${formatTonnes(bl.aliments)} t</td>
+        <td class="cat-card-detail">${bl.items.map((it) => `${escapeHtml(it.label)} : ${formatTonnes(it.tonnes)} t`).join(' · ')}</td>
+      </tr>`).join('')}
     </tbody>
+    <tfoot>
+      <tr>
+        <th>Total tous lots</th>
+        <th>${formatTonnes(somme('fourrages'))} t</th>
+        <th>${formatTonnes(somme('cereales'))} t</th>
+        <th>${formatTonnes(somme('aliments'))} t</th>
+        <th>${totalTousLots.map((t) => `${escapeHtml(t.label)} : ${formatTonnes(t.tonnes)} t`).join(' · ')}</th>
+      </tr>
+    </tfoot>
   </table>`;
 
   if (poidsBottesEl) {
-    const fourrages = bilan.filter((b) => categories.some((c) => c.cle === b.cle && c.nbBottes > 0));
+    const fourrages = totalTousLots.filter((t) => t.famille === 'fourrage' && categories.some((c) => c.cle === t.cle && c.nbBottes > 0));
     poidsBottesEl.innerHTML = fourrages.length
-      ? fourrages.map((b) => `<span class="poids-botte-reglage">
-          ${escapeHtml(b.label)} : <input type="number" class="poids-botte-input" data-cle="${escapeAttr(b.cle)}" step="1" min="0" value="${poidsBotteEffectif(b.cle) || ''}"> kg/botte
+      ? fourrages.map((t) => `<span class="poids-botte-reglage">
+          ${escapeHtml(t.label)} : <input type="number" class="poids-botte-input" data-cle="${escapeAttr(t.cle)}" step="1" min="0" value="${poidsBotteEffectif(t.cle) || ''}"> kg/botte
         </span>`).join('')
       : '';
     poidsBottesEl.querySelectorAll('.poids-botte-input').forEach((input) => {

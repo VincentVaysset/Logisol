@@ -5,7 +5,7 @@
 // niveauContenant() côté mouvements de stock.
 import { aujourdhui } from './implantations.js';
 import { historiqueAffectations, affectationEnCours, tonnesComposant, composantsAffectation } from './affectations.js';
-import { joursLignePlan } from './plan-campagne.js';
+import { joursLignePlan, campagneCourante } from './plan-campagne.js';
 
 function arrondi3(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
 
@@ -23,6 +23,76 @@ export function consommationParStock(lots, date = aujourdhui()) {
     });
   });
   return Array.from(parCle.values());
+}
+
+// 'fourrage' (foin, y compris paille si jamais elle apparaissait dans une
+// ration — en pratique jamais, elle en est exclue), 'cereale' ou 'aliment'
+// (achat du commerce) — cf. stocks.js/cleFoin,cleCereale,cleCommerce pour le
+// format des clés.
+function familleDeCle(cle) {
+  const prefixe = String(cle || '').split('|')[0];
+  if (prefixe === 'cereale') return 'cereale';
+  if (prefixe === 'commerce') return 'aliment';
+  return 'fourrage';
+}
+
+/**
+ * Bilan par LOT, cumulé sur une campagne : Fourrages(t) / Céréales(t) /
+ * Aliments(t), avec le détail par aliment de chaque lot — uniquement ce qui
+ * a été RÉELLEMENT distribué. Aucune notion de suffisance ni d'achat ici :
+ * ça, c'est le Prévisionnel (couverturePrevisionnelle), jamais confondu
+ * (Prévu et Distribué ne se lisent jamais l'un l'autre, CLAUDE.md).
+ * campagneCourante(aff.dateDebut) : même clé de campagne que le reste du
+ * module Rations (plan-campagne.js) — distincte de calculerCampagnes()
+ * (campagnes.js), propre aux activités de parcelle.
+ */
+export function bilanParLot(lots, campagne, date = aujourdhui()) {
+  return (lots || []).map((lot) => {
+    const parAliment = new Map();
+    historiqueAffectations(lot)
+      .filter((aff) => campagneCourante(aff.dateDebut) === campagne)
+      .forEach((aff) => {
+        composantsAffectation(aff).forEach((c) => {
+          if (!c.stockCle) return;
+          if (!parAliment.has(c.stockCle)) {
+            parAliment.set(c.stockCle, { cle: c.stockCle, label: c.stockLabel, famille: familleDeCle(c.stockCle), tonnes: 0 });
+          }
+          const g = parAliment.get(c.stockCle);
+          g.tonnes = arrondi3(g.tonnes + tonnesComposant(aff, c, date));
+        });
+      });
+    const items = Array.from(parAliment.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+    const totaux = { fourrage: 0, cereale: 0, aliment: 0 };
+    items.forEach((it) => { totaux[it.famille] = arrondi3(totaux[it.famille] + it.tonnes); });
+    return {
+      lotId: lot.id, lotNom: lot.nom || 'Lot',
+      items, fourrages: totaux.fourrage, cereales: totaux.cereale, aliments: totaux.aliment
+    };
+  });
+}
+
+/** Total par aliment, tous lots confondus — ligne de synthèse sous le bilan par lot. */
+export function totalParAlimentTousLots(bilanLots) {
+  const parCle = new Map();
+  (bilanLots || []).forEach((bl) => {
+    bl.items.forEach((it) => {
+      if (!parCle.has(it.cle)) parCle.set(it.cle, { cle: it.cle, label: it.label, famille: it.famille, tonnes: 0 });
+      const g = parCle.get(it.cle);
+      g.tonnes = arrondi3(g.tonnes + it.tonnes);
+    });
+  });
+  return Array.from(parCle.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+}
+
+/** Campagnes distinctes présentes dans l'historique des distributions,
+ * les plus récentes d'abord — pour peupler le sélecteur du bilan par lot. */
+export function campagnesDistribuees(lots) {
+  const set = new Set();
+  (lots || []).forEach((lot) => {
+    historiqueAffectations(lot).forEach((aff) => set.add(campagneCourante(aff.dateDebut)));
+  });
+  set.add(campagneCourante());
+  return Array.from(set).sort((a, b) => String(b).localeCompare(String(a)));
 }
 
 /** Besoin journalier COURANT, par aliment — seulement les distributions actives aujourd'hui. */
@@ -121,46 +191,3 @@ export function stockDisponibleParItem(categories, lots, date = aujourdhui()) {
   return Array.from(parCle.values()).map((c) => ({ ...c, disponible: arrondi3(c.entrees - c.consomme) }));
 }
 
-/**
- * Tableau de bilan par aliment : Prévu campagne | Consommé | Reste prévu |
- * Stock dispo | À acheter, avec code couleur et badge dépassement.
- * @param {Array} categories  sortie de fourrages.fusionnerCategories()
- * @param {Array} lots
- * @param {{stades: Array}} plan  sortie de plan-campagne.getPlan()
- */
-export function bilanParAliment(categories, lots, plan, date = aujourdhui()) {
-  const prevu = new Map(prevuCampagneParAliment(plan).map((p) => [p.cle, p]));
-  const dispo = stockDisponibleParItem(categories, lots, date);
-
-  const parCle = new Map();
-  prevu.forEach((p, cle) => parCle.set(cle, { cle, label: p.label, prevu: p.tonnes, entrees: 0, consomme: 0 }));
-  dispo.forEach((d) => {
-    if (!parCle.has(d.cle)) parCle.set(d.cle, { cle: d.cle, label: d.label, prevu: 0, entrees: 0, consomme: 0 });
-    const g = parCle.get(d.cle);
-    g.entrees = d.entrees;
-    g.consomme = d.consomme;
-    if (!g.label) g.label = d.label;
-  });
-
-  return Array.from(parCle.values())
-    .map((g) => {
-      const restePrevu = Math.max(0, arrondi3(g.prevu - g.consomme));
-      const stockDispo = arrondi3(g.entrees - g.consomme);
-      const aAcheter = Math.max(0, arrondi3(g.prevu - g.entrees));
-      const depassement = g.prevu > 0 && g.consomme > g.prevu;
-
-      let statut = 'vert';
-      if (stockDispo < 0 || aAcheter > 0) statut = 'rouge';
-      else if (restePrevu > 0) {
-        const marge = (stockDispo - restePrevu) / restePrevu;
-        if (marge < MARGE_JUSTE) statut = 'orange';
-      }
-
-      return {
-        cle: g.cle, label: g.label,
-        prevu: g.prevu, consomme: g.consomme, restePrevu,
-        stockDispo, aAcheter, depassement, statut
-      };
-    })
-    .sort((a, b) => String(a.label).localeCompare(String(b.label), 'fr'));
-}
