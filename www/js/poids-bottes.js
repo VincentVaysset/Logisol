@@ -36,3 +36,16 @@ export async function setPoidsBotteStock(cle, poidsKg) {
   if (maj[cle] == null) delete maj[cle];
   return setDoc(REF_POIDS_BOTTES, maj);
 }
+
+// Poids/botte effectif pour un aliment : le réglage manuel s'il existe,
+// sinon la moyenne des entrées déjà comptées (tonnes/bottes des récoltes) —
+// seule source PARTAGÉE (Stocks ET Troupeau), pour ne jamais recalculer deux
+// fois deux chiffres différents. `categories` est la sortie de
+// fourrages.fusionnerCategories() (gross entries, seule porteuse de
+// nbBottes) ; le tonnage utilisé pour un compte de bottes affiché doit lui
+// TOUJOURS venir du stock net, jamais d'ici (cf. en-tête de fichier).
+export function poidsBotteEffectif(categories, cle) {
+  const cat = (categories || []).find((c) => c.cle === cle);
+  const moyenneCalculee = cat && cat.nbBottes > 0 ? Math.round((cat.tonnes * 1000) / cat.nbBottes) : 0;
+  return poidsBotteStock(cle) || moyenneCalculee;
+}

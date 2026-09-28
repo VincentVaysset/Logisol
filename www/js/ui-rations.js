@@ -6,7 +6,7 @@
 // dans la liste Stocks (catégories fusionnées, mêmes clés que partout
 // ailleurs dans l'appli).
 import {
-  onPoidsBottesChange, poidsBotteStock, setPoidsBotteStock
+  onPoidsBottesChange, setPoidsBotteStock, poidsBotteEffectif as poidsBotteEffectifPartage
 } from './poids-bottes.js';
 import {
   affectationsLot, historiqueAffectations, affectationEnCours,
@@ -398,14 +398,9 @@ function renderDistributionsJournal() {
 
 const poidsBottesEl = document.getElementById('troupeau-poids-bottes');
 
-// Poids moyen calculé si aucun réglage manuel n'existe encore : moyenne des
-// entrées déjà comptées pour cet aliment (tonnes/bottes de la catégorie),
-// jamais utilisée pour le calcul du tonnage lui-même.
-function poidsBotteEffectif(cle) {
-  const cat = categories.find((c) => c.cle === cle);
-  const moyenneCalculee = cat && cat.nbBottes > 0 ? Math.round((cat.tonnes * 1000) / cat.nbBottes) : 0;
-  return poidsBotteStock(cle) || moyenneCalculee;
-}
+// poids-bottes.js/poidsBotteEffectif(categories, cle) : source PARTAGÉE avec
+// ui-stocks.js, pour ne jamais afficher deux comptes de bottes différents.
+function poidsBotteEffectifIci(cle) { return poidsBotteEffectifPartage(categories, cle); }
 
 const bilanCampagneEl = document.getElementById('troupeau-bilan-campagne');
 let campagneBilanChoisie = null;
@@ -468,7 +463,7 @@ function renderBilan() {
     const fourrages = totalTousLots.filter((t) => t.famille === 'fourrage' && categories.some((c) => c.cle === t.cle && c.nbBottes > 0));
     poidsBottesEl.innerHTML = fourrages.length
       ? fourrages.map((t) => `<span class="poids-botte-reglage">
-          ${escapeHtml(t.label)} : <input type="number" class="poids-botte-input" data-cle="${escapeAttr(t.cle)}" step="1" min="0" value="${poidsBotteEffectif(t.cle) || ''}"> kg/botte
+          ${escapeHtml(t.label)} : <input type="number" class="poids-botte-input" data-cle="${escapeAttr(t.cle)}" step="1" min="0" value="${poidsBotteEffectifIci(t.cle) || ''}"> kg/botte
         </span>`).join('')
       : '';
     poidsBottesEl.querySelectorAll('.poids-botte-input').forEach((input) => {

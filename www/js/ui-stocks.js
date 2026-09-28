@@ -1,9 +1,9 @@
 // Vue Stocks : synthèse d'exploitation + saisie d'une récolte.
 import {
   CATEGORIES, CONSERVATIONS, COUPES, FOURRAGES, labelCoupe,
-  createStock, updateStock, deleteStock, calculerTonnes, totauxParFamille
+  createStock, updateStock, deleteStock, calculerTonnes
 } from './stocks.js';
-import { croiseCoupeFourrage, stockDisponibleCanonique } from './fourrages.js';
+import { croiseCoupeFourrage, stockDisponibleCanonique, categoriesAvecStockNet } from './fourrages.js';
 import { getMouvements } from './mouvements.js';
 import { getCellules } from './cellules.js';
 import { getEmplacements } from './emplacements.js';
@@ -12,6 +12,7 @@ import { ouvrirFicheAliment } from './ui-fiche-aliment.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { toastSucces, toastErreur } from './toast.js';
+import { poidsBotteEffectif } from './poids-bottes.js';
 
 const panel = document.getElementById('stock-panel');
 const form = document.getElementById('stock-form');
@@ -311,45 +312,55 @@ async function supprimer() {
 
 // --- Vue ------------------------------------------------------------------
 export function renderVue() {
-  // Les totaux de familles se recomposent depuis les catégories fusionnées :
-  // totauxParFamille ne voit que la collection « stocks », donc pas les
-  // récoltes entrées par le tunnel d'activité.
-  const t = totauxParFamille(stocks);
+  // stockDisponibleCanonique() : LA seule fonction de stock restant de
+  // l'appli (fourrages.js) — la même que la tuile "Stock restant" de
+  // Troupeau (ui-rations.js/totauxDistribution()). Tuiles, tableau croisé et
+  // "Par catégorie" lisaient jusqu'ici les entrées BRUTES (categories,
+  // jamais réduites par une sortie) : categoriesAvecStockNet() y substitue
+  // ce même tonnage net, en gardant les métadonnées (coupe, fourrage...) que
+  // seules les entrées portent — un seul chiffre partout dans Stocks.
+  const net = stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots());
+  const catsNet = categoriesAvecStockNet(categories, net);
+
   const tf = { foin: 0, cereale: 0, paille: 0 };
-  categories.forEach((c) => {
+  catsNet.forEach((c) => {
     const fam = c.categorie || 'foin';
     tf[fam] = Math.round(((tf[fam] || 0) + (Number(c.tonnes) || 0)) * 1000) / 1000;
   });
-  if (categories.length) { t.foin = tf.foin; t.cereale = tf.cereale; t.paille = tf.paille; }
   totauxEl.innerHTML = [
-    tuile('Foin', t.foin, 'foin'),
-    tuile('Céréales', t.cereale, 'cereale'),
-    tuile('Paille', t.paille, 'paille')
+    tuile('Foin', tf.foin, 'foin'),
+    tuile('Céréales', tf.cereale, 'cereale'),
+    tuile('Paille', tf.paille, 'paille')
   ].join('');
 
   if (netEl) {
-    // stockDisponibleCanonique() : LA seule fonction de stock restant de
-    // l'appli (fourrages.js) — la même que celle appelée par la tuile
-    // "Stock restant" de Troupeau (cf. ui-rations.js/totauxDistribution()).
-    const net = stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots());
     netEl.innerHTML = net.length
-      ? net.map((g) => `
+      ? net.map((g) => {
+          // Nombre de bottes TOUJOURS recalculé depuis le tonnage net et le
+          // poids/botte (poids-bottes.js) — jamais depuis un compte de
+          // bottes qui ne décroît qu'au fil des mouvements physiques, sans
+          // jamais refléter une consommation dérivée des distributions.
+          const poids = poidsBotteEffectif(categories, g.cle);
+          const bottes = poids > 0 ? Math.round((g.tonnes * 1000) / poids) : null;
+          return `
         <div class="cat-card cat-card-cliquable" data-cle="${escapeAttr(g.cle)}" data-label="${escapeAttr(g.label)}">
           <div class="cat-card-nom">${escapeHtml(g.label)}</div>
-          <div class="cat-card-detail">${g.bottes > 0 ? Math.round(g.bottes) + ' bottes restantes' : 'en vrac'}</div>
+          <div class="cat-card-detail">${bottes != null ? bottes + ' bottes restantes' : 'en vrac'}</div>
           <div class="cat-card-tonnes">${formatTonnes(g.tonnes)} t</div>
-        </div>`).join('')
+        </div>`;
+        }).join('')
       : '<p class="list-empty">Aucun stock en cellule ou en hangar pour l\'instant — une récolte saisie sans contenant (onglet Stocks) n\'est pas décomptée ici.</p>';
     netEl.querySelectorAll('[data-cle]').forEach((el) => {
       el.addEventListener('click', () => ouvrirFicheAliment(el.dataset.cle, el.dataset.label));
     });
   }
 
-  // Le croisement se construit sur les catégories FUSIONNÉES : un pressage
+  // Le croisement se construit sur les catégories FUSIONNÉES (un pressage
   // saisi dans le tunnel d'activité y apparaît au même titre qu'une récolte
-  // saisie ici. Seules les coupes réellement rencontrées sont affichées, pour
-  // ne pas montrer quatre lignes vides sur une exploitation qui en fait deux.
-  const { fourrages, coupes, valeur } = croiseCoupeFourrage(categories);
+  // saisie ici) avec le tonnage NET substitué (catsNet) : seules les coupes
+  // réellement rencontrées sont affichées, pour ne pas montrer quatre lignes
+  // vides sur une exploitation qui en fait deux.
+  const { fourrages, coupes, valeur } = croiseCoupeFourrage(catsNet);
   if (!fourrages.length) {
     croiseEl.innerHTML = '<p class="list-empty">Aucune récolte de foin enregistrée. Une récolte saisie dans une activité (pressage, séchage en grange) apparaît ici automatiquement.</p>';
   } else {
@@ -372,9 +383,8 @@ export function renderVue() {
       </table>`;
   }
 
-  const cats = categories;
-  categoriesEl.innerHTML = cats.length
-    ? cats.map((c) => `
+  categoriesEl.innerHTML = catsNet.length
+    ? catsNet.map((c) => `
       <div class="cat-card cat-card-cliquable" data-cle="${escapeAttr(c.cle)}" data-label="${escapeAttr(c.label)}">
         <div class="cat-card-nom">${escapeHtml(c.label)}</div>
         <div class="cat-card-detail">${detailCategorie(c)}</div>
@@ -405,7 +415,11 @@ export function renderVue() {
 
 function detailCategorie(c) {
   const bouts = [`${c.nbRecoltes} récolte${c.nbRecoltes > 1 ? 's' : ''}`];
-  if (c.nbBottes) bouts.push(`${Math.round(c.nbBottes)} bottes`);
+  // Bottes restantes : depuis le tonnage NET (c.tonnes, déjà substitué par
+  // categoriesAvecStockNet) et le poids/botte — jamais depuis c.nbBottes
+  // (compte d'ENTRÉE brute, ne décroît jamais avec une distribution).
+  const poids = poidsBotteEffectif(categories, c.cle);
+  if (poids > 0 && c.nbBottes) bouts.push(`${Math.round((c.tonnes * 1000) / poids)} bottes`);
   if (c.nbRemorques) bouts.push(`${c.nbRemorques} remorques`);
   if (c.surfaceHa) bouts.push(`${c.surfaceHa} ha`);
   // D'où vient le chiffre : saisi ici, remonté du journal des activités, ou

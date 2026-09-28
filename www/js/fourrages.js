@@ -371,6 +371,26 @@ export function entreesCampagneParCategorie(mouvements, cellules, emplacements) 
   return stockNetParCategorie(retenus, cellules, emplacements);
 }
 
+// Les tuiles/tableaux de l'onglet Stocks (totaux par famille, coupe × type,
+// "Par catégorie") affichaient les ENTRÉES BRUTES (agregerParCategorie +
+// agregerMouvements, jamais réduites par une sortie) — d'où l'écart constaté
+// entre "30 t" ici et "29,52 t" dans la liste "Stock disponible" (celle-ci
+// DÉJÀ sur stockDisponibleCanonique). Cette fonction fusionne les DEUX : le
+// tonnage canonique (stockDisponibleCanonique, seule source de vérité) avec
+// les métadonnées que seules les entrées portent (coupe, fourrage,
+// conservation, nbRecoltes...), pour que tous les affichages de Stocks
+// lisent enfin le même chiffre — sans perdre le détail qui fait le tableau
+// croisé et "Par catégorie".
+// @param {Array} categories  fourrages.fusionnerCategories() — entrées brutes, avec métadonnées
+// @param {Array} net         stockDisponibleCanonique() — LE tonnage qui fait foi
+export function categoriesAvecStockNet(categories, net) {
+  const parCle = new Map((net || []).map((g) => [g.cle, g]));
+  return (categories || []).map((c) => {
+    const g = parCle.get(c.cle);
+    return { ...c, tonnes: g ? g.tonnes : 0 };
+  });
+}
+
 /**
  * Tous les mouvements qui concernent un aliment donné — pour la fiche
  * aliment de l'onglet Stocks (ui-fiche-aliment.js).
