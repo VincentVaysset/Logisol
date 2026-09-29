@@ -76,7 +76,7 @@ const el = {};
   'produit-recolte',
   'g-pressage','nb-bottes','poids-botte',
   'g-sechage','nb-remorques','t-remorque',
-  'g-moisson','nb-bennes','capacite-benne','remplissage','ps','moisson-calcul','moisson-ps-badge',
+  'g-moisson','nb-bennes','capacite-benne','ps','moisson-calcul','moisson-ps-badge',
   'g-fumier','nb-epandeurs','t-epandeur',
   'g-chaulage','dose-chaux',
   'flux-intro','flux-calcul','flux-source','flux-source-id','flux-dest',
@@ -560,7 +560,7 @@ function majTotalGroupe() {
 ['nb-bottes','poids-botte','nb-remorques','t-remorque','nb-bennes',
  'nb-epandeurs','t-epandeur','dose-chaux','dose-semis','surface']
   .forEach((k) => el[k].addEventListener('input', majTotalGroupe));
-['capacite-benne','remplissage','ps'].forEach((k) => el[k].addEventListener('input', () => {
+['capacite-benne','ps'].forEach((k) => el[k].addEventListener('input', () => {
   if (k === 'ps') el.ps.dataset.saisi = '1';
   majCalculMoisson();
   majTotalGroupe();
@@ -600,8 +600,13 @@ function lireSaisie() {
       return { nbBennes: n('nb-bennes'), tonnageBenne: moissonLegacy.tonnageBenne,
                poidsSpecifique: moissonLegacy.poidsSpecifique, ps: n('ps'), typeAliment: espece };
     }
-    return { nbBennes: n('nb-bennes'), capaciteBenne: capacite,
-             remplissageBenne: n('remplissage'), ps: n('ps'), typeAliment: espece };
+    const base = { nbBennes: n('nb-bennes'), capaciteBenne: capacite, ps: n('ps'), typeAliment: espece };
+    // remplissageBenne : plus aucun champ ne le saisit (retiré du formulaire)
+    // — repassé tel quel UNIQUEMENT s'il existait déjà sur l'intervention
+    // rouverte, pour ne jamais recalculer une ancienne moisson en silence.
+    // Seul corriger-remplissage.js le retire explicitement.
+    if (moissonLegacy.remplissageBenne != null) base.remplissageBenne = moissonLegacy.remplissageBenne;
+    return base;
   }
   if (f === 'FUMIER')   return { nbEpandeurs: n('nb-epandeurs'), tonnageEpandeur: n('t-epandeur') };
   if (f === 'CHAULAGE') return { doseTonnesHa: n('dose-chaux') };
@@ -625,11 +630,12 @@ function ecrireSaisie(s) {
   v('nb-bennes', s.nbBennes);
   if (s.capaciteBenne != null) {
     v('capacite-benne', s.capaciteBenne);
-    v('remplissage', s.remplissageBenne);
-    moissonLegacy = {};
+    // remplissageBenne n'a plus de champ propre (retiré du formulaire) :
+    // conservé en mémoire tel quel si l'intervention en portait déjà un,
+    // pour que lireSaisie() le repasse sans le recalculer (cf. plus haut).
+    moissonLegacy = s.remplissageBenne != null ? { remplissageBenne: s.remplissageBenne } : {};
   } else {
     v('capacite-benne', null);
-    v('remplissage', null);
     moissonLegacy = { tonnageBenne: s.tonnageBenne, poidsSpecifique: s.poidsSpecifique };
   }
   // ps (nouveau modèle) uniquement : poidsSpecifique (ancien champ, jamais
@@ -834,13 +840,12 @@ function majCalculMoisson() {
     el['moisson-ps-badge'].hidden = true;
     return;
   }
-  const remplissage = el['remplissage'].value === '' ? 100 : Number(el['remplissage'].value);
   const psSaisi = el.ps.value === '' ? null : Number(el.ps.value);
   const espece = (especeDeduite() || {}).valeur || null;
   const psNormalise = psVersTonnesM3(psSaisi);
   const facteur = psNormalise != null ? psNormalise : 1;
-  const total = tonnesReelles(cap, remplissage, psSaisi, espece);
-  let texte = `${cap} m³ × ${remplissage} % × ${arrondi(facteur)} = ${arrondi(total)} t / benne`;
+  const total = tonnesReelles(cap, psSaisi, espece);
+  let texte = `${cap} m³ × ${arrondi(facteur)} = ${arrondi(total)} t / benne`;
   if (psSaisi != null && !psValide(psNormalise)) {
     texte += ' — PS hors plage habituelle (0,3–1,2 t/m³)';
   }

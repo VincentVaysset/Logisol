@@ -4,6 +4,7 @@ import { implantationEnCours, historiqueParcelle, dureeLisible } from './implant
 import { resumeMeteo } from './meteo.js';
 import { openCreateIntervention, openEditIntervention } from './ui-intervention.js';
 import { estCorrigeableAvecPs, corrigerAvecPs } from './corriger-ps.js';
+import { estCorrigeableRemplissage, corrigerRemplissage } from './corriger-remplissage.js';
 import { toastSucces, toastErreur } from './toast.js';
 
 // Id de l'activité dont le petit formulaire "Corriger avec PS" est déplié
@@ -102,6 +103,20 @@ export function renderFeed() {
       }
     });
   });
+  feedList.querySelectorAll('[data-remplissage-corriger]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.remplissageCorriger;
+      btn.disabled = true;
+      try {
+        await corrigerRemplissage(id);
+        toastSucces('Remplissage retiré, quantité recalculée.');
+      } catch (err) {
+        toastErreur('Correction impossible : ' + ((err && err.message) || err));
+      } finally {
+        renderFeed();
+      }
+    });
+  });
 }
 
 // CSS.escape n'existe pas partout en WebView Android ancienne — un
@@ -144,6 +159,7 @@ function carteIntervention(itv) {
 
   const corrigeable = estCorrigeableAvecPs(itv);
   const psOuvert = corrigeable && corrigerPsOuvertPourId === itv.id;
+  const corrigeableRemplissage = estCorrigeableRemplissage(itv);
 
   return `
   <article class="feed-item" data-id="${escapeAttr(itv.id)}">
@@ -164,6 +180,9 @@ function carteIntervention(itv) {
         <button type="button" class="btn btn-secondary btn-mini" data-ps-valider="${escapeAttr(itv.id)}">✔️ Valider</button>
         <button type="button" class="btn btn-secondary btn-mini" data-ps-annuler="${escapeAttr(itv.id)}">✕</button>
       ` : `<button type="button" class="btn btn-secondary btn-mini" data-ps-ouvrir="${escapeAttr(itv.id)}">⚖️ Corriger avec PS</button>`}</div>` : ''}
+      ${corrigeableRemplissage ? `<div class="feed-ps-correction">
+        <button type="button" class="btn btn-secondary btn-mini" data-remplissage-corriger="${escapeAttr(itv.id)}">🧮 Corriger (retirer remplissage)</button>
+      </div>` : ''}
     </div>
     ${itv.photo ? `<img class="feed-photo" src="${escapeAttr(itv.photo)}" alt="">` : ''}
   </article>`;

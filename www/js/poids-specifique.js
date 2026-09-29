@@ -47,17 +47,28 @@ export function psValide(psTonnesM3) {
 }
 
 /**
- * Poids réel d'UNE benne : capacité (m³) × remplissage (%) × PS (t/m³).
- * PS vide -> 1 (comportement d'avant ce champ, une benne pleine "pèse" son
- * volume). Un type d'aliment fourrage (foin, paille...) ignore le PS : le
- * tonnage reste le volume rempli, inchangé.
+ * Poids réel d'UNE benne : capacité (m³) × PS (t/m³). PS vide -> 1
+ * (comportement d'avant ce champ, une benne pleine "pèse" son volume). Un
+ * type d'aliment fourrage (foin, paille...) ignore le PS : le tonnage reste
+ * le volume de la benne, inchangé.
  * @param {number} capacite      capacité de la benne, en m³.
- * @param {number} remplissage   0 à 100 (%) ; vide/absent = 100.
  * @param {number|string} ps     t/m³ ou kg/hL (converti automatiquement).
  * @param {string} [typeAliment] code d'espèce/fourrage — cf. estCerealeAliment.
  * @returns {number} tonnes, arrondies à 3 décimales.
  */
-export function tonnesReelles(capacite, remplissage, ps, typeAliment) {
+export function tonnesReelles(capacite, ps, typeAliment) {
+  const cap = Number(capacite) || 0;
+  if (!estCerealeAliment(typeAliment)) return arrondi3(cap);
+  const psNormalise = psVersTonnesM3(ps);
+  const facteur = psNormalise != null ? psNormalise : 1;
+  return arrondi3(cap * facteur);
+}
+
+// Ancienne formule (avec un facteur remplissage %, retiré du formulaire) —
+// gardée UNIQUEMENT pour ne JAMAIS recalculer en silence une intervention
+// déjà enregistrée avant ce retrait : cf. quantiteDeSaisie ci-dessous, et
+// corriger-remplissage.js pour la correction explicite, ligne par ligne.
+function tonnesReellesAvecRemplissage(capacite, remplissage, ps, typeAliment) {
   const cap = Number(capacite) || 0;
   const rempl = remplissage == null || remplissage === '' ? 100 : Number(remplissage) || 0;
   const volume = cap * (rempl / 100);
@@ -76,15 +87,21 @@ export function tonnesReelles(capacite, remplissage, ps, typeAliment) {
  * donc injoignable en Node pur) pour rester testable telle qu'exécutée par
  * l'appli — interventions.js ne fait que la ré-exporter.
  *
- * MOISSON a trois cas, jamais mélangés (cf. CLAUDE.md — une reprise
+ * MOISSON a quatre cas, jamais mélangés (cf. CLAUDE.md — une reprise
  * d'historique n'écrit jamais toute seule) :
- *   1) capaciteBenne renseignée : nouveau modèle, capacité × remplissage ×
- *      PS (tonnesReelles ci-dessus), par benne, fois le nombre de bennes.
- *   2) pas de capaciteBenne, mais un ps renseigné : intervention ancienne
+ *   1) capaciteBenne renseignée ET remplissageBenne encore présent :
+ *      intervention enregistrée avant le retrait du champ Remplissage —
+ *      formule figée telle quelle (tonnesReellesAvecRemplissage), jamais
+ *      recalculée toute seule. "Corriger" (corriger-remplissage.js) retire
+ *      explicitement ce facteur, ligne par ligne.
+ *   2) capaciteBenne renseignée, sans remplissageBenne : nouveau modèle,
+ *      capacité × PS (tonnesReelles ci-dessus), par benne, fois le nombre
+ *      de bennes.
+ *   3) pas de capaciteBenne, mais un ps renseigné : intervention ancienne
  *      "corrigée avec PS" (cf. corriger-ps.js) — le tonnage par benne saisi
  *      à l'origine valait volume × PS implicite de 1, on le multiplie donc
  *      par le PS a posteriori.
- *   3) ni l'un ni l'autre : comportement d'avant ce champ, inchangé — c'est
+ *   4) ni l'un ni l'autre : comportement d'avant ce champ, inchangé — c'est
  *      ce qui garantit qu'une intervention déjà enregistrée n'est JAMAIS
  *      recalculée toute seule tant que personne n'a touché son PS.
  */
@@ -95,7 +112,9 @@ export function quantiteDeSaisie(formulaire, s) {
   if (formulaire === 'SECHAGE')  return arrondi3(n(s.nbRemorques) * n(s.tonnesParRemorque)) || null;
   if (formulaire === 'MOISSON') {
     if (s.capaciteBenne != null) {
-      const parBenne = tonnesReelles(s.capaciteBenne, s.remplissageBenne, s.ps, s.typeAliment);
+      const parBenne = s.remplissageBenne != null
+        ? tonnesReellesAvecRemplissage(s.capaciteBenne, s.remplissageBenne, s.ps, s.typeAliment)
+        : tonnesReelles(s.capaciteBenne, s.ps, s.typeAliment);
       return arrondi3(n(s.nbBennes) * parBenne) || null;
     }
     const brut = n(s.nbBennes) * n(s.tonnageBenne);

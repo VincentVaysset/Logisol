@@ -1281,29 +1281,21 @@
               </div>
             </div>
 
-            <!-- 🌽 Moisson : poids réel = capacité (m³) × remplissage (%) ×
+            <!-- 🌽 Moisson : poids réel = nombre de bennes × capacité (m³) ×
                  PS — cf. poids-specifique.js. PS vide = facteur 1 (badge). -->
             <div id="itv-g-moisson" hidden>
               <div class="row">
                 <div style="flex:1">
                   <label for="itv-nb-bennes">Nombre de bennes</label>
-                  <input type="number" id="itv-nb-bennes" step="1" min="0" inputmode="numeric">
+                  <input type="number" id="itv-nb-bennes" step="any" min="0" inputmode="decimal">
                 </div>
                 <div style="flex:1">
                   <label for="itv-capacite-benne">Capacité benne (m³)</label>
                   <input type="number" id="itv-capacite-benne" step="any" min="0" inputmode="decimal">
                 </div>
               </div>
-              <div class="row">
-                <div style="flex:1">
-                  <label for="itv-remplissage">Remplissage (%)</label>
-                  <input type="number" id="itv-remplissage" step="1" min="0" max="100" inputmode="numeric" placeholder="100">
-                </div>
-                <div style="flex:1">
-                  <label for="itv-ps">PS — poids spécifique (t/m³ ou kg/hl)</label>
-                  <input type="number" id="itv-ps" step="any" min="0" inputmode="decimal" placeholder="facultatif">
-                </div>
-              </div>
+              <label for="itv-ps">PS — poids spécifique (t/m³ ou kg/hl)</label>
+              <input type="number" id="itv-ps" step="any" min="0" inputmode="decimal" placeholder="facultatif">
               <span id="itv-moisson-ps-badge" class="champ-aide" hidden>PS non renseigné — facteur 1 appliqué.</span>
               <p id="itv-moisson-calcul" class="champ-aide" hidden></p>
             </div>
