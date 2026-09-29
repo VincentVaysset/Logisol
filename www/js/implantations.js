@@ -27,6 +27,7 @@ import {
   collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 import { calculerCampagnes } from './campagnes.js';
+import { ecrire } from './ecriture-locale.js';
 
 const COL_NAME = 'implantations';
 const COL = collection(db, COL_NAME);
@@ -189,31 +190,31 @@ export async function setImplantation(
   if (cloturerPrecedente) {
     const precedente = implantationEnCours(parcelleId, dateSemis);
     if (precedente && precedente.dateSemis !== dateSemis && !precedente.dateFin) {
-      await setDoc(
-        doc(db, COL_NAME, precedente.id),
-        { dateFin: veille(dateSemis) },
-        { merge: true }
-      );
+      const refPrec = doc(db, COL_NAME, precedente.id);
+      await ecrire(refPrec, setDoc(refPrec, { dateFin: veille(dateSemis) }, { merge: true }), 'Clôture de culture');
     }
   }
 
   const campagne = campagneVisee !== undefined ? campagneVisee : await campagneViseeDe(parcelleId, dateSemis);
 
   const id = implantationId(parcelleId, dateSemis);
-  await setDoc(
-    doc(db, COL_NAME, id),
+  const ref = doc(db, COL_NAME, id);
+  await ecrire(ref, setDoc(
+    ref,
     { parcelleId, cultureId, dateSemis, dateFin, notes, campagneVisee: campagne, majLe: serverTimestamp() },
     { merge: true }
-  );
+  ), 'Implantation');
   return id;
 }
 
 export async function cloturerImplantation(id, dateFin) {
-  await setDoc(doc(db, COL_NAME, id), { dateFin, majLe: serverTimestamp() }, { merge: true });
+  const ref = doc(db, COL_NAME, id);
+  await ecrire(ref, setDoc(ref, { dateFin, majLe: serverTimestamp() }, { merge: true }), 'Clôture de culture');
 }
 
 export async function deleteImplantation(id) {
-  await deleteDoc(doc(db, COL_NAME, id)).catch(() => {});
+  const ref = doc(db, COL_NAME, id);
+  await ecrire(ref, deleteDoc(ref).catch(() => {}), "Suppression d'implantation");
 }
 
 function veille(dateIso) {

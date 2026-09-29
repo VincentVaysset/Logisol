@@ -8,8 +8,9 @@
 // réserve (contrairement aux tableaux imbriqués, cf. geometrie.js).
 import { db, auth } from './firebase-config.js';
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
+  collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
+import { ecrire } from './ecriture-locale.js';
 
 const COL = collection(db, 'interventions');
 
@@ -154,25 +155,42 @@ function nettoyerEffetCulture(e) {
 // existants (ui-intervention.js) n'aient rien à changer.
 export { quantiteDeSaisie } from './poids-specifique.js';
 
+// Plafond Firestore de 1 Mio par document, vérifié par le SERVEUR seulement :
+// hors ligne, un document trop lourd est accepté en local puis refusé au
+// retour du réseau — donc perdu. Un Semis porte deux photos (chantier +
+// étiquette), chacune jusqu'à ~800 ko une fois encodée (cf. photo.js) :
+// vérifié AVANT toute écriture, formulaire encore ouvert.
+const PLAFOND_OCTETS = 1000 * 1000;
+export function verifierTailleIntervention(data) {
+  const octets = new Blob([JSON.stringify(nettoyer(data))]).size;
+  if (octets > PLAFOND_OCTETS) {
+    throw new Error(`Activité trop lourde pour être enregistrée (${Math.round(octets / 1024)} ko, ` +
+      'maximum ~980 ko) : retire la photo de chantier ou celle de l\'étiquette, ou reprends-la moins large.');
+  }
+}
+
 export async function createIntervention(data) {
   if (!data.date) throw new Error('La date est obligatoire.');
-  return addDoc(COL, {
+  verifierTailleIntervention(data);
+  const ref = doc(COL);
+  await ecrire(ref, setDoc(ref, {
     ...nettoyer(data),
     creeLe: serverTimestamp(),
     majLe: serverTimestamp(),
     creePar: auth.currentUser ? auth.currentUser.uid : null
-  });
+  }), 'Activité');
+  return ref;
 }
 
 export async function updateIntervention(id, data) {
-  return updateDoc(doc(db, 'interventions', id), {
-    ...nettoyer(data),
-    majLe: serverTimestamp()
-  });
+  verifierTailleIntervention(data);
+  const ref = doc(db, 'interventions', id);
+  await ecrire(ref, updateDoc(ref, { ...nettoyer(data), majLe: serverTimestamp() }), 'Activité');
 }
 
 export async function deleteIntervention(id) {
-  return deleteDoc(doc(db, 'interventions', id));
+  const ref = doc(db, 'interventions', id);
+  await ecrire(ref, deleteDoc(ref), "Suppression d'activité");
 }
 
 // Écriture ciblée pour reprise-campagnes.js : seule campagneId (et, à
@@ -184,5 +202,6 @@ export async function ecrireCampagne(id, { campagneId, campagneAvantReprise }) {
   if (campagneAvantReprise !== undefined) {
     maj.campagneAvantReprise = campagneAvantReprise ? String(campagneAvantReprise) : null;
   }
-  return updateDoc(doc(db, 'interventions', id), maj);
+  const ref = doc(db, 'interventions', id);
+  await ecrire(ref, updateDoc(ref, maj), 'Campagne');
 }

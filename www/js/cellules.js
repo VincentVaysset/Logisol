@@ -12,6 +12,7 @@ import { db, auth } from './firebase-config.js';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
+import { ecrire } from './ecriture-locale.js';
 
 const COL = collection(db, 'lgs_cellules_grain');
 
@@ -112,7 +113,8 @@ export async function updateCellule(id, data) {
 export async function setQuantite(id, tonnes, typeGrainActuel) {
   const maj = { quantiteActuelleTonnes: Math.round((Number(tonnes) || 0) * 1000) / 1000, majLe: serverTimestamp() };
   if (typeGrainActuel !== undefined) maj.typeGrainActuel = typeGrainActuel;
-  return updateDoc(doc(db, 'lgs_cellules_grain', id), maj);
+  const ref = doc(db, 'lgs_cellules_grain', id);
+  await ecrire(ref, updateDoc(ref, maj), 'Niveau de cellule');
 }
 
 export async function deleteCellule(id) {

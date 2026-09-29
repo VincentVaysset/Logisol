@@ -14,6 +14,7 @@ import { db, auth } from './firebase-config.js';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
+import { ecrire } from './ecriture-locale.js';
 
 const COL = collection(db, 'lgs_emplacements_fourrage');
 
@@ -82,11 +83,12 @@ export async function updateEmplacement(id, data) {
 // Écrit le niveau et la moyenne recalculés depuis le journal. Appelé par
 // mouvements.js uniquement.
 export async function setNiveau(id, nbBottes, poidsMoyenBotteKg) {
-  return updateDoc(doc(db, 'lgs_emplacements_fourrage', id), {
+  const ref = doc(db, 'lgs_emplacements_fourrage', id);
+  await ecrire(ref, updateDoc(ref, {
     nbBottesActuel: Math.round(Number(nbBottes) || 0),
     poidsMoyenBotteKg: Math.round((Number(poidsMoyenBotteKg) || 0) * 10) / 10,
     majLe: serverTimestamp()
-  });
+  }), "Niveau d'emplacement");
 }
 
 export async function deleteEmplacement(id) {

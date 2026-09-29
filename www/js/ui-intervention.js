@@ -18,7 +18,8 @@ import {
 } from './interventions-types.js';
 import { getMaterielById, getMateriels, onMaterielsChange, materielsPourAction } from './materiel.js';
 import {
-  createIntervention, updateIntervention, deleteIntervention, quantiteDeSaisie, getInterventions
+  createIntervention, updateIntervention, deleteIntervention, quantiteDeSaisie, getInterventions,
+  verifierTailleIntervention
 } from './interventions.js';
 import { releverMeteo, resumeMeteo } from './meteo.js';
 import { compresserPhoto, tailleLisible } from './photo.js';
@@ -1707,6 +1708,10 @@ form.addEventListener('submit', async (e) => {
       photoEtiquette: formulaire === 'SEMIS' ? etiquetteCourante : null,
       notes: el.notes.value
     };
+
+    // Avant toute écriture (mouvement, culture) : un refus ici ne doit rien
+    // laisser d'orphelin derrière lui.
+    try { verifierTailleIntervention(data); } catch (err) { throw new ErreurDeSaisie(err.message); }
 
     let fluxSaisi = null;
     if (flux) {

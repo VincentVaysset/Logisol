@@ -12,10 +12,11 @@
 // bottes porté par chaque entrée.
 import { db, auth } from './firebase-config.js';
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
+  collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 import { setQuantite, getCelluleById } from './cellules.js';
 import { setNiveau, getEmplacementById } from './emplacements.js';
+import { ecrire } from './ecriture-locale.js';
 
 const COL = collection(db, 'lgs_mouvements_stock');
 
@@ -313,10 +314,11 @@ function valider(m) {
 export async function createMouvement(data) {
   const m = nettoyer(data);
   valider(m);
-  const ref = await addDoc(COL, {
+  const ref = doc(COL);
+  await ecrire(ref, setDoc(ref, {
     ...m, creeLe: serverTimestamp(), majLe: serverTimestamp(),
     creePar: auth.currentUser ? auth.currentUser.uid : null
-  });
+  }), 'Mouvement de stock');
   await rafraichirContenants(
     [{ type: m.destinationType, id: m.destinationId },
      { type: m.sourceType, id: m.sourceId }],
@@ -329,7 +331,8 @@ export async function updateMouvement(id, data) {
   const m = nettoyer(data);
   valider(m);
   const avant = courants.find((x) => x.id === id);
-  await updateDoc(doc(db, 'lgs_mouvements_stock', id), { ...m, majLe: serverTimestamp() });
+  const ref = doc(db, 'lgs_mouvements_stock', id);
+  await ecrire(ref, updateDoc(ref, { ...m, majLe: serverTimestamp() }), 'Mouvement de stock');
   // On rafraîchit AUSSI les contenants d'avant modification : déplacer un
   // mouvement d'un silo à un autre doit corriger les deux, pas seulement le
   // nouveau.
@@ -344,7 +347,8 @@ export async function updateMouvement(id, data) {
 
 export async function deleteMouvement(id) {
   const avant = courants.find((x) => x.id === id);
-  await deleteDoc(doc(db, 'lgs_mouvements_stock', id));
+  const ref = doc(db, 'lgs_mouvements_stock', id);
+  await ecrire(ref, deleteDoc(ref), 'Suppression de mouvement');
   if (avant) {
     await rafraichirContenants(
       [{ type: avant.destinationType, id: avant.destinationId },

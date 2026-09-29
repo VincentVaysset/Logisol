@@ -8,6 +8,7 @@
 // vérité que la saisie ne pourrait pas corriger.
 import { db } from './firebase-config.js';
 import { doc, setDoc, onSnapshot, serverTimestamp } from '../vendor/firebase/firebase-firestore.js';
+import { ecrire } from './ecriture-locale.js';
 
 const REF = doc(db, 'lgs_config', 'psDefauts');
 
@@ -34,5 +35,5 @@ export function psDefautDe(typeAliment) {
  * elle : un échec ici ne doit pas empêcher l'activité d'être sauvegardée. */
 export async function setPsDefaut(typeAliment, psTonnesM3) {
   if (!typeAliment || psTonnesM3 == null) return;
-  await setDoc(REF, { valeurs: { ...courants, [typeAliment]: psTonnesM3 }, majLe: serverTimestamp() }, { merge: true });
+  await ecrire(REF, setDoc(REF, { valeurs: { ...courants, [typeAliment]: psTonnesM3 }, majLe: serverTimestamp() }, { merge: true }), 'PS par défaut');
 }
