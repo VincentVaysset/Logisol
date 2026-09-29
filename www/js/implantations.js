@@ -191,7 +191,8 @@ export async function setImplantation(
     const precedente = implantationEnCours(parcelleId, dateSemis);
     if (precedente && precedente.dateSemis !== dateSemis && !precedente.dateFin) {
       const refPrec = doc(db, COL_NAME, precedente.id);
-      await ecrire(refPrec, setDoc(refPrec, { dateFin: veille(dateSemis) }, { merge: true }), 'Clôture de culture');
+      await ecrire(refPrec, setDoc(refPrec, { dateFin: veille(dateSemis) }, { merge: true }), 'Clôture de culture',
+        `clôture au ${veille(dateSemis)} (nouveau semis ${dateSemis})`);
     }
   }
 
@@ -203,18 +204,19 @@ export async function setImplantation(
     ref,
     { parcelleId, cultureId, dateSemis, dateFin, notes, campagneVisee: campagne, majLe: serverTimestamp() },
     { merge: true }
-  ), 'Implantation');
+  ), 'Implantation', `semis ${dateSemis} · culture ${cultureId} · parcelle ${parcelleId}`);
   return id;
 }
 
 export async function cloturerImplantation(id, dateFin) {
   const ref = doc(db, COL_NAME, id);
-  await ecrire(ref, setDoc(ref, { dateFin, majLe: serverTimestamp() }, { merge: true }), 'Clôture de culture');
+  await ecrire(ref, setDoc(ref, { dateFin, majLe: serverTimestamp() }, { merge: true }), 'Clôture de culture',
+    dateFin ? `clôture au ${dateFin}` : 'réouverture (clôture annulée)');
 }
 
 export async function deleteImplantation(id) {
   const ref = doc(db, COL_NAME, id);
-  await ecrire(ref, deleteDoc(ref).catch(() => {}), "Suppression d'implantation");
+  await ecrire(ref, deleteDoc(ref).catch(() => {}), "Suppression d'implantation", 'suppression');
 }
 
 function veille(dateIso) {

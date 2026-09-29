@@ -12,6 +12,7 @@ import { getAuth } from "../vendor/firebase/firebase-auth.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager
 } from "../vendor/firebase/firebase-firestore.js";
+import { journaliser } from './journal-ecritures.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDY_Z3Jqo92RAuJlYX5K4sZKTFmf-0P-h4",
@@ -51,6 +52,8 @@ const surCacheMemoire = new Set();
 function signalerCacheMemoire() {
   if (!cacheDisque) return;
   cacheDisque = false;
+  window.__logisolCacheMemoire = true;
+  journaliser('REPLI MÉMOIRE : cache disque indisponible pour cette session');
   if (window.__logisolDebug) window.__logisolDebug('CACHE MÉMOIRE SEULEMENT : les saisies de cette session ne survivront pas à la fermeture');
   surCacheMemoire.forEach((cb) => { try { cb(); } catch (_) { /* affichage seulement */ } });
 }

@@ -169,6 +169,10 @@ export function verifierTailleIntervention(data) {
   }
 }
 
+function detailActivite(data, quoi) {
+  return `${quoi} ${data.typeNom || 'activité'} du ${data.date || '?'} · parcelles ${(data.parcelleIds || []).join(',') || '—'}`;
+}
+
 export async function createIntervention(data) {
   if (!data.date) throw new Error('La date est obligatoire.');
   verifierTailleIntervention(data);
@@ -178,19 +182,19 @@ export async function createIntervention(data) {
     creeLe: serverTimestamp(),
     majLe: serverTimestamp(),
     creePar: auth.currentUser ? auth.currentUser.uid : null
-  }), 'Activité');
+  }), 'Activité', detailActivite(data, 'création'));
   return ref;
 }
 
 export async function updateIntervention(id, data) {
   verifierTailleIntervention(data);
   const ref = doc(db, 'interventions', id);
-  await ecrire(ref, updateDoc(ref, { ...nettoyer(data), majLe: serverTimestamp() }), 'Activité');
+  await ecrire(ref, updateDoc(ref, { ...nettoyer(data), majLe: serverTimestamp() }), 'Activité', detailActivite(data, 'modification'));
 }
 
 export async function deleteIntervention(id) {
   const ref = doc(db, 'interventions', id);
-  await ecrire(ref, deleteDoc(ref), "Suppression d'activité");
+  await ecrire(ref, deleteDoc(ref), "Suppression d'activité", 'suppression');
 }
 
 // Écriture ciblée pour reprise-campagnes.js : seule campagneId (et, à
@@ -203,5 +207,5 @@ export async function ecrireCampagne(id, { campagneId, campagneAvantReprise }) {
     maj.campagneAvantReprise = campagneAvantReprise ? String(campagneAvantReprise) : null;
   }
   const ref = doc(db, 'interventions', id);
-  await ecrire(ref, updateDoc(ref, maj), 'Campagne');
+  await ecrire(ref, updateDoc(ref, maj), 'Campagne', `campagne -> ${maj.campagneId}`);
 }

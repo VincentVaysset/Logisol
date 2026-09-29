@@ -41,10 +41,16 @@
      ni max-height ni pointer-events:none ne garantissaient de façon fiable. -->
 <script src="version.js"></script>
 <div id="debug-wrap" style="flex:0 0 auto;display:flex;flex-direction:column;">
-  <button id="debug-toggle" type="button"
-          style="flex:0 0 auto;border:none;width:100%;text-align:left;background:#8e2b20;color:#fff;padding:4px 14px;font:600 11px/1.3 monospace;cursor:pointer;">
-    ▼ Diagnostic (toucher pour replier)
-  </button>
+  <div style="flex:0 0 auto;display:flex;">
+    <button id="debug-toggle" type="button"
+            style="flex:1 1 auto;border:none;text-align:left;background:#8e2b20;color:#fff;padding:4px 14px;font:600 11px/1.3 monospace;cursor:pointer;">
+      ▼ Diagnostic (toucher pour replier)
+    </button>
+    <button id="debug-outils" type="button"
+            style="flex:0 0 auto;border:none;border-left:1px solid rgba(255,255,255,0.4);background:#8e2b20;color:#fff;padding:4px 12px;font:600 11px/1.3 monospace;cursor:pointer;">
+      🔍 Outils
+    </button>
+  </div>
   <div id="debug-banner"
        style="flex:0 0 auto;height:12vh;overflow-y:auto;background:#c0392b;color:#ffffff;padding:8px 14px;font:600 12px/1.35 monospace;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.4);">
     Démarrage de Logisol...
@@ -1080,6 +1086,31 @@
        repliés et facultatifs), étape 3 affichée SEULEMENT quand l'activité
        implique un mouvement de stock. Aucune heure de début/fin n'est
        demandée nulle part. -->
+  <!-- Diagnostic > Outils : recherche parcelle + date (téléphone ET serveur,
+       état de synchronisation) et journal persistant des écritures. Texte
+       brut copiable, à transmettre tel quel quand une saisie disparaît. -->
+  <div id="diag-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>🔍 Diagnostic des saisies</h2>
+      <pre id="diag-etat" class="diag-texte"></pre>
+      <h3 class="section-sous-titre">Rechercher une parcelle à une date</h3>
+      <label for="diag-parcelle">Parcelle</label>
+      <input type="text" id="diag-parcelle" list="diag-parcelles" autocomplete="off" placeholder="ex: Labessière">
+      <datalist id="diag-parcelles"></datalist>
+      <label for="diag-date">Date</label>
+      <input type="date" id="diag-date">
+      <button type="button" id="diag-chercher" class="btn btn-primary">Rechercher</button>
+      <pre id="diag-resultat" class="diag-texte" hidden></pre>
+      <h3 class="section-sous-titre">Journal des écritures (survit au redémarrage)</h3>
+      <pre id="diag-journal" class="diag-texte diag-journal"></pre>
+      <div class="diag-actions">
+        <button type="button" id="diag-copier" class="btn btn-secondary">📋 Copier tout</button>
+        <button type="button" id="diag-vider" class="btn btn-secondary">Vider le journal</button>
+        <button type="button" id="diag-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <div id="intervention-panel" class="fiche-overlay" hidden>
     <div class="fiche-panel">
       <div class="tunnel-head">

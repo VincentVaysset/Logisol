@@ -1786,3 +1786,13 @@ header button {
   }
   .reel-statut, .badge-semis0 { font-size: 9px; }
 }
+
+/* Diagnostic > Outils : texte brut copiable (recherche + journal). */
+.diag-texte {
+  font: 12px/1.4 monospace; white-space: pre-wrap; word-break: break-word;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px; margin: 8px 0 12px;
+}
+.diag-texte[hidden] { display: none; }
+.diag-journal { max-height: 40vh; overflow-y: auto; }
+.diag-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }

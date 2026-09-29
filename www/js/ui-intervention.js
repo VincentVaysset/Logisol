@@ -23,6 +23,7 @@ import {
 } from './interventions.js';
 import { releverMeteo, resumeMeteo } from './meteo.js';
 import { compresserPhoto, tailleLisible } from './photo.js';
+import { journaliser } from './journal-ecritures.js';
 import { aujourdhui } from './implantations.js';
 import {
   TYPES_GRAIN, getBatiments, getBatimentById, accepteLots, accepteCellules,
@@ -1720,6 +1721,11 @@ form.addEventListener('submit', async (e) => {
       notes: el.notes.value
     };
 
+    journaliser(`Enregistrer (${mode === 'create' ? 'création' : 'modification'})`, {
+      coll: 'interventions', id: editingId || '',
+      detail: `${data.typeNom} du ${data.date} · parcelles ${data.parcelleIds.join(',') || '—'} · statut ${statut}`
+    });
+
     // Avant toute écriture (mouvement, culture) : un refus ici ne doit rien
     // laisser d'orphelin derrière lui.
     try { verifierTailleIntervention(data); } catch (err) { throw new ErreurDeSaisie(err.message); }
@@ -1794,6 +1800,8 @@ form.addEventListener('submit', async (e) => {
     }
   } catch (err) {
     fini = true; clearTimeout(minuteur);
+    journaliser('ÉCHEC de l\'enregistrement', { coll: 'interventions', id: editingId || '',
+      erreur: `${err && err.code ? err.code + ' — ' : ''}${(err && err.message) || err}` });
     if (monToken === saveToken) {
       if (err instanceof ErreurDeSaisie) showError(err.message);
       else {

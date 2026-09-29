@@ -17,6 +17,8 @@ import {
 import { ensureSeeded as ensureTypesSeeded, watchTypes, onTypesChange } from './interventions-types.js';
 import { watchInterventions } from './interventions.js';
 import { onCacheMemoireSeulement } from './firebase-config.js';
+import { journaliser } from './journal-ecritures.js';
+import { initOutilsDiagnostic } from './diagnostic-outils.js';
 import { resolveCouleur, resolveLabel } from './vocation.js';
 import { getVueLegende, onVueLegendeChange } from './vue-legende.js';
 import { watchParcelles } from './parcelles.js';
@@ -818,6 +820,8 @@ async function boot() {
     majEtatDessin({ actif: false, sommets: 0 });
     setView('ferme');
     log('Interface prête (boutons actifs)');
+    journaliser(`démarrage de l'appli (build ${(window.__LOGISOL_VERSION || {}).build || '?'})`);
+    initOutilsDiagnostic();
 
     onCacheMemoireSeulement(() => {
       const alerte = document.getElementById('alerte-cache');
