@@ -1374,6 +1374,7 @@ function reinitialiser() {
   moissonLegacy = {};
   el['campagne-forcer-wrap'].hidden = true;
   el['campagne-forcer'].value = '';
+  majToggleCampagneForcer();
   el['effet-culture'].hidden = true;
   el['culture-new'].hidden = true;
   el['culture-toggle'].textContent = '＋ Nouvelle culture';
@@ -1443,18 +1444,29 @@ function majCampagneAffichee() {
   el.campagne.value = campagneCalculee();
 }
 
+// Le lien reste un texte discret dans les deux états — seule la flèche
+// s'inverse (▾ replié, ▴ déplié) : un réglage d'exception ne doit jamais
+// avoir l'air d'un champ courant (cf. son style, .lien-discret).
+function majToggleCampagneForcer() {
+  el['campagne-forcer-toggle'].textContent =
+    el['campagne-forcer-wrap'].hidden ? 'Forcer une autre campagne ▾' : 'Forcer une autre campagne ▴';
+}
+
 el['campagne-forcer-toggle'].addEventListener('click', () => {
   el['campagne-forcer-wrap'].hidden = !el['campagne-forcer-wrap'].hidden;
   if (!el['campagne-forcer-wrap'].hidden) el['campagne-forcer'].value = el.campagne.value;
+  majToggleCampagneForcer();
 });
 el['campagne-forcer-valider'].addEventListener('click', () => {
   campagneForceeActive = true;
   el.campagne.value = el['campagne-forcer'].value || el.campagne.value;
   el['campagne-forcer-wrap'].hidden = true;
+  majToggleCampagneForcer();
 });
 el['campagne-forcer-annuler'].addEventListener('click', () => {
   campagneForceeActive = false;
   el['campagne-forcer-wrap'].hidden = true;
+  majToggleCampagneForcer();
   majCampagneAffichee();
 });
 
@@ -1516,6 +1528,11 @@ export function openEditIntervention(itv) {
     if (itv.forcerCampagne) {
       campagneForceeActive = true;
       el.campagne.value = itv.forcerCampagne;
+      // Une valeur déjà forcée sur cette activité : le lien s'ouvre d'office
+      // avec sa valeur, plutôt que de la cacher derrière un lien replié.
+      el['campagne-forcer-wrap'].hidden = false;
+      el['campagne-forcer'].value = itv.forcerCampagne;
+      majToggleCampagneForcer();
     } else {
       el.campagne.value = itv.campagneId || '';
       majCampagneAffichee();

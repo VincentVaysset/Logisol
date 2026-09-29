@@ -1014,6 +1014,24 @@ header button {
   font: inherit; color: var(--primary); text-transform: none; letter-spacing: 0;
 }
 
+/* Lien d'exception (ex. "Forcer une autre campagne") : discret par nature —
+   un réglage qui ne sert qu'en cas particulier ne doit jamais avoir l'air
+   d'un champ courant. Petit, gris, souligné, jamais aussi large qu'un champ. */
+.lien-discret {
+  display: inline-block;
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 12px; color: var(--text-muted); text-decoration: underline;
+  margin: -8px 0 12px;
+}
+.campagne-forcer-wrap {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: -4px 0 12px;
+}
+.campagne-forcer-wrap .champ-etroit {
+  width: 90px; flex: 0 0 auto; margin: 0;
+}
+.campagne-forcer-wrap .btn-mini { flex: 0 0 auto; }
+
 .alerte {
   background: var(--warning);
   color: #2b2a22;
