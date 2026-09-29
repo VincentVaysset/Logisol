@@ -1445,7 +1445,10 @@ function campagneCalculee() {
     forcerCampagne: null
   };
   const activites = historiqueCampagne(parcelleId).concat([courante]);
-  const map = calculerCampagnes(activites, () => campagneParDefaut());
+  // getTypeById passé explicitement (import statique, lu depuis le cache des
+  // types) : ouvrir ou modifier une activité ne dépend plus de l'ordre du
+  // démarrage de main.js, ni du réseau.
+  const map = calculerCampagnes(activites, () => campagneParDefaut(), { getTypeById });
   return map.get(courante.id) || campagneParDefaut();
 }
 

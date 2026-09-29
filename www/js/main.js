@@ -872,16 +872,21 @@ async function boot() {
     watchEntretiens();
     watchPsDefauts();
 
+    // Dépendances des calculs (campagnes, reprise, historique PS) : de
+    // simples imports de modules locaux, jamais le réseau — chargées AVANT
+    // l'amorçage ci-dessous. Celui-ci attend l'accusé du serveur à chaque
+    // écriture : hors ligne (mode avion), il ne se termine qu'au retour du
+    // réseau, et tout ce qui venait après lui restait bloqué — d'où
+    // "calculerCampagnes : dépendances manquantes" en ouvrant une activité.
+    await preparerCampagnes();
+    await preparerReprise();
+    await preparerHistoriquePs();
+
+    // Amorçage et migrations : en arrière-plan, terminés au retour du réseau.
     await ensureCulturesSeeded();
     await ensureTypesSeeded();
     await ensureStadesSeeded();
     await ensureMaterielSeeded();
-    // Charge la dépendance réelle de campagnes.js (interventions-types.js)
-    // une fois pour toutes : calculerCampagnes() est synchrone ensuite,
-    // appelée à chaque frappe dans le tunnel de saisie.
-    await preparerCampagnes();
-    await preparerReprise();
-    await preparerHistoriquePs();
 
     const reprises = await migrerAnciensAssolements();
     if (reprises) log(reprises + ' ancien(s) assolement(s) repris en implantations');
