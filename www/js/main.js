@@ -16,6 +16,7 @@ import {
 } from './implantations.js';
 import { ensureSeeded as ensureTypesSeeded, watchTypes, onTypesChange } from './interventions-types.js';
 import { watchInterventions } from './interventions.js';
+import { onCacheMemoireSeulement } from './firebase-config.js';
 import { resolveCouleur, resolveLabel } from './vocation.js';
 import { getVueLegende, onVueLegendeChange } from './vue-legende.js';
 import { watchParcelles } from './parcelles.js';
@@ -817,6 +818,12 @@ async function boot() {
     majEtatDessin({ actif: false, sommets: 0 });
     setView('ferme');
     log('Interface prête (boutons actifs)');
+
+    onCacheMemoireSeulement(() => {
+      const alerte = document.getElementById('alerte-cache');
+      if (alerte) alerte.hidden = false;
+    });
+    document.getElementById('alerte-cache-relancer').addEventListener('click', () => location.reload());
 
     // --- 2) Puis les données (réseau) : plus rien d'interactif n'attend ---
     // Les écoutes temps réel sont posées AVANT les opérations lentes
