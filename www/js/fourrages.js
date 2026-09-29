@@ -385,10 +385,35 @@ export function entreesCampagneParCategorie(mouvements, cellules, emplacements) 
 // @param {Array} net         stockDisponibleCanonique() — LE tonnage qui fait foi
 export function categoriesAvecStockNet(categories, net) {
   const parCle = new Map((net || []).map((g) => [g.cle, g]));
-  return (categories || []).map((c) => {
+  const vus = new Set();
+  const fusionnees = (categories || []).map((c) => {
+    vus.add(c.cle);
     const g = parCle.get(c.cle);
     return { ...c, tonnes: g ? g.tonnes : 0 };
   });
+  // Un aliment présent dans le stock net (une ration l'a consommé) mais
+  // jamais vu en récolte/achat (categories ne le porte pas — cas rare, ex.
+  // stockCle de ration jamais réellement récolté) doit rester visible, sa
+  // famille déduite du préfixe de la clé plutôt que disparaître en
+  // silence : la somme des sections ne doit JAMAIS être inférieure à
+  // stockDisponibleCanonique() (cf. ui-stocks.js, séparation Fourrages/
+  // Céréales & concentrés).
+  (net || []).forEach((g) => {
+    if (vus.has(g.cle)) return;
+    fusionnees.push({ cle: g.cle, label: g.label, categorie: categorieDeCle(g.cle), tonnes: g.tonnes, nbRecoltes: 0 });
+  });
+  return fusionnees;
+}
+
+// Famille déduite du préfixe de la clé (stocks.js/cleFoin,cleCereale,
+// clePaille,cleCommerce) — repli utilisé UNIQUEMENT quand categories ne
+// porte pas déjà le champ categorie (cf. categoriesAvecStockNet ci-dessus).
+function categorieDeCle(cle) {
+  const prefixe = String(cle || '').split('|')[0];
+  if (prefixe === 'cereale') return 'cereale';
+  if (prefixe === 'paille') return 'paille';
+  if (prefixe === 'commerce') return 'commerce';
+  return 'foin';
 }
 
 /**

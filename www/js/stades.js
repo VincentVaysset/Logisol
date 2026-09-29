@@ -13,7 +13,7 @@
 // les corriger.
 import { db } from './firebase-config.js';
 import {
-  collection, doc, addDoc, updateDoc, getDocs, onSnapshot
+  collection, doc, addDoc, getDocs, onSnapshot
 } from "../vendor/firebase/firebase-firestore.js";
 
 const COL = collection(db, 'stades_config');
@@ -78,29 +78,4 @@ export function composantsDuStade(stade) {
 
 export function totalRation(composants) {
   return Math.round((composants || []).reduce((n, c) => n + (Number(c.doseKgParBrebis) || 0), 0) * 100) / 100;
-}
-
-// Remplace la liste des composants d'un stade. rationKgParBrebis reste écrit
-// en plus, comme total dérivé : c'est lui que lisent encore les affichages
-// rapides (fiche lot, tableau croisé) sans avoir à resommer les composants.
-export async function setComposants(stadeId, composants) {
-  // Une dose à 0 ou un aliment du commerce encore sans nom ne sont PAS
-  // filtrés : c'est l'état transitoire d'un ingrédient qu'on vient d'ajouter
-  // et qu'on va compléter dans la foulée. Les filtrer ici ferait disparaître
-  // la ligne avant même d'avoir pu la remplir.
-  const propres = (composants || []).map((c) => ({
-    id: c.id || idComposant(),
-    origine: c.origine === 'commerce' ? 'commerce' : (c.origine === 'cereale' ? 'cereale' : 'fourrage'),
-    nom: c.origine === 'commerce' ? String(c.nom || '').trim() : null,
-    doseKgParBrebis: Math.max(0, Math.round((Number(c.doseKgParBrebis) || 0) * 1000) / 1000)
-  }));
-  if (!propres.length) throw new Error('La ration doit garder au moins un composant.');
-  return updateDoc(doc(db, 'stades_config', stadeId), {
-    composants: propres,
-    rationKgParBrebis: totalRation(propres)
-  });
-}
-
-function idComposant() {
-  return Math.random().toString(36).slice(2, 9);
 }

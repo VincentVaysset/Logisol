@@ -44,7 +44,8 @@ const errorBanner = document.getElementById('stock-error-banner');
 const errorText = document.getElementById('stock-error-text');
 
 const totauxEl = document.getElementById('stocks-totaux');
-const netEl = document.getElementById('stocks-net');
+const netFourragesEl = document.getElementById('stocks-net-fourrages');
+const netCerealesEl = document.getElementById('stocks-net-cereales');
 const croiseEl = document.getElementById('stocks-croise');
 const categoriesEl = document.getElementById('stocks-categories');
 const lignesEl = document.getElementById('stocks-lignes');
@@ -333,27 +334,14 @@ export function renderVue() {
     tuile('Paille', tf.paille, 'paille')
   ].join('');
 
-  if (netEl) {
-    netEl.innerHTML = net.length
-      ? net.map((g) => {
-          // Nombre de bottes TOUJOURS recalculé depuis le tonnage net et le
-          // poids/botte (poids-bottes.js) — jamais depuis un compte de
-          // bottes qui ne décroît qu'au fil des mouvements physiques, sans
-          // jamais refléter une consommation dérivée des distributions.
-          const poids = poidsBotteEffectif(categories, g.cle);
-          const bottes = poids > 0 ? Math.round((g.tonnes * 1000) / poids) : null;
-          return `
-        <div class="cat-card cat-card-cliquable" data-cle="${escapeAttr(g.cle)}" data-label="${escapeAttr(g.label)}">
-          <div class="cat-card-nom">${escapeHtml(g.label)}</div>
-          <div class="cat-card-detail">${bottes != null ? bottes + ' bottes restantes' : 'en vrac'}</div>
-          <div class="cat-card-tonnes">${formatTonnes(g.tonnes)} t</div>
-        </div>`;
-        }).join('')
-      : '<p class="list-empty">Aucun stock en cellule ou en hangar pour l\'instant — une récolte saisie sans contenant (onglet Stocks) n\'est pas décomptée ici.</p>';
-    netEl.querySelectorAll('[data-cle]').forEach((el) => {
-      el.addEventListener('click', () => ouvrirFicheAliment(el.dataset.cle, el.dataset.label));
-    });
-  }
+  // Fourrages (foin, paille) vs Céréales & concentrés (céréales, commerce) :
+  // séparation purement visuelle, sur le champ categorie déjà porté par
+  // chaque ligne (catsNet, lossless — cf. fourrages.js/categoriesAvecStockNet)
+  // — aucun recalcul, la somme des deux sections vaut exactement
+  // stockDisponibleCanonique().
+  const estCerealeOuConcentre = (c) => c.categorie === 'cereale' || c.categorie === 'commerce';
+  renderStockNet(netFourragesEl, catsNet.filter((c) => !estCerealeOuConcentre(c)));
+  renderStockNet(netCerealesEl, catsNet.filter(estCerealeOuConcentre));
 
   // Le croisement se construit sur les catégories FUSIONNÉES (un pressage
   // saisi dans le tunnel d'activité y apparaît au même titre qu'une récolte
@@ -410,6 +398,32 @@ export function renderVue() {
       const s = stocks.find((x) => x.id === el.dataset.id);
       if (s) openEdit(s);
     });
+  });
+}
+
+// Rend une section de "Stock disponible" (Fourrages, ou Céréales &
+// concentrés) — même carte, même calcul de bottes que l'ancien #stocks-net,
+// juste réparti en deux conteneurs distincts (cf. renderVue()).
+function renderStockNet(container, lignes) {
+  if (!container) return;
+  container.innerHTML = lignes.length
+    ? lignes.map((g) => {
+        // Nombre de bottes TOUJOURS recalculé depuis le tonnage net et le
+        // poids/botte (poids-bottes.js) — jamais depuis un compte de
+        // bottes qui ne décroît qu'au fil des mouvements physiques, sans
+        // jamais refléter une consommation dérivée des distributions.
+        const poids = poidsBotteEffectif(categories, g.cle);
+        const bottes = poids > 0 ? Math.round((g.tonnes * 1000) / poids) : null;
+        return `
+      <div class="cat-card cat-card-cliquable" data-cle="${escapeAttr(g.cle)}" data-label="${escapeAttr(g.label)}">
+        <div class="cat-card-nom">${escapeHtml(g.label)}</div>
+        <div class="cat-card-detail">${bottes != null ? bottes + ' bottes restantes' : 'en vrac'}</div>
+        <div class="cat-card-tonnes">${formatTonnes(g.tonnes)} t</div>
+      </div>`;
+      }).join('')
+    : '<p class="list-empty">Rien pour l\'instant.</p>';
+  container.querySelectorAll('[data-cle]').forEach((el) => {
+    el.addEventListener('click', () => ouvrirFicheAliment(el.dataset.cle, el.dataset.label));
   });
 }
 

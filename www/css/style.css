@@ -1000,6 +1000,15 @@ header button {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* Sous-section d'un .section-titre (ex. Fourrages / Céréales & concentrés
+   sous "Stock disponible") — même famille visuelle, un cran plus discret. */
+.section-sous-titre {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
 .lien-section {
   background: none; border: none; padding: 0; cursor: pointer;
   font: inherit; color: var(--primary); text-transform: none; letter-spacing: 0;
