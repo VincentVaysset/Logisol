@@ -120,6 +120,7 @@ let fluxEnregistre = null;  // intention de mouvement portée par l'activité
 let effetPrecedent = null;  // ce que cette activité avait déjà fait à la culture
 let campagneForceeActive = false;  // l'exploitant a explicitement figé la campagne calculée
 let produitRecolte = null;         // 'PAILLE' | 'FOIN' — choix du pressage sur céréale
+let produitRecolteEnregistre = null; // celui d'une activité rouverte en modification
 let moissonLegacy = {};            // tonnageBenne/poidsSpecifique d'une moisson saisie avant le modèle capacité×PS
 
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
@@ -439,7 +440,12 @@ function groupeCourant() { return GROUPES[formulaireDe(typeCourant())] || null; 
 // inchangé : foin uniquement, le sélecteur reste caché.
 function majProduitRecolte() {
   const f = formulaireDe(typeCourant());
-  const cereale = f === 'PRESSAGE' && cible === 'PARCELLE' && parcelleEstCereale();
+  // Une activité déjà enregistrée garde ce qu'elle a déclaré : la paille se
+  // presse APRÈS la moisson, qui a clôturé la céréale — la détection par
+  // culture en place échoue alors, et sans ça la paille rouverte s'affichait
+  // en foin (coupe/type de fourrage) et se réenregistrait en foin.
+  const cereale = f === 'PRESSAGE' && cible === 'PARCELLE' &&
+    (produitRecolteEnregistre != null || parcelleEstCereale());
   el['produit-recolte'].hidden = !cereale;
   if (!cereale) { produitRecolte = null; return; }
   if (produitRecolte !== 'PAILLE' && produitRecolte !== 'FOIN') produitRecolte = 'PAILLE';
@@ -617,6 +623,7 @@ function lireSaisie() {
 function ecrireSaisie(s) {
   s = s || {};
   produitRecolte = s.produitRecolte || null;
+  produitRecolteEnregistre = produitRecolte;
   const v = (k, val) => { el[k].value = val == null ? '' : val; };
   v('semence', s.semence);
   peuplerCultures(s.cultureId || '');
@@ -1377,6 +1384,7 @@ function reinitialiser() {
   effetPrecedent = null;
   campagneForceeActive = false;
   produitRecolte = null;
+  produitRecolteEnregistre = null;
   moissonLegacy = {};
   el['campagne-forcer-wrap'].hidden = true;
   el['campagne-forcer'].value = '';
