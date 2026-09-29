@@ -1031,6 +1031,7 @@ header button {
   display: flex; align-items: center; justify-content: flex-end; gap: 6px;
   margin-top: 6px;
 }
+.campagne-forcer-wrap[hidden] { display: none; }
 .campagne-forcer-wrap .champ-etroit {
   width: 80px; flex: 0 0 auto; margin: 0;
 }
@@ -1539,6 +1540,10 @@ header button {
 /* Choix binaires (cible, statut) : deux grandes cibles tactiles plutôt qu'une
    liste déroulante, qui demande deux gestes et une visée précise. */
 .choix-row { display: flex; gap: 10px; margin-bottom: 14px; }
+/* Sans cette règle, display:flex ci-dessus l'emporte sur l'attribut hidden :
+   le choix Paille/Foin (#itv-produit-recolte) s'affichait sur Moisson,
+   Semis... alors que le JS le masquait bien. */
+.choix-row[hidden] { display: none; }
 .choix-btn {
   flex: 1; min-height: 54px; border: 2px solid var(--border); background: var(--card);
   border-radius: var(--radius); font-size: 15px; font-weight: 600; color: var(--text);
