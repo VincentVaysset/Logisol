@@ -870,8 +870,16 @@
         </div>
 
         <div id="mvt-champ-achat-vente">
+          <div id="mvt-champ-achat-nom" hidden>
+            <label for="mvt-achat-type">Type d'aliment acheté</label>
+            <select id="mvt-achat-type"></select>
+            <label for="mvt-achat-nom">Nom de l'aliment</label>
+            <input type="text" id="mvt-achat-nom" list="mvt-achat-noms" autocomplete="off" placeholder="ex : Tourteau colza, Foin luzerne Dupont, Paille de blé">
+            <datalist id="mvt-achat-noms"></datalist>
+            <p class="champ-aide champ-aide-gris">Ce nom devient sa propre ligne dans Stocks, choisissable dans les rations.</p>
+          </div>
           <div class="row">
-            <div style="flex:1">
+            <div style="flex:1" id="mvt-champ-produit">
               <label for="mvt-produit">Produit</label>
               <select id="mvt-produit"></select>
             </div>

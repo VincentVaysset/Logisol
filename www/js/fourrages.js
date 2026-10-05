@@ -58,7 +58,8 @@ export function identiteDuMouvement(m) {
       // aucun suivi de consommation, cf. CLAUDE.md) sans la retirer de
       // l'onglet Stocks, où elle doit rester visible.
       famille: m.categorieCle.startsWith('cereale') ? 'cereale'
-        : m.categorieCle === clePaille() ? 'paille'
+        : m.categorieCle.startsWith('commerce|') ? 'commerce'
+        : m.categorieCle === clePaille() || m.categorieCle.startsWith('paille|') ? 'paille'
         : 'foin'
     };
   }
@@ -389,9 +390,11 @@ export function stockDisponibleCanonique(mouvements, cellules, emplacements, lot
   // Concentrés achetés (tourteaux, complets...) : livrés « Autre », hors de
   // tout silo ou hangar suivi — sans cette ligne, leur achat n'entrait jamais
   // dans le stock alors que leur consommation en ration en était déduite.
+  // Idem pour un foin ou une paille achetés et nommés, livrés hors de tout
+  // hangar suivi.
   retenus.filter((m) => m.typeMouvement === 'ENTREE_ACHAT' && m.destinationType === 'AUTRE').forEach((m) => {
     const id = identiteDuMouvement(m);
-    if (!id || id.famille !== 'commerce') return;
+    if (!id || (id.famille !== 'commerce' && !m.categorieCle)) return;
     const g = ligne(id.cle, id.label);
     g.tonnes = arrondi3(g.tonnes + tonnesDuMouvement(m));
   });

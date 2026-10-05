@@ -26,6 +26,7 @@ import {
 } from './ui-batiments.js';
 import { toastSucces, toastErreur } from './toast.js';
 import { htmlContenuBatiment } from './ui-lieux.js';
+import { TYPES_ACHAT, cleAchat, typeAchatDeCle, CONCENTRES_ACHETES } from './stocks.js';
 
 const panel = document.getElementById('mouvement-panel');
 const form = document.getElementById('mvt-form');
@@ -36,6 +37,7 @@ const el = {};
   'quantite','quantite-label',
   'champ-poids','poids','aide','champ-grain','grain','grain-label',
   'champ-achat-vente','produit','prix','montant','libelle','intervenant',
+  'champ-achat-nom','achat-type','achat-nom','achat-noms','champ-produit',
   'save','cancel','delete','error-banner','error-text','error-close'
 ].forEach((k) => { el[k] = document.getElementById('mvt-' + k); });
 
@@ -58,6 +60,7 @@ const DESTINATIONS = [
 ];
 
 let editId = null;
+let mouvementEdite = null;
 let saveToken = 0;
 let parcelles = [];
 let onChangeExterne = () => {};
@@ -86,6 +89,41 @@ peuplerTypesMouvement(false);
 el['source-type'].innerHTML = SOURCES.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
 el['dest-type'].innerHTML = DESTINATIONS.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
 el.produit.innerHTML = PRODUITS_ACHAT_VENTE.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+el['achat-type'].innerHTML = TYPES_ACHAT.map((t) => `<option value="${t.value}">${esc(t.label)}</option>`).join('');
+
+// Achat NOMMÉ (type + nom libre) : chaque nom est sa propre ligne de stock.
+// Un ancien achat (produit de la liste fixe, sans nom) reste modifiable tel
+// quel : lui donner une clé nommée à la volée déplacerait son stock.
+let achatNomme = true;
+let achatNomTouche = false;
+
+function nomsAchetes(type) {
+  const noms = new Map();
+  if (type === 'CONCENTRE') CONCENTRES_ACHETES.forEach((n) => noms.set(n.toLowerCase(), n));
+  getMouvements().forEach((m) => {
+    if (m.typeMouvement !== 'ENTREE_ACHAT' || typeAchatDeCle(m.categorieCle) !== type || !m.categorieLabel) return;
+    noms.set(m.categorieLabel.toLowerCase(), m.categorieLabel);
+  });
+  return Array.from(noms.values()).sort((a, b) => a.localeCompare(b, 'fr'));
+}
+function majNomsAchetes() {
+  el['achat-noms'].innerHTML = nomsAchetes(el['achat-type'].value).map((n) => `<option value="${esc(n)}"></option>`).join('');
+}
+// Type proposé d'après le contenant visé, tant que rien n'a été saisi.
+function devinerTypeAchat() {
+  if (achatNomTouche || el['achat-nom'].value) return;
+  const type = el['dest-type'].value;
+  let t = 'CONCENTRE';
+  if (type === 'EMPLACEMENT_FOURRAGE') {
+    const e = getEmplacementById(el['dest-id'].value);
+    t = e && e.typeFourrage === 'PAILLE' ? 'PAILLE' : 'FOIN';
+  } else if (type === 'CELLULE') {
+    const c = getCelluleById(el['dest-id'].value);
+    t = c && contenuDe(c) === 'FOURRAGE' ? 'FOIN' : 'CONCENTRE';
+  }
+  el['achat-type'].value = t;
+  majNomsAchetes();
+}
 
 // Proposer « Orge, Blé, Triticale » pour une cellule de séchage en grange
 // serait absurde : la liste suit le contenu déclaré de la cellule visée.
@@ -118,7 +156,9 @@ export function initBatiments(opts = {}) {
     if (el.type.value === 'TRANSFERT') peuplerCible('dest', el['dest-id'].value);
     majUnite(); majMontant();
   });
-  el['dest-id'].addEventListener('change', () => { majUnite(); majMontant(); });
+  el['dest-id'].addEventListener('change', () => { majUnite(); majMontant(); if (el.type.value === 'ENTREE_ACHAT') devinerTypeAchat(); });
+  el['achat-type'].addEventListener('change', () => { achatNomTouche = true; majNomsAchetes(); });
+  el['achat-nom'].addEventListener('input', () => { achatNomTouche = true; });
   el.quantite.addEventListener('input', majMontant);
   el.poids.addEventListener('input', majMontant);
   el.prix.addEventListener('input', majMontant);
@@ -197,7 +237,8 @@ function majUnite() {
   // Le poids d'une botte n'est demandé que lorsqu'il entre du fourrage : il
   // sert à convertir le stock en tonnes, et il change à chaque récolte.
   el['champ-poids'].hidden = !(fourrage && t.sens >= 0);
-  el['champ-grain'].hidden = !(grain && t.sens >= 0);
+  // Achat nommé : c'est le nom qui identifie l'aliment, pas le type de grain.
+  el['champ-grain'].hidden = !(grain && t.sens >= 0) || (el.type.value === 'ENTREE_ACHAT' && achatNomme);
   if (!el['champ-grain'].hidden) majListeContenu(el.grain.value);
 
   const cible = cibleContenant();
@@ -269,6 +310,10 @@ function appliquerType() {
   // Produit + prix ne concernent que l'achat et la vente : un transfert ou
   // une distribution n'a pas de tiers ni de prix à la tonne.
   el['champ-achat-vente'].hidden = !(achat || vente);
+  const nomme = achat && achatNomme;
+  el['champ-achat-nom'].hidden = !nomme;
+  el['champ-produit'].hidden = nomme;
+  if (nomme) devinerTypeAchat();
   if (!(achat || vente)) { el.produit.value = ''; el.prix.value = ''; el.montant.hidden = true; }
   majMontant();
 
@@ -353,11 +398,16 @@ export function openCreateMouvement(prefill = {}) {
     el['qte-jour'].value = '';
     el.libelle.value = '';
     el.intervenant.value = '';
+    achatNomme = true; achatNomTouche = !!prefill.achatType;
+    el['achat-nom'].value = '';
+    if (prefill.achatType) el['achat-type'].value = prefill.achatType;
+    majNomsAchetes();
     appliquerType();
     if (prefill.destinationType) {
       el['dest-type'].value = prefill.destinationType;
       peuplerCible('dest', prefill.destinationId);
     }
+    if (el.type.value === 'ENTREE_ACHAT') devinerTypeAchat();
   } catch (err) {
     showError('Impossible de préparer le formulaire : ' + messageErreur(err));
   }
@@ -376,6 +426,7 @@ export function openEditMouvement(m) {
     return;
   }
   editId = m.id;
+  mouvementEdite = m;
   panel.hidden = false;
   saveToken++;
   hideError();
@@ -389,6 +440,11 @@ export function openEditMouvement(m) {
     peuplerTypesMouvement(m.typeMouvement === 'SORTIE_ALIMENTATION');
     el.date.value = m.date || aujourdhui();
     el.type.value = m.typeMouvement;
+    achatNomme = m.typeMouvement !== 'ENTREE_ACHAT' || !!typeAchatDeCle(m.categorieCle);
+    achatNomTouche = true;
+    el['achat-nom'].value = achatNomme ? (m.categorieLabel || '') : '';
+    if (typeAchatDeCle(m.categorieCle)) el['achat-type'].value = typeAchatDeCle(m.categorieCle);
+    majNomsAchetes();
     appliquerType();
     // Le débit/jour n'est jamais stocké (seule sa quantité totale l'est,
     // cf. nettoyer()) : rouvrir un mouvement retrouve la période mais pas
@@ -461,6 +517,29 @@ async function enregistrer(e) {
       libelle: el.libelle.value,
       intervenant: el.intervenant.value
     };
+    // Champs que ce formulaire n'affiche pas (identité de l'aliment figée à la
+    // saisie, coupe, exclusion du calcul) : repris tels quels à la
+    // modification. Sans ça, modifier une récolte effaçait son identité et
+    // son stock changeait de ligne.
+    const avant = editId ? mouvementEdite : null;
+    if (avant) {
+      ['typeFourrage', 'numeroCoupe', 'conservation', 'categorieCle', 'categorieLabel', 'excluCalcul']
+        .forEach((k) => { if (avant[k] != null) data[k] = avant[k]; });
+    }
+    if (data.typeMouvement === 'ENTREE_ACHAT' && achatNomme) {
+      const nom = el['achat-nom'].value.trim();
+      if (!nom) throw new ErreurDeSaisie("Donne un nom à l'aliment acheté (ex : Tourteau colza, Foin luzerne Dupont).");
+      const cle = cleAchat(el['achat-type'].value, nom);
+      // Même nom à la casse près : même ligne, même libellé que la 1re fois.
+      const deja = getMouvements().find((x) => x.categorieCle === cle && x.categorieLabel);
+      data.categorieCle = cle;
+      data.categorieLabel = deja ? deja.categorieLabel : nom;
+      data.produit = data.categorieLabel;
+      data.typeGrain = null;
+      // Livré hors de tout silo ou hangar suivi : un lieu par défaut plutôt
+      // qu'un refus (« Une entrée doit aller vers une cellule... »).
+      if (data.destinationType === 'AUTRE' && !data.destinationNom) data.destinationNom = 'Hors bâtiment suivi';
+    }
     if (!data.libelle) {
       data.libelle = (data.produit ? data.produit + ' — ' : '') + typeMouvement(data.typeMouvement).label +
         (data.sourceNom ? ' depuis ' + data.sourceNom : '') +

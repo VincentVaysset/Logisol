@@ -23,6 +23,7 @@ import {
   supprimerAffectation, rouvrirAffectation, precedenteFermeePar, tonnesComposant
 } from './affectations.js';
 import { besoinJournalierParStock } from './rations-calc.js';
+import { rationParAnimal } from './groupes-stock.js';
 import { stockAuSoir } from './clotures-stock.js';
 import { getClotures } from './verrou-campagne.js';
 import { campagneStockSuivante } from './campagne-stock.js';
@@ -294,10 +295,13 @@ function renderLots() {
       aff ? `depuis le ${jjmm(aff.dateDebut)}` : 'aucune ration distribuée'].filter(Boolean).join(' · ');
     const badge = !aff ? '<span class="trp-badge trp-badge-sans">Sans ration</span>'
       : composants.length ? '<span class="trp-badge">En cours</span>' : '<span class="trp-badge">Pâturage</span>';
-    const nb = Number(aff ? aff.nbBrebis : lot.nbBrebis) || 0;
     const lignes = composants.map((c) => `<div class="stk-detail-ligne"><span class="stk-detail-nom">${escapeHtml(c.stockLabel)}</span><strong>${kg(c.kgParAnimalJour)} kg/j</strong></div>`).join('');
+    // Par animal, fourrages et concentrés séparés (vigilance acidose) : kg
+    // bruts, informatif, aucun seuil ni couleur.
+    const pa = rationParAnimal(composants);
     const total = composants.length
-      ? `<div class="stk-detail-ligne trp-total-lot"><span>Total lot</span><strong>${kg(nb * composants.reduce((n, c) => n + (Number(c.kgParAnimalJour) || 0), 0))} kg/j</strong></div>`
+      ? `<div class="stk-detail-ligne trp-total-lot"><span>Par ${type === 'AGNELLES' ? 'agnelle' : 'brebis'}</span><strong>${kg(pa.total)} kg/j</strong></div>
+         <div class="trp-par-animal">Fourrages ${kg(pa.fourrages)} kg · Concentrés ${kg(pa.concentres)} kg${pa.pctConcentres != null ? ` · ${pa.pctConcentres} % de concentrés` : ''}</div>`
       : '';
     const r = stockRestantLot(composants, stock, besoin);
     const restant = r

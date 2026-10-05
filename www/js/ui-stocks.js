@@ -435,9 +435,8 @@ function carteGroupe(g, d) {
   const ouvert = groupesOuverts.has(g.id);
   const lignes = g.lignes.map((l) => {
     const bottes = bottesDe(l);
-    const detail = l.cle === null ? `<span class="stk-sous-ligne">${escapeHtml(l.produits.join(', '))}</span>` : '';
     const bot = bottes ? `<span class="stk-sous-ligne">≈ ${bottes.nb} bottes · <input type="number" class="stk-poids" data-cle="${escapeAttr(l.cle)}" value="${bottes.poids}" min="0" step="1" inputmode="numeric"> kg/botte</span>` : '';
-    return `<div class="stk-detail-ligne"><span class="stk-detail-nom">${escapeHtml(l.libelle)}${detail}${bot}</span><strong>${formatTonnes(l.reste)} t</strong></div>`;
+    return `<div class="stk-detail-ligne"><span class="stk-detail-nom">${escapeHtml(l.libelle)}${bot}</span><strong>${formatTonnes(l.reste)} t</strong></div>`;
   }).join('');
   const mangee = g.id !== 'paille' && g.mangeePar.length
     ? `<button type="button" class="stk-lien-ligne" data-vers="troupeau"><span>Mangée par ${escapeHtml(g.mangeePar.join(', '))}</span><span class="stk-lien">Troupeau →</span></button>`
@@ -534,7 +533,8 @@ function cablerGroupes(racine, d) {
         theoriqueAu: stockTheoriqueAu
       });
     } else {
-      openCreateMouvement({ typeMouvement: action });
+      openCreateMouvement({ typeMouvement: action,
+        achatType: g.id === 'paille' ? 'PAILLE' : g.famille === 'cereales' ? 'CONCENTRE' : 'FOIN' });
     }
     renderVue();
   }));

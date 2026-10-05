@@ -17,6 +17,10 @@ export const GROUPES = [
   { id: 'paille',      nom: 'Paille',                 famille: 'paille' }
 ];
 
+// Bilan campagne seulement : les concentrés achetés y forment un groupe à
+// part (dans Stocks, ils restent des lignes du groupe Céréales).
+const GROUPE_CONCENTRES = { id: 'concentres', nom: 'Concentrés achetés', famille: 'cereales' };
+
 const COUPES = ['', '1ʳᵉ coupe', '2ᵉ coupe', '3ᵉ coupe', '4ᵉ coupe'];
 
 function arrondi3(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
@@ -27,13 +31,16 @@ function majuscule(s) { const t = String(s || '').trim(); return t ? t[0].toUppe
 export function lireCle(cle) {
   const [prefixe, a, b, c] = String(cle || '').split('|');
   if (prefixe === 'foin') {
-    return { type: 'foin', conservation: a || 'botte', coupe: Number(String(b || '').replace('c', '')) || 0, fourrage: c || '' };
+    return { type: 'foin', conservation: a || 'botte', coupe: Number(String(b || '').replace('c', '')) || 0, fourrage: c || '', achat: a === 'achat' };
   }
   if (prefixe === 'cereale') return { type: 'cereale', espece: a || '' };
-  if (prefixe === 'paille') return { type: 'paille' };
-  if (prefixe === 'commerce') return { type: 'commerce', nom: a || '' };
+  if (prefixe === 'paille') return { type: 'paille', achat: a === 'achat', nom: a === 'achat' ? b || '' : '' };
+  if (prefixe === 'commerce') return { type: 'commerce', nom: a || '', achat: true };
   return { type: 'autre' };
 }
+
+/** Aliment acheté et nommé (concentré, foin ou paille) : sa propre ligne de stock. */
+export function estAchete(cle) { return !!lireCle(cle).achat; }
 
 /**
  * Groupe d'une clé. meta (facultatif) : { fourrage, enrubannage } — le nom
@@ -56,6 +63,7 @@ function methode(conservation) { return conservation === 'grange' ? 'séchée gr
 export function libelleLigne(cle, label, meta = {}) {
   const k = lireCle(cle);
   const groupe = groupeDeCle(cle, meta);
+  if (estAchete(cle)) return `${label || majuscule(k.nom || k.fourrage)} · acheté`;
   if (k.type === 'paille') return 'Paille en botte';
   if (k.type === 'cereale') {
     const espece = meta.espece || String(label || '').replace(/^Céréale\s*—\s*/, '') || k.espece;
@@ -94,7 +102,6 @@ export function construireGroupes({ reste = [], depart = new Map(), entrees = ne
     ...g, reste: 0, depart: 0, recolte: 0, achat: 0, conso: 0, lignes: [], cles: [], mangeePar: []
   }));
   const parId = new Map(groupes.map((g) => [g.id, g]));
-  let concentres = null;
 
   Array.from(cles).sort().forEach((cle) => {
     const m = meta.get(cle) || {};
@@ -113,24 +120,16 @@ export function construireGroupes({ reste = [], depart = new Map(), entrees = ne
     g.cles.push(cle);
     (mangeePar.get(cle) || []).forEach((lot) => { if (!g.mangeePar.includes(lot)) g.mangeePar.push(lot); });
     const label = labels.get(cle) || cle;
-    if (lireCle(cle).type === 'commerce') {
-      // Concentrés achetés : UNE ligne dans Céréales, détail des produits.
-      if (!concentres) {
-        concentres = { cle: null, cles: [], libelle: 'Concentrés achetés', reste: 0, produits: [] };
-        g.lignes.push(concentres);
-      }
-      concentres.cles.push(cle);
-      concentres.reste = arrondi3(concentres.reste + r);
-      concentres.produits.push(label);
-      return;
-    }
-    g.lignes.push({ cle, cles: [cle], libelle: libelleLigne(cle, label, m), reste: r });
+    // Un aliment acheté et nommé a sa propre ligne, « Tourteau colza ·
+    // acheté » : c'est ce qui permet d'en suivre le stock.
+    g.lignes.push({ cle, cles: [cle], libelle: libelleLigne(cle, label, m), reste: r, achete: estAchete(cle) });
   });
 
   groupes.forEach((g) => {
     const base = g.depart + g.recolte + g.achat;
     g.jauge = base > 0 ? Math.max(0, Math.min(100, Math.round((g.reste / base) * 100))) : null;
-    g.lignes.sort((a, b) => (a.cle === null) - (b.cle === null) || a.libelle.localeCompare(b.libelle, 'fr'));
+    // Produits de la ferme d'abord, achats ensuite.
+    g.lignes.sort((a, b) => a.achete - b.achete || a.libelle.localeCompare(b.libelle, 'fr'));
   });
 
   const somme = (fam) => arrondi3(groupes.filter((g) => g.famille === fam).reduce((n, g) => n + g.reste, 0));
@@ -141,10 +140,11 @@ export function construireGroupes({ reste = [], depart = new Map(), entrees = ne
 
 /**
  * Bilan campagne de Troupeau : consommé par groupe d'aliment, ventilé brebis /
- * agnelles, et les deux totaux en tête. Uniquement les rations distribuées
- * (entrée : rations-calc.js/bilanParLot) — un ajustement d'inventaire n'y
- * entre jamais.
- * @param {Array<{type:'BREBIS'|'AGNELLES', items:Array<{cle,tonnes}>}>} lotsBilan
+ * agnelles, les deux totaux en tête, et le détail par aliment de chaque
+ * groupe (les achetés portent `achete`). Les concentrés achetés forment leur
+ * propre groupe. Uniquement les rations distribuées (entrée :
+ * rations-calc.js/bilanParLot) — un ajustement d'inventaire n'y entre jamais.
+ * @param {Array<{type:'BREBIS'|'AGNELLES', items:Array<{cle,label,tonnes}>}>} lotsBilan
  * @param {Map<string,object>} [meta]
  */
 export function bilanParTypeAnimaux(lotsBilan, meta = new Map()) {
@@ -155,22 +155,53 @@ export function bilanParTypeAnimaux(lotsBilan, meta = new Map()) {
     (lb.items || []).forEach((it) => {
       const t = Number(it.tonnes) || 0;
       if (!(t > 0)) return;
-      const id = groupeDeCle(it.cle, meta.get(it.cle) || {});
+      const id = lireCle(it.cle).type === 'commerce' ? GROUPE_CONCENTRES.id : groupeDeCle(it.cle, meta.get(it.cle) || {});
       if (!parGroupe.has(id)) {
-        const def = GROUPES.find((g) => g.id === id);
-        parGroupe.set(id, { id, nom: def.nom, total: 0, brebis: 0, agnelles: 0 });
+        const def = id === GROUPE_CONCENTRES.id ? GROUPE_CONCENTRES : GROUPES.find((g) => g.id === id);
+        parGroupe.set(id, { id, nom: def.nom, total: 0, brebis: 0, agnelles: 0, aliments: new Map() });
       }
       const g = parGroupe.get(id);
       g[champ] = arrondi3(g[champ] + t);
       g.total = arrondi3(g.total + t);
       totaux[champ] = arrondi3(totaux[champ] + t);
+      if (!g.aliments.has(it.cle)) {
+        g.aliments.set(it.cle, { cle: it.cle, libelle: libelleLigne(it.cle, it.label, meta.get(it.cle) || {}),
+          achete: estAchete(it.cle), total: 0, brebis: 0, agnelles: 0 });
+      }
+      const a = g.aliments.get(it.cle);
+      a[champ] = arrondi3(a[champ] + t);
+      a.total = arrondi3(a.total + t);
     });
   });
   const ordre = GROUPES.map((g) => g.id);
+  ordre.splice(ordre.indexOf('cereales') + 1, 0, GROUPE_CONCENTRES.id);
   const groupes = Array.from(parGroupe.values()).sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id));
   groupes.forEach((g) => {
     g.pctBrebis = g.total > 0 ? Math.round((g.brebis / g.total) * 100) : 0;
     g.pctAgnelles = g.total > 0 ? 100 - g.pctBrebis : 0;
+    g.aliments = Array.from(g.aliments.values())
+      .sort((a, b) => a.achete - b.achete || b.total - a.total || a.libelle.localeCompare(b.libelle, 'fr'));
   });
   return { totaux, groupes };
+}
+
+/**
+ * Ration par animal et par jour, séparée fourrages / concentrés (vigilance
+ * acidose) : kg bruts, informatif, aucun seuil. La paille n'est jamais un
+ * composant de ration.
+ * @param {Array<{stockCle, kgParAnimalJour}>} composants
+ * @returns {{fourrages:number, concentres:number, total:number, pctConcentres:number|null}}
+ */
+export function rationParAnimal(composants) {
+  let fourrages = 0, concentres = 0;
+  (composants || []).forEach((c) => {
+    const kg = Number(c.kgParAnimalJour) || 0;
+    const k = lireCle(c.stockCle);
+    if (k.type === 'cereale' || k.type === 'commerce') concentres += kg;
+    else if (k.type !== 'paille') fourrages += kg;
+  });
+  const total = fourrages + concentres;
+  const r2 = (v) => Math.round(v * 100) / 100;
+  return { fourrages: r2(fourrages), concentres: r2(concentres), total: r2(total),
+    pctConcentres: total > 0 ? Math.round((concentres / total) * 100) : null };
 }

@@ -2076,3 +2076,13 @@ header .campagne-select { min-height: 32px; }
 .lieu-vide { font-size: 12px; color: #94a3b8; }
 .lieu-actions-droite { display: flex; gap: 14px; }
 .champ-aide-gris { color: #64748b; font-weight: 500; margin-top: 6px; }
+
+/* Troupeau : ration par animal (fourrages / concentrés) et détail par
+   aliment du Bilan campagne. Gris neutre : information, pas d'alerte. */
+.trp-par-animal { padding: 0 14px 10px; font-size: 12px; color: #64748b; }
+.trp-bilan-aliments { margin-top: 10px; border-top: 1px solid #f1f5f9; }
+.trp-bilan-aliment { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 6px 0; font-size: 13px; color: #334155; }
+.trp-bilan-aliment + .trp-bilan-aliment { border-top: 1px dashed #f1f5f9; }
+.trp-bilan-aliment-val { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
+.trp-bilan-aliment-val small { font-size: 11px; color: #94a3b8; }
+.stk-jauge-concentres { background: #d97706 !important; }

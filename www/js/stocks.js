@@ -193,6 +193,31 @@ export function cleCommerce(nom) {
   return ['commerce', slug(nom || '')].join('|');
 }
 
+// Aliment ACHETÉ et nommé par l'exploitant (« Tourteau colza », « Foin
+// luzerne Dupont », « Paille de blé ») : sa propre ligne de stock, jamais
+// fondue dans le foin ou la paille de la ferme. La clé garde le préfixe de sa
+// famille (foin|…, paille|…, commerce|…) : groupes, rations et bilan la
+// classent sans rien savoir de plus.
+export const TYPES_ACHAT = [
+  { value: 'CONCENTRE', label: 'Concentré / aliment' },
+  { value: 'FOIN',      label: 'Foin / fourrage' },
+  { value: 'PAILLE',    label: 'Paille' }
+];
+export function cleAchat(type, nom) {
+  const s = slug(nom || '');
+  if (type === 'FOIN') return ['foin', 'achat', 'c0', s].join('|');
+  if (type === 'PAILLE') return ['paille', 'achat', s].join('|');
+  return cleCommerce(nom);
+}
+/** Type d'achat d'une clé nommée (null pour une clé de la ferme). */
+export function typeAchatDeCle(cle) {
+  const [p, a] = String(cle || '').split('|');
+  if (p === 'commerce') return 'CONCENTRE';
+  if (p === 'foin' && a === 'achat') return 'FOIN';
+  if (p === 'paille' && a === 'achat') return 'PAILLE';
+  return null;
+}
+
 function slug(s) {
   return String(s)
     .toLowerCase()

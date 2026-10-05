@@ -25,7 +25,7 @@ import { getCampagneStockChoisie, onCampagneStockChange } from './campagne-stock
 import { stockAuSoir } from './clotures-stock.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes, metaParCle } from './ui-stocks.js';
-import { bilanParTypeAnimaux } from './groupes-stock.js';
+import { bilanParTypeAnimaux, estAchete } from './groupes-stock.js';
 import { toastSucces, toastErreur } from './toast.js';
 import { entreesCampagneParCategorie } from './fourrages.js';
 import { getMouvements, updateMouvement, deleteMouvement } from './mouvements.js';
@@ -46,17 +46,17 @@ function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
 function optionsStock(valeurChoisie) {
   const parFamille = new Map();
   categories.forEach((c) => {
-    const famille = c.categorie === 'cereale' ? 'Céréales' : c.categorie === 'commerce' ? 'Achats (sans silo)' : 'Foin / fourrage';
+    const famille = c.categorie === 'cereale' ? 'Céréales' : c.categorie === 'commerce' ? 'Concentrés achetés' : 'Foin / fourrage';
     if (!parFamille.has(famille)) parFamille.set(famille, []);
     parFamille.get(famille).push(c);
   });
-  const ordre = ['Foin / fourrage', 'Céréales', 'Achats (sans silo)'];
+  const ordre = ['Foin / fourrage', 'Céréales', 'Concentrés achetés'];
   return ordre
     .filter((f) => parFamille.has(f))
     .map((f) => {
       const lignes = parFamille.get(f).slice().sort((a, b) => a.label.localeCompare(b.label, 'fr'));
       return `<optgroup label="${escapeAttr(f)}">${lignes.map((o) =>
-        `<option value="${escapeAttr(o.cle)}" ${o.cle === valeurChoisie ? 'selected' : ''}>${escapeHtml(o.label)}</option>`
+        `<option value="${escapeAttr(o.cle)}" ${o.cle === valeurChoisie ? 'selected' : ''}>${escapeHtml(o.label)}${o.categorie !== 'commerce' && estAchete(o.cle) ? ' · acheté' : ''}</option>`
       ).join('')}</optgroup>`;
     }).join('');
 }
@@ -303,6 +303,10 @@ function renderBilan() {
       <div class="stk-groupe-tete"><span class="stk-groupe-nom">${escapeHtml(g.nom)}</span><span class="stk-groupe-val">${formatTonnes(g.total)} t</span></div>
       <div class="trp-bilan-ligne"><div class="trp-bilan-tete"><span>Brebis</span><strong>${formatTonnes(g.brebis)} t</strong></div>${barre(g.id, g.pctBrebis)}</div>
       <div class="trp-bilan-ligne"><div class="trp-bilan-tete"><span>Agnelles</span><strong>${formatTonnes(g.agnelles)} t</strong></div>${barre(g.id, g.pctAgnelles)}</div>
+      <div class="trp-bilan-aliments">${g.aliments.map((a) => `<div class="trp-bilan-aliment">
+        <span>${escapeHtml(a.libelle)}</span>
+        <span class="trp-bilan-aliment-val"><strong>${formatTonnes(a.total)} t</strong>
+          <small>brebis ${formatTonnes(a.brebis)} · agnelles ${formatTonnes(a.agnelles)}</small></span></div>`).join('')}</div>
     </div>`).join('')}`;
 }
 
