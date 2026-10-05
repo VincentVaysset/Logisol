@@ -6,16 +6,13 @@
 // dans la liste Stocks (catégories fusionnées, mêmes clés que partout
 // ailleurs dans l'appli).
 import {
-  onPoidsBottesChange, setPoidsBotteStock, poidsBotteEffectif as poidsBotteEffectifPartage
-} from './poids-bottes.js';
-import {
   affectationsLot, historiqueAffectations, affectationEnCours,
   distribuerRation, supprimerAffectation, tonnesComposant, composantsAffectation,
   precedenteFermeePar, rouvrirAffectation
 } from './affectations.js';
 import {
   besoinJournalierParStock,
-  consommationParStock, couverturePrevisionnelle, bilanParLot, totalParAlimentTousLots
+  consommationParStock, couverturePrevisionnelle, bilanParLot
 } from './rations-calc.js';
 import {
   getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
@@ -27,7 +24,8 @@ import { aujourdhui } from './implantations.js';
 import { getCampagneStockChoisie, onCampagneStockChange } from './campagne-stock.js';
 import { stockAuSoir } from './clotures-stock.js';
 import { dateLisible } from './accueil.js';
-import { formatTonnes } from './ui-stocks.js';
+import { formatTonnes, metaParCle } from './ui-stocks.js';
+import { bilanParTypeAnimaux } from './groupes-stock.js';
 import { toastSucces, toastErreur } from './toast.js';
 import { entreesCampagneParCategorie } from './fourrages.js';
 import { getMouvements, updateMouvement, deleteMouvement } from './mouvements.js';
@@ -280,138 +278,34 @@ export function renderSortiesManuelles() {
 // ============================================================================
 // Historique & bilan
 // ============================================================================
-const distribJournalEl = document.getElementById('troupeau-distributions-journal');
 const bilanEl = document.getElementById('troupeau-bilan');
 
-function renderDistributionsJournal() {
-  if (!distribJournalEl) return;
-  const toutes = [];
-  getLots().forEach((lot) => {
-    historiqueAffectations(lot).forEach((a) => toutes.push({ lot, a }));
-  });
-  toutes.sort((x, y) => (x.a.dateDebut < y.a.dateDebut ? 1 : x.a.dateDebut > y.a.dateDebut ? -1 : 0));
-
-  distribJournalEl.innerHTML = toutes.length
-    ? toutes.map(({ lot, a }) => {
-        const actif = !a.dateFin || a.dateFin > aujourdhui();
-        const badge = a.dateFin
-          ? `${dateLisible(a.dateDebut)} au ${dateLisible(a.dateFin)}`
-          : `En cours (depuis le ${dateLisible(a.dateDebut)})`;
-        const composants = composantsAffectation(a);
-        return `<div class="periode-card">
-          <div class="periode-entete">
-            <div>
-              <span class="periode-badge ${actif ? 'periode-badge-encours' : ''}">${escapeHtml(badge)}</span>
-              <h3 class="periode-titre">${escapeHtml(lot.nom || 'Lot')} — ${a.nbBrebis || 0} brebis</h3>
-            </div>
-          </div>
-          <p class="periode-sub">${resumeComposants(composants)}</p>
-          <div class="fiche-actions" style="margin-top:8px">
-            <button type="button" class="btn btn-secondary btn-mini distrib-modifier" data-lot="${escapeAttr(lot.id)}">✏️ Modifier</button>
-            <button type="button" class="btn btn-danger btn-mini distrib-supprimer" data-lot="${escapeAttr(lot.id)}" data-affectation="${escapeAttr(a.id)}">🗑️ Supprimer</button>
-          </div>
-        </div>`;
-      }).join('')
-    : '<p class="list-empty">Aucune ration distribuée pour l\'instant.</p>';
-
-  // Corrigeable/supprimable directement depuis le journal (étape 2c) : même
-  // chemin que la fiche lot (renderAffectationsLot), "Modifier" ouvre
-  // simplement cette fiche — la ration se change par "Changer la ration",
-  // jamais une édition en place d'une distribution déjà refermée.
-  distribJournalEl.querySelectorAll('.distrib-modifier').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const lot = getLots().find((l) => l.id === btn.dataset.lot);
-      if (lot) openEditLot(lot);
-    });
-  });
-  distribJournalEl.querySelectorAll('.distrib-supprimer').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      if (!confirm('Supprimer cette distribution ? Cette action est irréversible.')) return;
-      const lot = getLots().find((l) => l.id === btn.dataset.lot);
-      if (!lot) return;
-      const id = btn.dataset.affectation;
-      const supprimee = affectationsLot(lot).find((a) => a.id === id);
-      const precedente = precedenteFermeePar(lot, supprimee);
-      btn.disabled = true;
-      try {
-        await supprimerAffectation(lot, id);
-        if (precedente && confirm(`Rouvrir la distribution précédente (${resumeComposants(composantsAffectation(precedente))}) ?`)) {
-          await rouvrirAffectation(lot, precedente.id);
-        }
-        toastSucces('Distribution supprimée.');
-      } catch (err) {
-        toastErreur('Suppression impossible : ' + ((err && err.message) || err));
-        btn.disabled = false;
-      }
-    });
-  });
-}
-
-const poidsBottesEl = document.getElementById('troupeau-poids-bottes');
-
-// poids-bottes.js/poidsBotteEffectif(categories, cle) : source PARTAGÉE avec
-// ui-stocks.js, pour ne jamais afficher deux comptes de bottes différents.
-function poidsBotteEffectifIci(cle) { return poidsBotteEffectifPartage(categories, cle); }
-
-// Campagne du bilan : celle choisie dans l'en-tête (campagne-stock.js,
-// 01/09-31/08), partagée avec Stocks — plus de sélecteur propre ici.
+// Bilan campagne (maquette troupeau v2) : par groupe d'aliment, ventilé
+// brebis / agnelles, totaux en tête — uniquement ce qui a été DISTRIBUÉ sur
+// la campagne de l'en-tête (prorata au 31/08, rations-calc.js/bilanParLot),
+// jamais le prévu ni un ajustement d'inventaire.
 onCampagneStockChange(() => renderBilan());
 
-// Bilan par LOT (étape 2c) : uniquement ce qui a été distribué, jamais de
-// prévu/à acheter (ça, c'est Prévisionnel — cf. couverturePrevisionnelle) —
-// Fourrages/Céréales/Aliments par lot, détail par aliment, total tous lots.
 function renderBilan() {
   if (!bilanEl) return;
-  const bilanLots = bilanParLot(getLots(), getCampagneStockChoisie()).filter((bl) => bl.items.length);
-  if (!bilanLots.length) {
-    bilanEl.innerHTML = '<p class="list-empty">Aucune distribution enregistrée pour cette campagne.</p>';
-    if (poidsBottesEl) poidsBottesEl.innerHTML = '';
+  const parLot = bilanParLot(getLots(), getCampagneStockChoisie());
+  const b = bilanParTypeAnimaux(parLot.map((bl) => ({ type: bl.type, items: bl.items })), metaParCle());
+  if (!b.groupes.length) {
+    bilanEl.innerHTML = '<p class="list-empty">Aucune ration distribuée sur cette campagne.</p>';
     return;
   }
-  const totalTousLots = totalParAlimentTousLots(bilanLots);
-  const somme = (champ) => bilanLots.reduce((n, bl) => n + bl[champ], 0);
-
-  bilanEl.innerHTML = `<table class="tableau">
-    <thead><tr><th>Lot</th><th>Fourrages</th><th>Céréales</th><th>Aliments</th><th>Détail</th></tr></thead>
-    <tbody>
-      ${bilanLots.map((bl) => `<tr>
-        <td>${escapeHtml(bl.lotNom)}</td>
-        <td>${formatTonnes(bl.fourrages)} t</td>
-        <td>${formatTonnes(bl.cereales)} t</td>
-        <td>${formatTonnes(bl.aliments)} t</td>
-        <td class="cat-card-detail">${bl.items.map((it) => `${escapeHtml(it.label)} : ${formatTonnes(it.tonnes)} t`).join(' · ')}</td>
-      </tr>`).join('')}
-    </tbody>
-    <tfoot>
-      <tr>
-        <th>Total tous lots</th>
-        <th>${formatTonnes(somme('fourrages'))} t</th>
-        <th>${formatTonnes(somme('cereales'))} t</th>
-        <th>${formatTonnes(somme('aliments'))} t</th>
-        <th>${totalTousLots.map((t) => `${escapeHtml(t.label)} : ${formatTonnes(t.tonnes)} t`).join(' · ')}</th>
-      </tr>
-    </tfoot>
-  </table>`;
-
-  if (poidsBottesEl) {
-    const fourrages = totalTousLots.filter((t) => t.famille === 'fourrage' && categories.some((c) => c.cle === t.cle && c.nbBottes > 0));
-    poidsBottesEl.innerHTML = fourrages.length
-      ? fourrages.map((t) => `<span class="poids-botte-reglage">
-          ${escapeHtml(t.label)} : <input type="number" class="poids-botte-input" data-cle="${escapeAttr(t.cle)}" step="1" min="0" value="${poidsBotteEffectifIci(t.cle) || ''}"> kg/botte
-        </span>`).join('')
-      : '';
-    poidsBottesEl.querySelectorAll('.poids-botte-input').forEach((input) => {
-      input.addEventListener('change', async () => {
-        try { await setPoidsBotteStock(input.dataset.cle, input.value); renderBilan(); }
-        catch (err) { toastErreur('Poids/botte non enregistré : ' + ((err && err.message) || err)); }
-      });
-    });
-  }
+  const barre = (id, pct) => `<div class="stk-jauge"><div class="stk-jauge-${id}" style="width:${pct}%"></div></div>`;
+  bilanEl.innerHTML = `<div class="trp-totaux">
+      <div class="trp-total"><span>Brebis</span><strong>${formatTonnes(b.totaux.brebis)} t</strong></div>
+      <div class="trp-total"><span>Agnelles</span><strong>${formatTonnes(b.totaux.agnelles)} t</strong></div>
+    </div>
+    ${b.groupes.map((g) => `<div class="stk-carte trp-bilan-carte">
+      <div class="stk-groupe-tete"><span class="stk-groupe-nom">${escapeHtml(g.nom)}</span><span class="stk-groupe-val">${formatTonnes(g.total)} t</span></div>
+      <div class="trp-bilan-ligne"><div class="trp-bilan-tete"><span>Brebis</span><strong>${formatTonnes(g.brebis)} t</strong></div>${barre(g.id, g.pctBrebis)}</div>
+      <div class="trp-bilan-ligne"><div class="trp-bilan-tete"><span>Agnelles</span><strong>${formatTonnes(g.agnelles)} t</strong></div>${barre(g.id, g.pctAgnelles)}</div>
+    </div>`).join('')}`;
 }
 
-
-// Totaux agrégés pour les tuiles "Stock restant"/"Déjà consommé"/"Besoin par
-// jour" de la sous-vue Ration actuelle (ui-alimentation.js/renderVue()).
 // "Stock restant" appelle stockDisponibleCanonique() (fourrages.js) — LA
 // même fonction que l'onglet Stocks, aucune autre source (cf. audit
 // troupeau/stocks) ; "Déjà consommé" reste propre aux distributions
@@ -553,7 +447,6 @@ export function initTroupeauRations() {
   btnComposantLot.addEventListener('click', () => ajouterLigneVide(lotComposantsEl));
   btnChangerRation.addEventListener('click', surChangerRation);
 
-  onPoidsBottesChange(() => { if (!bilanEl.closest('#troupeau-historique').hidden) renderBilan(); });
 }
 
 // Appelé depuis ui-alimentation.js/renderVue() à chaque recalcul global, pour
@@ -562,7 +455,6 @@ export function initTroupeauRations() {
 export function renderTroupeauRations() {
   renderPrevisionnel();
   renderSortiesManuelles();
-  renderDistributionsJournal();
   renderBilan();
 }
 

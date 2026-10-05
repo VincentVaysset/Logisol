@@ -531,23 +531,25 @@
     <div id="mouvements-liste"></div>
   </div>
 
-  <!-- Vue Troupeau : croisement stades physiologiques × stocks, et bilan de
-       campagne — gabarit repris de mockups/maquette troupeau appli.html
-       pour la bascule à deux onglets et la sous-vue Historique & bilan.
-       L'en-tête et la barre basse restent le gabarit sombre commun établi à
-       l'étape 1 (voir header, .tabs) : la maquette Troupeau en explore une
-       variante claire, mais fragmenter le chrome global pour un seul écran
-       casserait la cohérence de navigation que l'étape 1 vient d'établir. -->
-  <div id="troupeau-view" class="scroll-view" hidden>
-    <div class="vue-head">
-      <h2>Alimentation du troupeau</h2>
-      <button type="button" id="btn-new-lot" class="btn btn-primary btn-mini">➕ Lot</button>
+  <!-- Vue Troupeau (maquette troupeau v2) : Distribué (une carte par lot,
+       ration en cours), Bilan campagne (consommé par aliment, brebis /
+       agnelles, depuis les rations distribuées uniquement), Prévisionnel
+       (inchangé, hors périmètre de la refonte). Campagne : sélecteur de
+       l'en-tête (01/09 -> 31/08), partagé avec Stocks. -->
+  <div id="troupeau-view" class="scroll-view vue-claire" hidden>
+    <div class="stk-head">
+      <div>
+        <h2 class="stk-titre">Troupeau</h2>
+        <p id="troupeau-sous-titre" class="stk-sous"></p>
+      </div>
+      <button type="button" id="btn-new-lot" class="stk-btn-sombre">➕ Lot</button>
     </div>
+    <div id="troupeau-reouverte" class="stk-bandeau" hidden></div>
 
-    <div class="choix-row sous-vues" id="troupeau-sous-vues">
-      <button type="button" class="choix-btn" data-sousvue="previsionnel">📅 Prévisionnel</button>
-      <button type="button" class="choix-btn is-active" data-sousvue="actuel">🥣 Ration actuelle</button>
-      <button type="button" class="choix-btn" data-sousvue="historique">📜 Historique &amp; bilan</button>
+    <div class="trp-onglets" id="troupeau-sous-vues">
+      <button type="button" data-sousvue="actuel" class="is-active">Distribué</button>
+      <button type="button" data-sousvue="historique">Bilan campagne</button>
+      <button type="button" data-sousvue="previsionnel">Prévisionnel</button>
     </div>
 
     <!-- Prévisionnel : plan de campagne par stade physiologique, un total
@@ -591,30 +593,19 @@
 
     </div>
 
-    <!-- Lots + ration distribuée en cours (affectations.js) — seule source
-         des tuiles ci-dessus. Bouton "Changer" sur chaque carte, en plus du
-         clic qui ouvre la fiche complète. -->
+    <!-- Distribué : ration en cours de chaque lot (affectations.js), sans
+         date de fin ; « Changer la ration » clôt l'ancienne. -->
     <div id="troupeau-actuel">
-      <div id="troupeau-alerte" class="alerte" hidden></div>
-      <div id="troupeau-totaux" class="tuiles"></div>
-
-      <h3 class="section-titre">Lots</h3>
-      <div id="troupeau-lots"></div>
+      <div id="troupeau-alerte" class="stk-bandeau" hidden></div>
+      <div id="troupeau-lots" class="trp-lots"></div>
     </div>
 
-    <!-- Historique & bilan : 100% dérivé des distributions (ration directe),
-         aucune saisie propre. L'ancien système par stade (périodes de
-         prélèvement) a été retiré de l'UI — la collection Firestore
-         "prelevements" n'est pas supprimée pour autant. -->
+    <!-- Bilan campagne : 100 % dérivé des rations distribuées sur la
+         campagne de l'en-tête (prorata au 31/08). Les ajustements
+         d'inventaire n'y entrent jamais. -->
     <div id="troupeau-historique" hidden>
-      <h3 class="section-titre">Distributions (ration directe)</h3>
-      <div id="troupeau-distributions-journal"></div>
-
-      <h3 class="section-titre">Bilan par lot</h3>
-      <p class="champ-aide">Ce qui a été RÉELLEMENT distribué, cumulé par lot sur la campagne choisie — jamais le prévu ni une notion de suffisance/achat (cf. Prévisionnel). Un aliment n'est compté qu'ici, jamais deux fois.</p>
-      <div id="troupeau-bilan" class="table-scroll"></div>
-      <p class="champ-aide">Poids moyen de botte, réglable par aliment — pour l'estimation en bottes ci-dessus uniquement, jamais pour calculer un tonnage.</p>
-      <div id="troupeau-poids-bottes"></div>
+      <div id="troupeau-bilan"></div>
+      <p class="stk-note">Calculé sur les rations distribuées. Les ajustements d'inventaire ne comptent pas.</p>
     </div>
   </div>
 
@@ -1004,7 +995,13 @@
         <label for="lot-nom">Nom du lot</label>
         <input type="text" id="lot-nom" required placeholder="ex: Lot agnelage précoce">
 
-        <label for="lot-nb">Nombre de brebis</label>
+        <label for="lot-type">Type</label>
+        <select id="lot-type">
+          <option value="BREBIS">Brebis</option>
+          <option value="AGNELLES">Agnelles</option>
+        </select>
+
+        <label for="lot-nb">Effectif (têtes)</label>
         <input type="number" id="lot-nb" step="1" min="1" inputmode="numeric" required>
 
         <label for="lot-batiment">Bergerie</label>

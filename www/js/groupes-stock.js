@@ -138,3 +138,39 @@ export function construireGroupes({ reste = [], depart = new Map(), entrees = ne
   totaux.total = arrondi3(totaux.fourrages + totaux.cereales + totaux.paille);
   return { totaux, groupes: groupes.filter((g) => g.cles.length) };
 }
+
+/**
+ * Bilan campagne de Troupeau : consommé par groupe d'aliment, ventilé brebis /
+ * agnelles, et les deux totaux en tête. Uniquement les rations distribuées
+ * (entrée : rations-calc.js/bilanParLot) — un ajustement d'inventaire n'y
+ * entre jamais.
+ * @param {Array<{type:'BREBIS'|'AGNELLES', items:Array<{cle,tonnes}>}>} lotsBilan
+ * @param {Map<string,object>} [meta]
+ */
+export function bilanParTypeAnimaux(lotsBilan, meta = new Map()) {
+  const totaux = { brebis: 0, agnelles: 0 };
+  const parGroupe = new Map();
+  (lotsBilan || []).forEach((lb) => {
+    const champ = lb.type === 'AGNELLES' ? 'agnelles' : 'brebis';
+    (lb.items || []).forEach((it) => {
+      const t = Number(it.tonnes) || 0;
+      if (!(t > 0)) return;
+      const id = groupeDeCle(it.cle, meta.get(it.cle) || {});
+      if (!parGroupe.has(id)) {
+        const def = GROUPES.find((g) => g.id === id);
+        parGroupe.set(id, { id, nom: def.nom, total: 0, brebis: 0, agnelles: 0 });
+      }
+      const g = parGroupe.get(id);
+      g[champ] = arrondi3(g[champ] + t);
+      g.total = arrondi3(g.total + t);
+      totaux[champ] = arrondi3(totaux[champ] + t);
+    });
+  });
+  const ordre = GROUPES.map((g) => g.id);
+  const groupes = Array.from(parGroupe.values()).sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id));
+  groupes.forEach((g) => {
+    g.pctBrebis = g.total > 0 ? Math.round((g.brebis / g.total) * 100) : 0;
+    g.pctAgnelles = g.total > 0 ? 100 - g.pctBrebis : 0;
+  });
+  return { totaux, groupes };
+}

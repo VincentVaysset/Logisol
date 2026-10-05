@@ -158,7 +158,15 @@ function lendemain(dateIso) {
 // journal des périodes — même principe que le niveau d'un contenant, dérivé
 // des mouvements plutôt que saisi. On le garde néanmoins en écriture pour ne
 // pas casser un lot legacy créé avant l'introduction des périodes groupées.
-export async function createLot({ nom, nbBrebis, stadeId = null, batimentId = null, notes = '' }) {
+// Brebis ou agnelles : ventile le Bilan campagne de Troupeau. Un lot créé
+// avant ce champ est un lot de brebis (défaut).
+export const TYPES_ANIMAUX = [
+  { value: 'BREBIS', label: 'Brebis' },
+  { value: 'AGNELLES', label: 'Agnelles' }
+];
+export function typeAnimauxDe(lot) { return lot && lot.typeAnimaux === 'AGNELLES' ? 'AGNELLES' : 'BREBIS'; }
+
+export async function createLot({ nom, nbBrebis, stadeId = null, batimentId = null, notes = '', typeAnimaux = 'BREBIS' }) {
   if (!nom || !nom.trim()) throw new Error('Donne un nom au lot.');
   const n = Number(nbBrebis);
   if (!isFinite(n) || n <= 0) throw new Error('Le nombre de brebis doit être supérieur à 0.');
@@ -168,16 +176,18 @@ export async function createLot({ nom, nbBrebis, stadeId = null, batimentId = nu
     // second modèle de lot aurait fait cohabiter deux effectifs concurrents
     // pour les mêmes brebis, l'un nourri par les rations, l'autre non.
     nom: nom.trim(), nbBrebis: n, stadeId, batimentId, notes,
+    typeAnimaux: typeAnimaux === 'AGNELLES' ? 'AGNELLES' : 'BREBIS',
     creeLe: serverTimestamp(), majLe: serverTimestamp()
   });
   return ref.id;
 }
 
-export async function updateLot(id, { nom, nbBrebis, batimentId = null, notes = '' }) {
+export async function updateLot(id, { nom, nbBrebis, batimentId = null, notes = '', typeAnimaux = 'BREBIS' }) {
   const n = Number(nbBrebis);
   if (!isFinite(n) || n <= 0) throw new Error('Le nombre de brebis doit être supérieur à 0.');
   return updateDoc(doc(db, 'lots_animaux', id), {
     nom: String(nom || '').trim(), nbBrebis: n, batimentId, notes,
+    typeAnimaux: typeAnimaux === 'AGNELLES' ? 'AGNELLES' : 'BREBIS',
     majLe: serverTimestamp()
   });
 }

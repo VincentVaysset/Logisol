@@ -12,14 +12,22 @@
 // "prelevements" n'est PAS supprimée pour autant (lots.js garde ses
 // fonctions de lecture/écriture, inutilisées ici mais intactes) — seule
 // l'UI qui l'affichait/l'alimentait a disparu.
-import { getLots, createLot, updateLot, deleteLot } from './lots.js';
+import { getLots, createLot, updateLot, deleteLot, typeAnimauxDe } from './lots.js';
 import {
   ouvrirSectionRationsLot, fermerSectionRationsLot,
   initTroupeauRations, renderTroupeauRations,
-  totauxDistribution, lotsSansDistribution, resumeComposants
+  lotsSansDistribution, resumeComposants
 } from './ui-rations.js';
-import { affectationEnCours, composantsAffectation } from './affectations.js';
-import { dateLisible } from './accueil.js';
+import {
+  affectationEnCours, composantsAffectation, historiqueAffectations, affectationsLot,
+  supprimerAffectation, rouvrirAffectation, precedenteFermeePar, tonnesComposant
+} from './affectations.js';
+import { besoinJournalierParStock } from './rations-calc.js';
+import { stockAuSoir } from './clotures-stock.js';
+import { getClotures } from './verrou-campagne.js';
+import { campagneStockSuivante } from './campagne-stock.js';
+import { getStadeById } from './stades.js';
+import { aujourdhui } from './implantations.js';
 import { formatTonnes } from './ui-stocks.js';
 import { getBatiments, accepteLots } from './batiments.js';
 import { toastSucces, toastErreur } from './toast.js';
@@ -29,6 +37,7 @@ const form = document.getElementById('lot-form');
 const titleEl = document.getElementById('lot-title');
 const inputNom = document.getElementById('lot-nom');
 const inputNb = document.getElementById('lot-nb');
+const selectType = document.getElementById('lot-type');
 const selectBatiment = document.getElementById('lot-batiment');
 const inputNotes = document.getElementById('lot-notes');
 const btnSave = document.getElementById('lot-save');
@@ -37,16 +46,15 @@ const errorBanner = document.getElementById('lot-error-banner');
 const errorText = document.getElementById('lot-error-text');
 
 const alerteEl = document.getElementById('troupeau-alerte');
-const totauxEl = document.getElementById('troupeau-totaux');
 const lotsEl = document.getElementById('troupeau-lots');
+const historiquesOuverts = new Set();
 const sousVuesEl = document.getElementById('troupeau-sous-vues');
 const vuePrevisionnelEl = document.getElementById('troupeau-previsionnel');
 const vueActuelleEl = document.getElementById('troupeau-actuel');
 const vueHistoriqueEl = document.getElementById('troupeau-historique');
 
-// « Ration actuelle » : tuiles, alerte, cartes de lots. « Historique &
-// bilan » : sous-vue purement en lecture (ui-rations.js), aucune saisie ne
-// lui est propre.
+// « Distribué » : alerte et cartes de lots. « Bilan campagne » : lecture seule
+// (ui-rations.js). « Prévisionnel » : inchangé.
 let sousVueTroupeau = 'actuel';
 
 let mode = null;
@@ -103,6 +111,7 @@ function reinitialiser() {
   inputNom.value = '';
   inputNb.value = '';
   inputNotes.value = '';
+  selectType.value = 'BREBIS';
 }
 
 export function openCreate() {
@@ -133,6 +142,7 @@ export function openEditLot(lot) {
     btnDelete.hidden = false;
     inputNom.value = lot.nom || '';
     inputNb.value = lot.nbBrebis != null ? lot.nbBrebis : '';
+    selectType.value = typeAnimauxDe(lot);
     peuplerBatiments(lot.batimentId || '');
     ouvrirSectionRationsLot(lot);
   } catch (err) {
@@ -165,22 +175,23 @@ async function enregistrer(e) {
     const nbBrebis = inputNb.value;
     const batimentId = selectBatiment.value || null;
     const notes = inputNotes.value;
+    const typeAnimaux = selectType.value;
 
     if (!nom) throw new ErreurDeSaisie('Donne un nom au lot.');
     const n = Number(nbBrebis);
-    if (!isFinite(n) || n <= 0) throw new ErreurDeSaisie('Le nombre de brebis doit être supérieur à 0.');
+    if (!isFinite(n) || n <= 0) throw new ErreurDeSaisie("L'effectif doit être supérieur à 0.");
 
     if (mode === 'create') {
-      const lotId = await createLot({ nom, nbBrebis: n, batimentId, notes });
+      const lotId = await createLot({ nom, nbBrebis: n, batimentId, notes, typeAnimaux });
       fini = true;
       clearTimeout(minuteur);
       if (monToken === saveToken) {
         log('lot créé — prêt pour la distribution');
         toastSucces('Lot créé.');
-        openEditLot({ id: lotId, nom, nbBrebis: n, batimentId, notes });
+        openEditLot({ id: lotId, nom, nbBrebis: n, batimentId, notes, typeAnimaux });
       }
     } else {
-      await updateLot(editingId, { nom, nbBrebis: n, batimentId, notes });
+      await updateLot(editingId, { nom, nbBrebis: n, batimentId, notes, typeAnimaux });
       fini = true;
       clearTimeout(minuteur);
       if (monToken === saveToken) { log('lot mis à jour'); toastSucces('Lot enregistré.'); fermer(); }
@@ -219,80 +230,146 @@ async function supprimer() {
 }
 
 // --- Vue ------------------------------------------------------------------
-export function renderVue() {
-  // Sans ration distribuée ACTUELLEMENT (affectations.js) — seule source
-  // pour savoir ce qu'un lot mange, cf. les tuiles ci-dessous (totauxDistribution).
-  const orphelins = lotsSansDistribution();
-  if (orphelins.length) {
-    alerteEl.innerHTML =
-      `⚠️ ${orphelins.length} lot${orphelins.length > 1 ? 's' : ''} sans ration distribuée : ` +
-      escapeHtml(orphelins.map((l) => l.nom).join(', ')) +
-      ' — leur consommation n\'est comptée nulle part.';
-    alerteEl.hidden = false;
-  } else {
-    alerteEl.hidden = true;
-  }
+function jjmm(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : ''; }
+function kg(v) { return (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('fr-FR'); }
+function effectifLisible(n, type) {
+  const nb = Number(n) || 0;
+  return type === 'AGNELLES' ? `${nb} agnelle${nb > 1 ? 's' : ''}` : `${nb} brebis`;
+}
 
-  // Seule source de ces trois chiffres : les distributions (rations-calc.js/
-  // totauxDistribution, cf. ui-rations.js) — jamais un autre calcul.
-  const totDistrib = totauxDistribution();
-  const totalBrebis = getLots().reduce((n, l) => n + (Number(l.nbBrebis) || 0), 0);
-  totauxEl.innerHTML = [
-    tuile('Brebis', totalBrebis, '', 'brebis'),
-    tuile('Besoin / jour', Math.round(totDistrib.besoinJourKg), ' kg', 'besoin'),
-    tuile('Stock restant', formatTonnes(totDistrib.disponibleT), ' t', 'restant'),
-    tuile('Déjà consommé', formatTonnes(totDistrib.consommeT), ' t', 'consomme')
-  ].join('');
+export function renderVue() {
+  const lots = getLots();
+  const parType = { BREBIS: 0, AGNELLES: 0 };
+  lots.forEach((l) => { parType[typeAnimauxDe(l)] += Number(l.nbBrebis) || 0; });
+  document.getElementById('troupeau-sous-titre').textContent =
+    `${effectifLisible(parType.BREBIS, 'BREBIS')} · ${effectifLisible(parType.AGNELLES, 'AGNELLES')}`;
+
+  const bandeau = document.getElementById('troupeau-reouverte');
+  const reouvertes = getClotures().filter((c) => c.statut === 'reouverte').map((c) => c.id).sort();
+  bandeau.hidden = !reouvertes.length;
+  bandeau.textContent = reouvertes.map((c) => `Campagne ${c} réouverte : le stock de départ ${campagneStockSuivante(c)} sera recalculé à la clôture.`).join(' ');
+
+  // Sans ration distribuée ACTUELLEMENT : leur consommation n'est comptée nulle part.
+  const orphelins = lotsSansDistribution();
+  alerteEl.hidden = !orphelins.length;
+  alerteEl.textContent = orphelins.length
+    ? `⚠️ ${orphelins.length} lot${orphelins.length > 1 ? 's' : ''} sans ration distribuée : ${orphelins.map((l) => l.nom).join(', ')} — leur consommation n'est comptée nulle part.`
+    : '';
 
   renderLots();
   renderTroupeauRations();
   afficherSousVue();
 }
 
-// La liste des lots de "Ration actuelle" montre la distribution RÉELLE en
-// cours (affectations.js) — c'est la seule source pour savoir ce qu'un lot
-// mange, cf. les tuiles ci-dessus (totauxDistribution) et l'alerte
-// (lotsSansDistribution).
+// « Stock restant X t · ~N j » : l'aliment de la ration qui s'épuise le
+// premier, au besoin journalier de TOUS les lots qui le mangent — même stock
+// que l'onglet Stocks (clotures-stock.js/stockAuSoir), jamais un autre calcul.
+function stockRestantLot(composants, stock, besoin) {
+  let pire = null;
+  composants.forEach((c) => {
+    const t = stock.has(c.stockCle) ? stock.get(c.stockCle) : 0;
+    const kgJ = besoin.get(c.stockCle) || 0;
+    if (!(kgJ > 0)) return;
+    const jours = Math.max(0, Math.floor((t * 1000) / kgJ));
+    if (!pire || jours < pire.jours) pire = { label: c.stockLabel, tonnes: t, jours };
+  });
+  return pire;
+}
+
 function renderLots() {
   const lots = getLots();
   if (!lots.length) {
     lotsEl.innerHTML = '<p class="list-empty">Aucun lot. Utilise « ➕ Lot » pour en créer un.</p>';
     return;
   }
-  lotsEl.innerHTML = lots
-    .map((lot) => {
-      const aff = affectationEnCours(lot);
-      const composants = aff ? composantsAffectation(aff) : [];
-      const sousLigne = aff ? 'depuis le ' + dateLisible(aff.dateDebut) : 'Aucune ration distribuée';
-      return `
-      <div class="lot-card" data-id="${escapeAttr(lot.id)}">
-        <div class="lot-card-body">
-          <div class="lot-card-nom">${escapeHtml(lot.nom || 'Lot')} <span class="lot-card-nb">${lot.nbBrebis} brebis</span></div>
-          <div class="lot-card-sub">${escapeHtml(sousLigne)}</div>
-          <div class="lot-card-stock">${aff ? resumeComposants(composants) : '<span class="sans-stock">aucune ration distribuée</span>'}</div>
-        </div>
-        <button type="button" class="btn btn-secondary btn-mini bouton-changer-ration" data-id="${escapeAttr(lot.id)}">🔄 Changer</button>
-      </div>`;
-    })
-    .join('');
-  lotsEl.querySelectorAll('.lot-card').forEach((el) => {
-    el.addEventListener('click', (ev) => {
-      if (ev.target.closest('.bouton-changer-ration')) return;
-      const lot = getLots().find((l) => l.id === el.dataset.id);
+  const auj = aujourdhui();
+  const stock = new Map(stockAuSoir(auj).map((g) => [g.cle, g.tonnes]));
+  const besoin = new Map(besoinJournalierParStock(lots).map((b) => [b.cle, b.kgParJour]));
+  lotsEl.innerHTML = lots.map((lot) => {
+    const aff = affectationEnCours(lot);
+    const composants = aff ? composantsAffectation(aff) : [];
+    const type = typeAnimauxDe(lot);
+    const stade = lot.stadeId ? getStadeById(lot.stadeId) : null;
+    const sous = [effectifLisible(lot.nbBrebis, type), stade && stade.nom ? stade.nom.toLowerCase() : null,
+      aff ? `depuis le ${jjmm(aff.dateDebut)}` : 'aucune ration distribuée'].filter(Boolean).join(' · ');
+    const badge = !aff ? '<span class="trp-badge trp-badge-sans">Sans ration</span>'
+      : composants.length ? '<span class="trp-badge">En cours</span>' : '<span class="trp-badge">Pâturage</span>';
+    const nb = Number(aff ? aff.nbBrebis : lot.nbBrebis) || 0;
+    const lignes = composants.map((c) => `<div class="stk-detail-ligne"><span class="stk-detail-nom">${escapeHtml(c.stockLabel)}</span><strong>${kg(c.kgParAnimalJour)} kg/j</strong></div>`).join('');
+    const total = composants.length
+      ? `<div class="stk-detail-ligne trp-total-lot"><span>Total lot</span><strong>${kg(nb * composants.reduce((n, c) => n + (Number(c.kgParAnimalJour) || 0), 0))} kg/j</strong></div>`
+      : '';
+    const r = stockRestantLot(composants, stock, besoin);
+    const restant = r
+      ? `<button type="button" class="stk-lien-ligne" data-vers="stocks"><span>${r.tonnes > 0
+          ? `Stock restant : ${formatTonnes(r.tonnes)} t${composants.length > 1 ? ` (${escapeHtml(r.label)})` : ''} · environ ${r.jours} j`
+          : `<span class="trp-epuise">Stock épuisé : ${escapeHtml(r.label)}</span>`}</span><span class="stk-lien">Stocks →</span></button>`
+      : '';
+    const ouvert = historiquesOuverts.has(lot.id);
+    return `<div class="stk-carte trp-lot" data-id="${escapeAttr(lot.id)}">
+      <div class="trp-lot-tete">
+        <div class="stk-groupe-tete"><span class="stk-groupe-nom">${escapeHtml(lot.nom || 'Lot')}</span>${badge}</div>
+        <p class="stk-groupe-sous">${escapeHtml(sous)}</p>
+      </div>
+      ${lignes}${total}${restant}
+      <div class="stk-actions">
+        <button type="button" class="stk-lien" data-changer="${escapeAttr(lot.id)}">🔄 Changer la ration</button>
+        <button type="button" class="stk-lien-gris" data-historique="${escapeAttr(lot.id)}">Historique ${ouvert ? '▴' : '▾'}</button>
+      </div>
+      ${ouvert ? historiqueLot(lot) : ''}
+    </div>`;
+  }).join('');
+
+  lotsEl.querySelectorAll('.trp-lot-tete').forEach((el) => {
+    el.addEventListener('click', () => {
+      const lot = getLots().find((l) => l.id === el.closest('.trp-lot').dataset.id);
       if (lot) openEditLot(lot);
     });
   });
-  lotsEl.querySelectorAll('.bouton-changer-ration').forEach((btn) => {
-    btn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      const lot = getLots().find((l) => l.id === btn.dataset.id);
-      if (lot) openEditLot(lot);
-    });
-  });
+  lotsEl.querySelectorAll('[data-changer]').forEach((b) => b.addEventListener('click', () => {
+    const lot = getLots().find((l) => l.id === b.dataset.changer);
+    if (lot) openEditLot(lot);
+  }));
+  lotsEl.querySelectorAll('[data-historique]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.historique;
+    if (historiquesOuverts.has(id)) historiquesOuverts.delete(id); else historiquesOuverts.add(id);
+    renderLots();
+  }));
+  lotsEl.querySelectorAll('[data-vers="stocks"]').forEach((b) => b.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('logisol:vue', { detail: 'stocks' }));
+  }));
+  lotsEl.querySelectorAll('[data-suppr-ration]').forEach((b) => b.addEventListener('click', async () => {
+    const lot = getLots().find((l) => l.id === b.dataset.lot);
+    if (!lot || !confirm('Supprimer cette ration ? Sa consommation sera retirée du stock et du bilan.')) return;
+    const supprimee = affectationsLot(lot).find((a) => a.id === b.dataset.supprRation);
+    const precedente = precedenteFermeePar(lot, supprimee);
+    b.disabled = true;
+    try {
+      await supprimerAffectation(lot, supprimee.id);
+      if (precedente && confirm(`Rouvrir la ration précédente (${resumeComposants(composantsAffectation(precedente))}) ?`)) {
+        await rouvrirAffectation(lot, precedente.id);
+      }
+      toastSucces('Ration supprimée.');
+    } catch (err) {
+      toastErreur('Suppression impossible : ' + ((err && err.message) || err));
+      b.disabled = false;
+    }
+  }));
 }
 
-function tuile(nom, val, unite, cls) {
-  return `<div class="tuile tuile-${cls}"><div class="tuile-val">${val}<small>${unite || ''}</small></div><div class="tuile-nom">${nom}</div></div>`;
+// Historique des rations d'un lot (ex-journal des distributions) : dates,
+// composants, consommé ; chaque ration est supprimable.
+function historiqueLot(lot) {
+  const liste = historiqueAffectations(lot);
+  if (!liste.length) return '<p class="stk-vide">Aucune ration distribuée à ce lot.</p>';
+  return `<div class="stk-mvts">${liste.map((a) => {
+    const comp = composantsAffectation(a);
+    const conso = comp.reduce((n, c) => n + tonnesComposant(a, c), 0);
+    const dates = a.dateFin ? `${jjmm(a.dateDebut)} → ${jjmm(a.dateFin)}` : `depuis le ${jjmm(a.dateDebut)}`;
+    return `<div class="stk-mvt"><div><span class="stk-mvt-nom">${escapeHtml(dates)} · ${a.nbBrebis || 0} têtes</span>
+      <span class="stk-sous-ligne">${comp.length ? escapeHtml(comp.map((c) => `${c.stockLabel} ${kg(c.kgParAnimalJour)} kg/j`).join(' · ')) : 'Pâturage'}</span></div>
+      <div class="stk-mvt-droite"><strong>${formatTonnes(conso)} t</strong><button type="button" class="stk-suppr" data-lot="${escapeAttr(lot.id)}" data-suppr-ration="${escapeAttr(a.id)}">Supprimer</button></div></div>`;
+  }).join('')}</div>`;
 }
 
 function escapeHtml(s) {
