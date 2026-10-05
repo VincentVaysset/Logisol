@@ -217,8 +217,8 @@ export function renderMateriels() {
         })()}
         ${m.noteEntretien ? `<div class="mat-note">${escapeHtml(m.noteEntretien)}</div>` : ''}
       </div>
-      <button type="button" class="btn btn-secondary btn-mini mat-graisser" data-id="${escapeAttr(m.id)}"
-              title="Enregistrer un graissage à la date du jour">🛢️ Graissé</button>
+      <button type="button" class="mat-graisser" data-id="${escapeAttr(m.id)}"
+              title="Enregistrer un graissage à la date du jour"><span class="mat-graisser-pastille">🛢️ Graissé</span></button>
     </div>`;
   }).join('');
 
