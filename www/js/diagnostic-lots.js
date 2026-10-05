@@ -4,7 +4,7 @@
 // (plafonnés depuis le point 1, plafond-conso.js). Rien n'est écrit : c'est
 // le texte à transmettre avant toute clôture ou correction de lot.
 import { getLots, typeAnimauxDe } from './lots.js';
-import { historiqueAffectations, composantsAffectation, tonnesComposant } from './affectations.js';
+import { historiqueAffectations, composantsAffectation, tonnesComposant, dernierJour } from './affectations.js';
 import { simulationCourante, epuisementsDuLot } from './plafond-conso.js';
 import { getBatimentById } from './batiments.js';
 
@@ -26,11 +26,11 @@ export function rapportLots() {
       const comps = composantsAffectation(a);
       comps.forEach((c) => labels.set(c.stockCle, c.stockLabel));
       const conso = comps.reduce((t, c) => t + tonnesComposant(a, c), 0);
-      out.push(`   ${i + 1}. ${dateFr(a.dateDebut)} → ${a.dateFin ? dateFr(a.dateFin) : 'en cours'} · ${a.nbBrebis || 0} têtes : ` +
+      out.push(`   ${i + 1}. ${dateFr(a.dateDebut)} → ${a.dateFin ? dateFr(dernierJour(a.dateFin)) : 'en cours'} · ${a.nbBrebis || 0} têtes : ` +
         (comps.length ? comps.map((c) => `${c.stockLabel} ${n(c.kgParAnimalJour)} kg/j`).join(' + ') : 'pâturage') + ` — consommé ${n(conso)} t`);
       periodes.slice(i + 1).forEach((o, j) => {
         if (a.dateDebut < (o.dateFin || '9999-12-31') && o.dateDebut < (a.dateFin || '9999-12-31')) {
-          const m = `${lot.nom} : période ${i + 1} (${dateFr(a.dateDebut)} → ${a.dateFin ? dateFr(a.dateFin) : 'en cours'}) et période ${i + j + 2} (${dateFr(o.dateDebut)} → ${o.dateFin ? dateFr(o.dateFin) : 'en cours'})`;
+          const m = `${lot.nom} : période ${i + 1} (${dateFr(a.dateDebut)} → ${a.dateFin ? dateFr(dernierJour(a.dateFin)) : 'en cours'}) et période ${i + j + 2} (${dateFr(o.dateDebut)} → ${o.dateFin ? dateFr(dernierJour(o.dateFin)) : 'en cours'})`;
           chevauchements.push(m);
           out.push(`      ⚠️ CHEVAUCHE la période ${i + j + 2}`);
         }

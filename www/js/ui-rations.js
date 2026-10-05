@@ -10,7 +10,7 @@ import {
   distribuerRation, supprimerAffectation, tonnesComposant, composantsAffectation,
   precedenteFermeePar, rouvrirAffectation,
   affectationsApresDistribution, affectationsApresReport, enregistrerAffectations,
-  affectationsApresModification, traverse31Aout
+  affectationsApresModification, traverse31Aout, dernierJour, finExclueDe
 } from './affectations.js';
 import { verifierDateModifiable } from './verrou-campagne.js';
 import {
@@ -375,7 +375,7 @@ function renderAffectationsLot(lot) {
     ? historique.map((a) => {
         const active = a.dateDebut <= aujourdhui() && (!a.dateFin || a.dateFin > aujourdhui());
         const dates = a.dateFin
-          ? `${dateLisible(a.dateDebut)} → ${dateLisible(a.dateFin)}`
+          ? `${dateLisible(a.dateDebut)} → ${dateLisible(dernierJour(a.dateFin))}`
           : `depuis le ${dateLisible(a.dateDebut)}${active ? ' · en cours' : ''}`;
         const composants = composantsAffectation(a);
         const conso = composants.length
@@ -479,8 +479,9 @@ async function surChangerRation() {
   try {
     const composants = lireComposantsDe(lotComposantsEl);
     const dateDebut = lotDebut.value || aujourdhui();
-    const dateFin = lotFin.value || null;
-    if (dateFin && dateFin <= dateDebut) throw new ErreurDeSaisie('La date de fin doit être postérieure à la date de début.');
+    // Le champ donne le DERNIER jour nourri ; la base garde le lendemain (fin exclue).
+    if (lotFin.value && lotFin.value < dateDebut) throw new ErreurDeSaisie('Le dernier jour ne peut pas précéder le premier.');
+    const dateFin = finExclueDe(lotFin.value || null);
     // Contrôle du stock AVANT d'enregistrer (y compris pour une ration passée).
     const candidat = affectationsApresDistribution(lotCourant, { composants, dateDebut, dateFin }).affectations;
     const aggraves = controlerRations(getLots().map((l) => (l.id === lotCourant.id ? { ...l, affectations: candidat } : l)));
@@ -522,7 +523,7 @@ function lendemainIso(iso) {
 function finEffective(fin) { return fin || lendemainIso(aujourdhui()); }
 
 function lirePeriode() {
-  return { dateDebut: per.debut.value, dateFin: per.fin.value || null, composants: lireComposantsDe(per.composants) };
+  return { dateDebut: per.debut.value, dateFin: finExclueDe(per.fin.value || null), composants: lireComposantsDe(per.composants) };
 }
 
 // Périodes qui traversent un 31/08 (avant et/ou après la modification) :
@@ -531,9 +532,9 @@ function periodesA31Aout() {
   const n = lirePeriode();
   const res = [];
   const yA = perAff ? traverse31Aout(perAff.dateDebut, finEffective(perAff.dateFin)) : null;
-  if (yA) res.push(`ration actuelle ${jjmmaaaa(perAff.dateDebut)} → ${perAff.dateFin ? jjmmaaaa(perAff.dateFin) : 'en cours'} (31/08/${yA})`);
+  if (yA) res.push(`ration actuelle ${jjmmaaaa(perAff.dateDebut)} → ${perAff.dateFin ? jjmmaaaa(dernierJour(perAff.dateFin)) : 'en cours'} (31/08/${yA})`);
   const yN = n.dateDebut ? traverse31Aout(n.dateDebut, finEffective(n.dateFin)) : null;
-  if (yN) res.push(`ration modifiée ${jjmmaaaa(n.dateDebut)} → ${n.dateFin ? jjmmaaaa(n.dateFin) : 'en cours'} (31/08/${yN})`);
+  if (yN) res.push(`ration modifiée ${jjmmaaaa(n.dateDebut)} → ${n.dateFin ? jjmmaaaa(dernierJour(n.dateFin)) : 'en cours'} (31/08/${yN})`);
   return res;
 }
 function majBandeau31() {
@@ -552,7 +553,7 @@ export function ouvrirEditionPeriode(lot, affectationId) {
   per.manque.hidden = true;
   per.lot.textContent = `${lot.nom || 'Lot'} · ${perAff.nbBrebis || 0} têtes`;
   per.debut.value = perAff.dateDebut || '';
-  per.fin.value = perAff.dateFin || '';
+  per.fin.value = dernierJour(perAff.dateFin) || '';
   remplirComposants(per.composants, composantsAffectation(perAff));
   perErreur('');
   // Période d'une campagne clôturée : verrouillée tant qu'elle n'est pas réouverte.

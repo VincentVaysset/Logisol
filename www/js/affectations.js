@@ -71,6 +71,20 @@ export function joursAffectation(aff, date = aujourdhui()) {
   return Math.max(0, isFinite(j) ? j : 0);
 }
 
+function veille(dateIso) {
+  const d = new Date(dateIso + 'T12:00:00');
+  d.setDate(d.getDate() - 1);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// À l'écran, la fin d'une ration est son DERNIER JOUR nourri (inclus) : c'est
+// ce qu'on tape naturellement (« jusqu'au 30/09 »). En base, dateFin reste
+// EXCLUE (le lendemain), convention de tout le calcul. Ces deux fonctions
+// sont le seul passage entre les deux.
+export function dernierJour(dateFinExclue) { return dateFinExclue ? veille(dateFinExclue) : null; }
+export function finExclueDe(dernierJourInclus) { return dernierJourInclus ? lendemain(dernierJourInclus) : null; }
+
 function lendemain(dateIso) {
   const d = new Date(dateIso + 'T12:00:00');
   d.setDate(d.getDate() + 1);
@@ -218,11 +232,11 @@ export function affectationsApresModification(lot, affectationId, { dateDebut, d
   const aff = affectationsLot(lot).find((a) => a.id === affectationId);
   if (!aff) throw new Error('Ration introuvable.');
   if (!dateDebut) throw new Error('La date de début est obligatoire.');
-  if (dateFin && dateFin <= dateDebut) throw new Error('La date de fin doit être postérieure à la date de début.');
+  if (dateFin && dateFin <= dateDebut) throw new Error('Le dernier jour ne peut pas précéder le premier.');
   const autre = affectationsLot(lot).find((a) => a.id !== aff.id &&
     a.dateDebut < (dateFin || '9999-12-31') && dateDebut < (a.dateFin || '9999-12-31'));
   if (autre) {
-    throw new Error(`Chevauche la ration ${autre.dateFin ? `du ${jjmm(autre.dateDebut)} au ${jjmm(autre.dateFin)}` : `ouverte depuis le ${jjmm(autre.dateDebut)}`} : deux rations d'un même lot ne peuvent pas se superposer.`);
+    throw new Error(`Chevauche la ration ${autre.dateFin ? `du ${jjmm(autre.dateDebut)} au ${jjmm(veille(autre.dateFin))}` : `ouverte depuis le ${jjmm(autre.dateDebut)}`} : deux rations d'un même lot ne peuvent pas se superposer.`);
   }
   const propres = (composants || [])
     .filter((c) => c.stockCle && Number(c.kgParAnimalJour) > 0)

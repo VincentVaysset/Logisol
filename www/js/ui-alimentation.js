@@ -20,7 +20,7 @@ import {
 } from './ui-rations.js';
 import {
   affectationEnCours, composantsAffectation, historiqueAffectations, affectationsLot,
-  supprimerAffectation, rouvrirAffectation, precedenteFermeePar, tonnesComposant, reporterComposant
+  supprimerAffectation, rouvrirAffectation, precedenteFermeePar, tonnesComposant, reporterComposant, dernierJour
 } from './affectations.js';
 import { epuisementsDuLot } from './plafond-conso.js';
 import { lireCle } from './groupes-stock.js';
@@ -431,7 +431,8 @@ function historiqueLot(lot) {
   return `<div class="stk-mvts">${liste.map((a) => {
     const comp = composantsAffectation(a);
     const conso = comp.reduce((n, c) => n + tonnesComposant(a, c), 0);
-    const dates = a.dateFin ? `${jjmm(a.dateDebut)}/${a.dateDebut.slice(2, 4)} → ${jjmm(a.dateFin)}/${a.dateFin.slice(2, 4)}` : `depuis le ${jjmm(a.dateDebut)}/${a.dateDebut.slice(2, 4)}`;
+    const fin = dernierJour(a.dateFin);   // dernier jour nourri (la base garde le lendemain)
+    const dates = fin ? `${jjmm(a.dateDebut)}/${a.dateDebut.slice(2, 4)} → ${jjmm(fin)}/${fin.slice(2, 4)}` : `depuis le ${jjmm(a.dateDebut)}/${a.dateDebut.slice(2, 4)}`;
     return `<div class="stk-mvt"><div><span class="stk-mvt-nom">${escapeHtml(dates)} · ${a.nbBrebis || 0} têtes</span>
       <span class="stk-sous-ligne">${comp.length ? escapeHtml(comp.map((c) => `${c.stockLabel} ${kg(c.kgParAnimalJour)} kg/j`).join(' · ')) : 'Pâturage'}</span></div>
       <div class="stk-mvt-droite"><strong>${formatTonnes(conso)} t</strong>
