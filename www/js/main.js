@@ -51,7 +51,7 @@ import { initTraceUi, ouvrirTrace, majEtatTrace as majEtatTraceToolbar } from '.
 import { initAccueil, majEtat, renderFeed, ouvrirApercu, fermerApercu } from './accueil.js';
 import { watchStocks, onStocksChange, agregerParCategorie } from './stocks.js';
 import { ensureSeeded as ensureStadesSeeded, watchStades, onStadesChange } from './stades.js';
-import { watchLots, watchPrelevements, onLotsChange, onPrelevementsChange } from './lots.js';
+import { watchLots, watchPrelevements, onLotsChange, onPrelevementsChange, getLots } from './lots.js';
 import {
   initStocks, setParcelles as setParcellesStocks, setStocks,
   setCategories as setCategoriesStocks, renderVue as renderStocks
@@ -66,6 +66,10 @@ import { watchBatiments, onBatimentsChange, typeBatiment } from './batiments.js'
 import { watchCellules, onCellulesChange } from './cellules.js';
 import { watchEmplacements, onEmplacementsChange } from './emplacements.js';
 import { watchMouvements, onMouvementsChange, getMouvements } from './mouvements.js';
+import {
+  campagnesStockDisponibles, getCampagneStockChoisie, setCampagneStockChoisie,
+  onCampagneStockChange, libelleCampagneStock
+} from './campagne-stock.js';
 import { rafraichirFicheAliment } from './ui-fiche-aliment.js';
 import { agregerMouvements, fusionnerCategories } from './fourrages.js';
 import { watchPrevisions, onPrevisionsChange, migrerRGT0 } from './assolement-previsionnel.js';
@@ -123,6 +127,7 @@ const assolementVueEl = document.getElementById('assolement-vue');
 let sousVueParcelles = 'liste';
 const stocksViewEl = document.getElementById('stocks-view');
 const troupeauViewEl = document.getElementById('troupeau-view');
+const campagneStockSelectEl = document.getElementById('campagne-stock-select');
 const batimentsViewEl = document.getElementById('batiments-view');
 const tabsEl = document.getElementById('tabs');
 const fabCarte = document.getElementById('fab-carte');
@@ -262,7 +267,29 @@ function categoriesFusionnees() {
   );
 }
 
+// Sélecteur « Campagne 2025-2026 » de l'en-tête (Stocks et Troupeau
+// seulement) : de la plus ancienne date saisie jusqu'à la campagne en cours.
+function peuplerCampagnesStock() {
+  if (!campagneStockSelectEl) return;
+  const dates = getMouvements().map((m) => m.date)
+    .concat(latestStocks.map((s) => s.date))
+    .concat(getLots().flatMap((l) => (l.affectations || []).map((a) => a.dateDebut)))
+    .filter(Boolean);
+  const choisie = getCampagneStockChoisie();
+  campagneStockSelectEl.innerHTML = campagnesStockDisponibles(dates)
+    .map((c) => `<option value="${c}"${c === choisie ? ' selected' : ''}>${libelleCampagneStock(c)}</option>`)
+    .join('');
+}
+if (campagneStockSelectEl) {
+  campagneStockSelectEl.addEventListener('change', () => setCampagneStockChoisie(campagneStockSelectEl.value));
+}
+onCampagneStockChange(() => {
+  if (currentView === 'stocks') { renderStocks(); renderStockageParBatiment(); }
+  if (currentView === 'troupeau') renderTroupeau();
+});
+
 function recomputeStocksEtTroupeau() {
+  peuplerCampagnesStock();
   const cats = categoriesFusionnees();
   // La paille est de la litière, pas un aliment : elle reste visible dans
   // Stocks (cats complet) mais n'entre jamais dans le bilan des rations ni
@@ -636,6 +663,10 @@ function setView(vue) {
   listViewEl.hidden = vue !== 'liste';
   stocksViewEl.hidden = vue !== 'stocks';
   troupeauViewEl.hidden = vue !== 'troupeau';
+  if (campagneStockSelectEl) {
+    campagneStockSelectEl.hidden = vue !== 'stocks' && vue !== 'troupeau';
+    if (!campagneStockSelectEl.hidden) peuplerCampagnesStock();
+  }
   batimentsViewEl.hidden = vue !== 'batiments';
   fabCarte.hidden = vue !== 'carte';
   carteSecteurFiltreEl.hidden = vue !== 'carte' || !secteursDisponibles;

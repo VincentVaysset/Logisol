@@ -15,8 +15,7 @@ import {
 } from './affectations.js';
 import {
   besoinJournalierParStock,
-  consommationParStock, couverturePrevisionnelle, bilanParLot, totalParAlimentTousLots,
-  campagnesDistribuees
+  consommationParStock, couverturePrevisionnelle, bilanParLot, totalParAlimentTousLots
 } from './rations-calc.js';
 import {
   getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
@@ -25,6 +24,7 @@ import { openEditLot } from './ui-alimentation.js';
 import { getLots } from './lots.js';
 import { getStades, onStadesChange } from './stades.js';
 import { aujourdhui } from './implantations.js';
+import { getCampagneStockChoisie, onCampagneStockChange } from './campagne-stock.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
 import { toastSucces, toastErreur } from './toast.js';
@@ -352,33 +352,16 @@ const poidsBottesEl = document.getElementById('troupeau-poids-bottes');
 // ui-stocks.js, pour ne jamais afficher deux comptes de bottes différents.
 function poidsBotteEffectifIci(cle) { return poidsBotteEffectifPartage(categories, cle); }
 
-const bilanCampagneEl = document.getElementById('troupeau-bilan-campagne');
-let campagneBilanChoisie = null;
-
-function peuplerCampagneBilan() {
-  if (!bilanCampagneEl) return;
-  const campagnes = campagnesDistribuees(getLots());
-  if (!campagneBilanChoisie || !campagnes.includes(campagneBilanChoisie)) {
-    campagneBilanChoisie = campagnes[0] || campagneCourante();
-  }
-  bilanCampagneEl.innerHTML = campagnes
-    .map((c) => `<option value="${escapeAttr(c)}" ${c === campagneBilanChoisie ? 'selected' : ''}>${escapeHtml(c)}</option>`)
-    .join('');
-}
-if (bilanCampagneEl) {
-  bilanCampagneEl.addEventListener('change', () => {
-    campagneBilanChoisie = bilanCampagneEl.value;
-    renderBilan();
-  });
-}
+// Campagne du bilan : celle choisie dans l'en-tête (campagne-stock.js,
+// 01/09-31/08), partagée avec Stocks — plus de sélecteur propre ici.
+onCampagneStockChange(() => renderBilan());
 
 // Bilan par LOT (étape 2c) : uniquement ce qui a été distribué, jamais de
 // prévu/à acheter (ça, c'est Prévisionnel — cf. couverturePrevisionnelle) —
 // Fourrages/Céréales/Aliments par lot, détail par aliment, total tous lots.
 function renderBilan() {
   if (!bilanEl) return;
-  peuplerCampagneBilan();
-  const bilanLots = bilanParLot(getLots(), campagneBilanChoisie).filter((bl) => bl.items.length);
+  const bilanLots = bilanParLot(getLots(), getCampagneStockChoisie()).filter((bl) => bl.items.length);
   if (!bilanLots.length) {
     bilanEl.innerHTML = '<p class="list-empty">Aucune distribution enregistrée pour cette campagne.</p>';
     if (poidsBottesEl) poidsBottesEl.innerHTML = '';

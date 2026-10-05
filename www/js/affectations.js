@@ -25,6 +25,7 @@
 import { db } from './firebase-config.js';
 import { doc, updateDoc, serverTimestamp } from "../vendor/firebase/firebase-firestore.js";
 import { aujourdhui } from './implantations.js';
+import { joursDansFenetre } from './campagne-stock.js';
 
 export function affectationsLot(lot) {
   return Array.isArray(lot && lot.affectations) ? lot.affectations : [];
@@ -78,6 +79,16 @@ export function besoinJournalierAffectation(aff) {
 export function tonnesComposant(aff, composant, date = aujourdhui()) {
   const nb = Number(aff && aff.nbBrebis) || 0;
   const kg = nb * (Number(composant.kgParAnimalJour) || 0) * joursAffectation(aff, date);
+  return Math.round((kg / 1000) * 1000) / 1000;
+}
+
+// Même calcul, borné à une fenêtre de campagne Stocks/Troupeau (01/09-31/08,
+// cf. campagne-stock.js) : une ration qui chevauche le 31/08 est coupée au
+// prorata des jours tombant de chaque côté.
+export function tonnesComposantFenetre(aff, composant, fenetre, date = aujourdhui()) {
+  const nb = Number(aff && aff.nbBrebis) || 0;
+  const j = joursDansFenetre(aff && aff.dateDebut, (aff && aff.dateFin) || null, fenetre, date);
+  const kg = nb * (Number(composant.kgParAnimalJour) || 0) * j;
   return Math.round((kg / 1000) * 1000) / 1000;
 }
 

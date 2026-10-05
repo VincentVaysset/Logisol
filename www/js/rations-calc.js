@@ -4,8 +4,9 @@
 // pour le pourquoi d'un calcul purement dérivé, jamais stocké, à l'image de
 // niveauContenant() côté mouvements de stock.
 import { aujourdhui } from './implantations.js';
-import { historiqueAffectations, affectationEnCours, tonnesComposant, composantsAffectation } from './affectations.js';
-import { joursLignePlan, campagneCourante } from './plan-campagne.js';
+import { historiqueAffectations, affectationEnCours, tonnesComposant, tonnesComposantFenetre, composantsAffectation } from './affectations.js';
+import { joursLignePlan } from './plan-campagne.js';
+import { bornesCampagneStock, campagnesStockDisponibles } from './campagne-stock.js';
 
 function arrondi3(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
 
@@ -42,25 +43,27 @@ function familleDeCle(cle) {
  * a été RÉELLEMENT distribué. Aucune notion de suffisance ni d'achat ici :
  * ça, c'est le Prévisionnel (couverturePrevisionnelle), jamais confondu
  * (Prévu et Distribué ne se lisent jamais l'un l'autre, CLAUDE.md).
- * campagneCourante(aff.dateDebut) : même clé de campagne que le reste du
- * module Rations (plan-campagne.js) — distincte de calculerCampagnes()
- * (campagnes.js), propre aux activités de parcelle.
+ * campagne : campagne Stocks/Troupeau (« 2025-2026 », 01/09-31/08, cf.
+ * campagne-stock.js) — distincte de calculerCampagnes() (campagnes.js),
+ * propre aux activités de parcelle. Une ration qui chevauche le 31/08 est
+ * comptée au prorata des jours tombant dans la campagne.
  */
 export function bilanParLot(lots, campagne, date = aujourdhui()) {
+  const fenetre = bornesCampagneStock(campagne);
   return (lots || []).map((lot) => {
     const parAliment = new Map();
-    historiqueAffectations(lot)
-      .filter((aff) => campagneCourante(aff.dateDebut) === campagne)
-      .forEach((aff) => {
-        composantsAffectation(aff).forEach((c) => {
-          if (!c.stockCle) return;
-          if (!parAliment.has(c.stockCle)) {
-            parAliment.set(c.stockCle, { cle: c.stockCle, label: c.stockLabel, famille: familleDeCle(c.stockCle), tonnes: 0 });
-          }
-          const g = parAliment.get(c.stockCle);
-          g.tonnes = arrondi3(g.tonnes + tonnesComposant(aff, c, date));
-        });
+    historiqueAffectations(lot).forEach((aff) => {
+      composantsAffectation(aff).forEach((c) => {
+        if (!c.stockCle) return;
+        const t = tonnesComposantFenetre(aff, c, fenetre, date);
+        if (!(t > 0)) return;
+        if (!parAliment.has(c.stockCle)) {
+          parAliment.set(c.stockCle, { cle: c.stockCle, label: c.stockLabel, famille: familleDeCle(c.stockCle), tonnes: 0 });
+        }
+        const g = parAliment.get(c.stockCle);
+        g.tonnes = arrondi3(g.tonnes + t);
       });
+    });
     const items = Array.from(parAliment.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
     const totaux = { fourrage: 0, cereale: 0, aliment: 0 };
     items.forEach((it) => { totaux[it.famille] = arrondi3(totaux[it.famille] + it.tonnes); });
@@ -84,15 +87,33 @@ export function totalParAlimentTousLots(bilanLots) {
   return Array.from(parCle.values()).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
 }
 
-/** Campagnes distinctes présentes dans l'historique des distributions,
- * les plus récentes d'abord — pour peupler le sélecteur du bilan par lot. */
-export function campagnesDistribuees(lots) {
-  const set = new Set();
+/** Campagnes Stocks/Troupeau couvertes par l'historique des distributions,
+ * de la plus ancienne à la campagne en cours, les plus récentes d'abord. */
+export function campagnesDistribuees(lots, date = aujourdhui()) {
+  const dates = [];
   (lots || []).forEach((lot) => {
-    historiqueAffectations(lot).forEach((aff) => set.add(campagneCourante(aff.dateDebut)));
+    historiqueAffectations(lot).forEach((aff) => { if (aff.dateDebut) dates.push(aff.dateDebut); });
   });
-  set.add(campagneCourante());
-  return Array.from(set).sort((a, b) => String(b).localeCompare(String(a)));
+  return campagnesStockDisponibles(dates, date);
+}
+
+/** Consommation par aliment sur la fenêtre d'une campagne (prorata), tous lots. */
+export function consommationCampagneParStock(lots, campagne, date = aujourdhui()) {
+  const fenetre = bornesCampagneStock(campagne);
+  const parCle = new Map();
+  (lots || []).forEach((lot) => {
+    historiqueAffectations(lot).forEach((aff) => {
+      composantsAffectation(aff).forEach((c) => {
+        if (!c.stockCle) return;
+        const t = tonnesComposantFenetre(aff, c, fenetre, date);
+        if (!(t > 0)) return;
+        if (!parCle.has(c.stockCle)) parCle.set(c.stockCle, { cle: c.stockCle, label: c.stockLabel, tonnes: 0 });
+        const g = parCle.get(c.stockCle);
+        g.tonnes = arrondi3(g.tonnes + t);
+      });
+    });
+  });
+  return Array.from(parCle.values());
 }
 
 /** Besoin journalier COURANT, par aliment — seulement les distributions actives aujourd'hui. */

@@ -180,6 +180,9 @@
            🟠 sinon (pas de réseau, ou pas encore de confirmation serveur —
            ex. juste après l'ouverture sur un nouvel appareil, le temps que
            le premier téléchargement complet arrive). -->
+      <!-- Campagne Stocks / Troupeau (01/09 → 31/08, cf. campagne-stock.js) :
+           visible seulement sur ces deux onglets. -->
+      <select id="campagne-stock-select" class="campagne-select" aria-label="Campagne Stocks et Troupeau" hidden></select>
       <span id="sync-status" class="sync-status" title="État de la synchronisation">🟠 Hors-ligne</span>
       <button id="btn-rapports" type="button" class="header-icon-btn" aria-label="Rapports et synthèses PDF">📄</button>
       <button id="btn-parametres" type="button" class="header-icon-btn" aria-label="Paramètres et compte">⚙️</button>
@@ -614,10 +617,7 @@
       <h3 class="section-titre">Distributions (ration directe)</h3>
       <div id="troupeau-distributions-journal"></div>
 
-      <div class="vue-head vue-head-sous">
-        <h3 class="section-titre section-titre-inline">Bilan par lot</h3>
-        <select id="troupeau-bilan-campagne"></select>
-      </div>
+      <h3 class="section-titre">Bilan par lot</h3>
       <p class="champ-aide">Ce qui a été RÉELLEMENT distribué, cumulé par lot sur la campagne choisie — jamais le prévu ni une notion de suffisance/achat (cf. Prévisionnel). Un aliment n'est compté qu'ici, jamais deux fois.</p>
       <div id="troupeau-bilan" class="table-scroll"></div>
       <p class="champ-aide">Poids moyen de botte, réglable par aliment — pour l'estimation en bottes ci-dessus uniquement, jamais pour calculer un tonnage.</p>
