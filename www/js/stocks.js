@@ -35,7 +35,7 @@ export const COUPES = [
 
 export function labelCoupe(n) {
   const c = COUPES.find((x) => x.value === Number(n));
-  return c ? c.label : 'coupe ?';
+  return c ? c.label : 'coupe non précisée';
 }
 
 // Libellés alignés sur le vocabulaire des cultures du RPG TelePAC, pour que

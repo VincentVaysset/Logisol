@@ -513,22 +513,32 @@
   </div>
 
   <!-- Vue Bâtiments : bergeries, silos à grain, hangars à fourrage. -->
-  <div id="batiments-view" class="scroll-view" hidden>
-    <div class="vue-head">
-      <h2>Bâtiments</h2>
-      <button type="button" id="btn-new-mouvement" class="btn btn-secondary btn-mini">🔁 Mouvement</button>
-      <button type="button" id="btn-new-batiment" class="btn btn-primary btn-mini">➕ Bâtiment</button>
+  <div id="batiments-view" class="scroll-view vue-claire" hidden>
+    <div class="stk-head">
+      <div>
+        <h2 class="stk-titre">Bâtiments</h2>
+        <p id="batiments-sous-titre" class="stk-sous"></p>
+      </div>
+      <div class="lieu-tete-actions">
+        <span id="bat-actions-lieux">
+          <button type="button" id="btn-new-mouvement" class="stk-btn-clair">🔁 Mouvement</button>
+          <button type="button" id="btn-new-batiment" class="stk-btn-sombre">➕ Bâtiment</button>
+        </span>
+        <span id="bat-actions-materiel" hidden>
+          <button type="button" id="btn-new-materiel" class="stk-btn-sombre">➕ Matériel</button>
+        </span>
+      </div>
     </div>
-    <div id="batiments-totaux" class="tuiles"></div>
-    <div id="batiments-liste"></div>
-    <div class="vue-head vue-head-sous">
-      <h3 class="section-titre section-titre-inline">Parc matériel</h3>
-      <button type="button" id="btn-new-materiel" class="btn btn-secondary btn-mini">➕ Matériel</button>
+    <div class="trp-onglets" id="batiments-sous-vues">
+      <button type="button" data-batvue="lieux" class="is-active">Bâtiments</button>
+      <button type="button" data-batvue="materiel">Matériel</button>
     </div>
-    <div id="materiels-liste"></div>
-
-    <h3 class="section-titre">Derniers mouvements</h3>
-    <div id="mouvements-liste"></div>
+    <div id="batiments-lieux">
+      <div id="batiments-liste"></div>
+    </div>
+    <div id="batiments-materiel" hidden>
+      <div id="materiels-liste"></div>
+    </div>
   </div>
 
   <!-- Vue Troupeau (maquette troupeau v2) : Distribué (une carte par lot,
@@ -769,6 +779,7 @@
         <div id="cel-etat" class="tonnage-calcule" hidden>
           <span>Niveau actuel</span><strong id="cel-niveau">0 t</strong>
         </div>
+        <p id="cel-repartition" class="champ-aide champ-aide-gris" hidden>Répartition estimée : corrige avec un Mouvement si la cellule a été vidée ou transférée</p>
         <div class="fiche-actions">
           <button type="submit" id="cel-save" class="btn btn-primary">Enregistrer</button>
           <button type="button" id="cel-cancel" class="btn btn-secondary">Annuler</button>
@@ -795,6 +806,7 @@
         <div id="emp-etat" class="tonnage-calcule" hidden>
           <span>Stock actuel</span><strong id="emp-niveau">0 botte</strong>
         </div>
+        <p id="emp-repartition" class="champ-aide champ-aide-gris" hidden>Répartition estimée : corrige avec un Mouvement si l'emplacement a été vidé ou transféré</p>
         <div class="fiche-actions">
           <button type="submit" id="emp-save" class="btn btn-primary">Enregistrer</button>
           <button type="button" id="emp-cancel" class="btn btn-secondary">Annuler</button>

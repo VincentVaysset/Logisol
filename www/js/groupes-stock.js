@@ -65,7 +65,7 @@ export function libelleLigne(cle, label, meta = {}) {
   if (k.type === 'foin') {
     const coupe = COUPES[k.coupe] || '';
     const fourrage = meta.fourrage || majuscule(k.fourrage.replace(/-/g, ' '));
-    if (groupe === 'luzerne') return [coupe || 'coupe ?', methode(k.conservation)].join(' · ');
+    if (groupe === 'luzerne') return [coupe || 'coupe non précisée', methode(k.conservation)].join(' · ');
     return [fourrage, coupe, groupe === 'enrubannage' ? '' : methode(k.conservation)].filter(Boolean).join(' · ');
   }
   return label || cle;

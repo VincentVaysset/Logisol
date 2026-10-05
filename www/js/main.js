@@ -82,9 +82,10 @@ import {
   openCreateBatiment, openCreateCellule, openCreateEmplacement
 } from './ui-batiments.js';
 import {
-  initBatiments, setParcellesMouvements, renderVue as renderBatiments,
+  initBatiments, setParcellesMouvements,
   ouvrirApercuBatiment, renderStockageParBatiment
 } from './ui-mouvements.js';
+import { initLieux, renderLieux as renderBatiments } from './ui-lieux.js';
 import { verifierRegles } from './diagnostic-regles.js';
 import {
   watchMateriels, onMaterielsChange, ensureSeeded as ensureMaterielSeeded,
@@ -304,6 +305,9 @@ function recomputeStocksEtTroupeau() {
   setCategoriesRations(catsSansPaille);
   if (currentView === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (currentView === 'troupeau') renderTroupeau();
+  // Le contenu des cellules est celui de Stocks (rations et ajustements
+  // compris) : il bouge avec eux.
+  if (currentView === 'batiments') renderBatiments();
 }
 
 // Bâtiments : la carte les affiche dans les vues Ferme et Carte, la vue
@@ -762,6 +766,7 @@ async function boot() {
     initStocks({ onChange: recomputeStocksEtTroupeau });
     initAlimentation();
     initBatiments({ onChange: recomputeBatiments });
+    initLieux();
     initMateriel();
     initAssolement();
     listViewEl.querySelectorAll('[data-sousvue]').forEach((b) => {
@@ -913,7 +918,7 @@ async function boot() {
     watchEmplacements();
     onMouvementsChange(() => { recomputeBatiments(); recomputeStocksEtTroupeau(); rafraichirFicheAliment(); });
     watchMouvements();
-    onMaterielsChange(() => { if (currentView === 'batiments') renderMateriels(); });
+    onMaterielsChange(() => { if (currentView === 'batiments') { renderBatiments(); renderMateriels(); } });
     watchMateriels();
     onEntretiensChange(() => { if (currentView === 'batiments') renderMateriels(); });
     watchEntretiens();

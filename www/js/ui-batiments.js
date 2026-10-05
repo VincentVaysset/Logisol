@@ -15,7 +15,7 @@ import {
   createEmplacement, updateEmplacement, deleteEmplacement
 } from './emplacements.js';
 import {
-  TYPES_MOUVEMENT, typeMouvement, getMouvements, niveauContenant, mouvementsDuContenant,
+  TYPES_MOUVEMENT, typeMouvement, getMouvements, mouvementsDuContenant,
   createMouvement, updateMouvement, deleteMouvement
 } from './mouvements.js';
 import { getLots } from './lots.js';
@@ -23,13 +23,15 @@ import { openEditLot } from './ui-alimentation.js';
 import { getStadeById } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
-import { formatTonnes } from './ui-stocks.js';
+import { labelCoupe } from './stocks.js';
 import {
   centrerSurMaPosition, getMap, demarrerPlacement, arreterPlacement, positionPlacement
 } from './map.js';
 import { toastSucces, toastErreur } from './toast.js';
 import { messagePermission } from './diagnostic-regles.js';
 import { ventilationContenant, resumeLot } from './fourrages.js';
+import { contenuDesLieux, contenuDuLieu } from './lieux.js';
+import { fmt1 } from './contenu-lieux.js';
 
 class ErreurDeSaisie extends Error {}
 function log(m) { if (window.__logisolDebug) window.__logisolDebug(m); }
@@ -46,9 +48,6 @@ function panneau(prefix, ids) {
   return el;
 }
 
-const listeEl = document.getElementById('batiments-liste');
-const totauxEl = document.getElementById('batiments-totaux');
-const mouvementsEl = document.getElementById('mouvements-liste');
 
 let parcelles = [];
 export function setParcellesBatiments(list) { parcelles = list; }
@@ -133,17 +132,20 @@ function renderContenantsDuBatiment(b) {
   bat['add-emplacement'].hidden = !accepteFourrage(b);
 
   const blocs = [];
+  // Mêmes chiffres que l'onglet Bâtiments : le contenu réparti depuis Stocks.
+  const rep = contenuDesLieux();
   cels.forEach((c) => {
-    const n = niveauContenant('CELLULE', c.id).quantite;
+    const n = contenuDuLieu('CELLULE', c.id, rep).tonnes;
     const fourrage = contenuDe(c) === 'FOURRAGE';
     const label = fourrage ? labelFourrage(c.typeGrainActuel) : labelGrain(c.typeGrainActuel);
-    blocs.push(ligneContenant(fourrage ? '🌿' : '🌾', c.nom, `${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${label}`, 'cellule', c.id, tauxRemplissage(c, n),
-      detailLots('CELLULE', c.id, n)));
+    blocs.push(ligneContenant(fourrage ? '🌿' : '🌾', c.nom, `${fmt1(n)} / ${fmt1(c.capaciteMaxTonnes)} t · ${label}`, 'cellule', c.id, tauxRemplissage(c, n),
+      detailReparti(contenuDuLieu('CELLULE', c.id, rep), 't')));
   });
   emps.forEach((e) => {
-    const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id);
+    const v = contenuDuLieu('EMPLACEMENT_FOURRAGE', e.id, rep);
+    const n = { quantite: Math.round(v.quantite), poidsMoyenBotteKg: v.poidsMoyenBotteKg };
     blocs.push(ligneContenant('🧻', e.nom, `${n.quantite} bottes · ${labelFourrage(e.typeFourrage)}${n.poidsMoyenBotteKg ? ' · ~' + n.poidsMoyenBotteKg + ' kg/botte' : ''}`, 'emplacement', e.id, null,
-      detailLots('EMPLACEMENT_FOURRAGE', e.id, n.quantite)));
+      detailReparti(v, 'bottes')));
   });
   lots.forEach((l) => {
     const st = getStadeById(l.stadeId);
@@ -166,8 +168,11 @@ function renderContenantsDuBatiment(b) {
 
 function ligneContenant(icone, nom, detail, kind, id, taux, lots) {
   const attrs = kind ? ` data-kind="${kind}" data-id="${esc(id)}" style="cursor:pointer"` : '';
+  // Au-delà de la capacité : à vérifier, jamais une alarme rouge (le chiffre
+  // est une répartition estimée, cf. lieux.js).
   const jauge = taux != null
-    ? `<div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux)}%"></div></div>`
+    ? `<div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-depasse' : ''}" style="width:${Math.max(0, Math.min(100, taux))}%"></div></div>` +
+      (taux > 100 ? '<span class="lieu-pastille">Capacité dépassée : à vérifier</span>' : '')
     : '';
   return `<div class="contenant-ligne"${attrs}>
     <span class="contenant-icone">${icone}</span>
@@ -177,7 +182,7 @@ function ligneContenant(icone, nom, detail, kind, id, taux, lots) {
       ${lots || ''}
       ${jauge}
     </div>
-    ${taux != null ? `<div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux}%</div>` : ''}
+    ${taux != null ? `<div class="contenant-taux">${taux}%</div>` : ''}
   </div>`;
 }
 
@@ -192,6 +197,14 @@ export function detailLots(type, id, niveau) {
   if (!tracables.length) return '';
   return `<div class="contenant-lots">dont ${esc(tracables.map((l) => resumeLot(l, v.unite)).join(', '))}` +
     `${v.prorata ? ' <span class="contenant-prorata">(au prorata des entrées)</span>' : ''}</div>`;
+}
+
+// « Luzerne 1ʳᵉ coupe 68,3 t · Orge 12 t » : le contenu réparti depuis Stocks.
+function detailReparti(v, unite) {
+  if (!v || !v.lots.length) return '';
+  const quoi = (l) => (l.typeFourrage ? `${l.typeFourrage} ${labelCoupe(l.numeroCoupe)}` : String(l.label || '').replace(/^Céréale\s*—\s*/, ''));
+  return `<div class="contenant-lots">${esc(v.lots.map((l) => (unite === 'bottes'
+    ? `${Math.round(l.quantite)} bottes ${quoi(l)}` : `${quoi(l)} ${fmt1(l.tonnes)} t`)).join(' · '))}</div>`;
 }
 
 bat.locate.addEventListener('click', () => {
@@ -310,7 +323,7 @@ bat.delete.addEventListener('click', async () => {
 const cel = {
   panel: document.getElementById('cellule-panel'),
   form: document.getElementById('cel-form'),
-  ...panneau('cel', ['title', 'nom', 'capacite', 'contenu', 'grain', 'grain-label', 'etat', 'niveau',
+  ...panneau('cel', ['title', 'nom', 'capacite', 'contenu', 'grain', 'grain-label', 'etat', 'niveau', 'repartition',
                      'save', 'cancel', 'delete', 'error-banner', 'error-text', 'error-close'])
 };
 let celEditId = null;
@@ -353,6 +366,7 @@ export function openCreateCellule(batimentId, opts = {}) {
     || (b && b.type === 'STOCKAGE_FOURRAGE' ? 'FOURRAGE' : 'GRAIN');
   majOptionsContenu('');
   cel.etat.hidden = true;
+  cel.repartition.hidden = true;
 }
 
 export function openEditCellule(c) {
@@ -366,9 +380,9 @@ export function openEditCellule(c) {
   cel.capacite.value = c.capaciteMaxTonnes != null ? c.capaciteMaxTonnes : '';
   cel.contenu.value = contenuDe(c);
   majOptionsContenu(c.typeGrainActuel || '');
-  const n = niveauContenant('CELLULE', c.id);
-  cel.niveau.textContent = formatTonnes(n.quantite) + ' t';
+  cel.niveau.textContent = fmt1(contenuDuLieu('CELLULE', c.id).tonnes) + ' t';
   cel.etat.hidden = false;
+  cel.repartition.hidden = false;
 }
 
 cel.form.addEventListener('submit', async (e) => {
@@ -425,7 +439,7 @@ cel.delete.addEventListener('click', async () => {
 const emp = {
   panel: document.getElementById('emplacement-panel'),
   form: document.getElementById('emp-form'),
-  ...panneau('emp', ['title', 'nom', 'type', 'etat', 'niveau',
+  ...panneau('emp', ['title', 'nom', 'type', 'etat', 'niveau', 'repartition',
                      'save', 'cancel', 'delete', 'error-banner', 'error-text', 'error-close'])
 };
 let empEditId = null;
@@ -447,6 +461,7 @@ export function openCreateEmplacement(batimentId, opts = {}) {
   emp.delete.hidden = true;
   emp.nom.value = ''; emp.type.value = 'FOIN';
   emp.etat.hidden = true;
+  emp.repartition.hidden = true;
 }
 
 export function openEditEmplacement(e2) {
@@ -458,10 +473,11 @@ export function openEditEmplacement(e2) {
   emp.delete.hidden = false;
   emp.nom.value = e2.nom || '';
   emp.type.value = e2.typeFourrage || 'FOIN';
-  const n = niveauContenant('EMPLACEMENT_FOURRAGE', e2.id);
-  emp.niveau.textContent = `${n.quantite} botte${n.quantite > 1 ? 's' : ''}` +
-    (n.poidsMoyenBotteKg ? ` · ${formatTonnes((n.quantite * n.poidsMoyenBotteKg) / 1000)} t` : '');
+  const v = contenuDuLieu('EMPLACEMENT_FOURRAGE', e2.id);
+  const bottes = Math.round(v.quantite);
+  emp.niveau.textContent = `${bottes} botte${bottes > 1 ? 's' : ''}` + (v.tonnes > 0.05 ? ` · ${fmt1(v.tonnes)} t` : '');
   emp.etat.hidden = false;
+  emp.repartition.hidden = false;
 }
 
 emp.form.addEventListener('submit', async (ev) => {

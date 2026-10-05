@@ -1,26 +1,23 @@
-// Formulaire de mouvement de stock + rendu de la vue Bâtiments.
+// Formulaire de mouvement de stock (la vue Bâtiments est dans ui-lieux.js).
 //
 // Le formulaire s'adapte au type choisi : une entrée n'a pas de contenant de
 // départ, une sortie n'a pas de contenant d'arrivée, un transfert a les deux.
 // Montrer les quatre listes en permanence obligerait à comprendre le modèle
 // avant de saisir — au champ, c'est le meilleur moyen de ne rien saisir.
 import {
-  TYPES_GRAIN, TYPES_FOURRAGE, typeBatiment, labelGrain, labelFourrage,
+  TYPES_GRAIN, TYPES_FOURRAGE, typeBatiment,
   getBatiments, getBatimentById
 } from './batiments.js';
 import {
-  getCellules, getCelluleById, cellulesDuBatiment, tauxRemplissage,
+  getCellules, getCelluleById,
   contenuDe, motContenu, iconeContenu
 } from './cellules.js';
-import { getEmplacements, getEmplacementById, emplacementsDuBatiment } from './emplacements.js';
+import { getEmplacements, getEmplacementById } from './emplacements.js';
 import {
   TYPES_MOUVEMENT, typeMouvement, getMouvements, niveauContenant,
   createMouvement, updateMouvement, deleteMouvement, PRODUITS_ACHAT_VENTE
 } from './mouvements.js';
 import { getLots } from './lots.js';
-import { openEditLot } from './ui-alimentation.js';
-import { ventilationContenant, resumeLot } from './fourrages.js';
-import { getStadeById } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
@@ -28,6 +25,7 @@ import {
   openCreateBatiment, openEditBatiment, messageErreur, esc, ErreurDeSaisie
 } from './ui-batiments.js';
 import { toastSucces, toastErreur } from './toast.js';
+import { htmlContenuBatiment } from './ui-lieux.js';
 
 const panel = document.getElementById('mouvement-panel');
 const form = document.getElementById('mvt-form');
@@ -41,9 +39,6 @@ const el = {};
   'save','cancel','delete','error-banner','error-text','error-close'
 ].forEach((k) => { el[k] = document.getElementById('mvt-' + k); });
 
-const listeEl = document.getElementById('batiments-liste');
-const totauxEl = document.getElementById('batiments-totaux');
-const mouvementsEl = document.getElementById('mouvements-liste');
 
 // Une cellule se compte en tonnes : silo à grain OU cellule de séchage en
 // grange. Le libellé ne peut donc plus dire « à grain » ; c'est le nom de
@@ -91,11 +86,6 @@ peuplerTypesMouvement(false);
 el['source-type'].innerHTML = SOURCES.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
 el['dest-type'].innerHTML = DESTINATIONS.map((s) => `<option value="${s.value}">${s.label}</option>`).join('');
 el.produit.innerHTML = PRODUITS_ACHAT_VENTE.map((p) => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
-// Une cellule peut contenir du grain (silo) ou du fourrage (séchage en
-// grange) : le libellé du contenu suit le type de la cellule.
-function labelContenuCellule(c) {
-  return contenuDe(c) === 'FOURRAGE' ? labelFourrage(c.typeGrainActuel) : labelGrain(c.typeGrainActuel);
-}
 
 // Proposer « Orge, Blé, Triticale » pour une cellule de séchage en grange
 // serait absurde : la liste suit le contenu déclaré de la cellule visée.
@@ -122,9 +112,12 @@ export function initBatiments(opts = {}) {
   if (btnAchatVente) btnAchatVente.addEventListener('click', () => openCreateMouvement({ typeMouvement: 'ENTREE_ACHAT' }));
   el.cancel.addEventListener('click', fermer);
   el.type.addEventListener('change', appliquerType);
-  el['source-type'].addEventListener('change', () => peuplerCible('source'));
+  el['source-type'].addEventListener('change', () => { peuplerCible('source'); peuplerCible('dest', el['dest-id'].value); });
   el['dest-type'].addEventListener('change', () => peuplerCible('dest'));
-  el['source-id'].addEventListener('change', () => { majUnite(); majMontant(); });
+  el['source-id'].addEventListener('change', () => {
+    if (el.type.value === 'TRANSFERT') peuplerCible('dest', el['dest-id'].value);
+    majUnite(); majMontant();
+  });
   el['dest-id'].addEventListener('change', () => { majUnite(); majMontant(); });
   el.quantite.addEventListener('input', majMontant);
   el.poids.addEventListener('input', majMontant);
@@ -166,7 +159,12 @@ function peuplerCible(quel, valeur) {
   const type = el[quel === 'source' ? 'source-type' : 'dest-type'].value;
   const select = el[quel === 'source' ? 'source-id' : 'dest-id'];
   const libre = el[quel === 'source' ? 'source-libre' : 'dest-libre'];
-  const options = optionsPour(type);
+  let options = optionsPour(type);
+  // Transfert : le contenant de départ n'est jamais proposé à l'arrivée —
+  // le choix impossible n'est pas offert, plutôt que refusé à l'enregistrement.
+  if (quel === 'dest' && el.type.value === 'TRANSFERT' && type === el['source-type'].value) {
+    options = options.filter((o) => o.value !== el['source-id'].value);
+  }
   // FOURNISSEUR, CLIENT et AUTRE ne désignent rien d'enregistré : on saisit un nom.
   const saisieLibre = type === 'FOURNISSEUR' || type === 'AUTRE' || type === 'CLIENT';
   select.hidden = saisieLibre;
@@ -495,164 +493,6 @@ async function supprimer() {
 }
 
 // ==========================================================================
-// Rendu de la vue Bâtiments
-// ==========================================================================
-export function renderVue() {
-  const batiments = getBatiments();
-  const cellules = getCellules();
-  const emplacements = getEmplacements();
-
-  // Une cellule de séchage en grange contient du FOIN : la compter dans le
-  // « grain stocké » gonflerait un chiffre de céréales avec du fourrage.
-  const cellulesGrain = cellules.filter((c) => contenuDe(c) === 'GRAIN');
-  const cellulesSechage = cellules.filter((c) => contenuDe(c) === 'FOURRAGE');
-  const tGrain = cellulesGrain.reduce((n, c) => n + niveauContenant('CELLULE', c.id).quantite, 0);
-  const capaciteGrain = cellulesGrain.reduce((n, c) => n + (Number(c.capaciteMaxTonnes) || 0), 0);
-  let bottes = 0;
-  let tFourrage = cellulesSechage.reduce((n, c) => n + niveauContenant('CELLULE', c.id).quantite, 0);
-  emplacements.forEach((e) => {
-    const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id);
-    bottes += n.quantite;
-    tFourrage += (n.quantite * n.poidsMoyenBotteKg) / 1000;
-  });
-  const brebis = getLots().reduce((n, l) => n + (Number(l.nbBrebis) || 0), 0);
-
-  totauxEl.innerHTML = [
-    tuile('Bâtiments', batiments.length, '', ''),
-    tuile('Grain stocké', formatTonnes(tGrain), ' t', 'cereale'),
-    tuile('Remplissage silos', capaciteGrain ? Math.round((tGrain / capaciteGrain) * 100) : 0, ' %', 'tire'),
-    tuile('Bottes', Math.round(bottes), '', 'paille'),
-    tuile('Fourrage', formatTonnes(tFourrage), ' t', ''),
-    tuile('Brebis', brebis, '', 'brebis')
-  ].join('');
-
-  listeEl.innerHTML = batiments.length
-    ? batiments.map((b) => carteBatiment(b, cellules, emplacements)).join('')
-    : '<p class="list-empty">Aucun bâtiment. Utilise « ➕ Bâtiment » pour commencer.</p>';
-  listeEl.querySelectorAll('[data-lot]').forEach((node) => {
-    node.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      const lot = getLots().find((l) => l.id === node.dataset.lot);
-      if (lot) openEditLot(lot);
-    });
-  });
-  listeEl.querySelectorAll('.bat-card').forEach((card) => {
-    card.addEventListener('click', (ev) => {
-      if (ev.target.closest('[data-contenant]') || ev.target.closest('[data-lot]')) return;
-      const b = getBatimentById(card.dataset.id);
-      if (b) openEditBatiment(b);
-    });
-  });
-  listeEl.querySelectorAll('[data-contenant]').forEach((node) => {
-    node.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      openCreateMouvement({
-        typeMouvement: node.dataset.contenant === 'CELLULE' ? 'ENTREE_RECOLTE' : 'ENTREE_RECOLTE',
-        destinationType: node.dataset.contenant,
-        destinationId: node.dataset.id
-      });
-    });
-  });
-
-  const mvts = getMouvements().slice(0, 30);
-  mouvementsEl.innerHTML = mvts.length
-    ? mvts.map(ligneMouvement).join('')
-    : '<p class="list-empty">Aucun mouvement enregistré.</p>';
-  mouvementsEl.querySelectorAll('.mvt-ligne').forEach((node) => {
-    node.addEventListener('click', () => {
-      const m = getMouvements().find((x) => x.id === node.dataset.id);
-      if (m) openEditMouvement(m);
-    });
-  });
-}
-
-// « dont 15 t 1ʳᵉ coupe Luzerne, 10 t 2ᵉ coupe RGA » : ce que contient
-// réellement le contenant, reconstruit depuis les entrées du journal.
-function detailLots(type, id, niveau) {
-  const v = ventilationContenant(type, id, getMouvements(), niveau);
-  const tracables = v.lots.filter((l) => l.typeFourrage);
-  if (!tracables.length) return '';
-  return `<div class="contenant-lots">dont ${esc(tracables.map((l) => resumeLot(l, v.unite)).join(', '))}` +
-    `${v.prorata ? ' <span class="contenant-prorata">(au prorata des entrées)</span>' : ''}</div>`;
-}
-
-function carteBatiment(b, cellules, emplacements) {
-  const t = typeBatiment(b.type);
-  const cels = cellules.filter((c) => c.batimentId === b.id);
-  const emps = emplacements.filter((e) => e.batimentId === b.id);
-  const lots = getLots().filter((l) => l.batimentId === b.id);
-
-  const contenus = [];
-  cels.forEach((c) => {
-    const n = niveauContenant('CELLULE', c.id).quantite;
-    const taux = tauxRemplissage(c, n);
-    contenus.push(`<div class="contenant-ligne" data-contenant="CELLULE" data-id="${esc(c.id)}">
-      <span class="contenant-icone">${iconeContenu(c)}</span>
-      <div class="contenant-body">
-        <div class="contenant-nom">${esc(c.nom)}</div>
-        <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelContenuCellule(c))}</div>
-        ${detailLots('CELLULE', c.id, n)}
-        <div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux || 0)}%"></div></div>
-      </div>
-      <div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux != null ? taux + '%' : ''}</div>
-    </div>`);
-  });
-  emps.forEach((e) => {
-    const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id);
-    contenus.push(`<div class="contenant-ligne" data-contenant="EMPLACEMENT_FOURRAGE" data-id="${esc(e.id)}">
-      <span class="contenant-icone">🧻</span>
-      <div class="contenant-body">
-        <div class="contenant-nom">${esc(e.nom)}</div>
-        <div class="contenant-detail">${n.quantite} botte${n.quantite > 1 ? 's' : ''} · ${esc(labelFourrage(e.typeFourrage))}${n.poidsMoyenBotteKg ? ' · ~' + n.poidsMoyenBotteKg + ' kg' : ''}</div>
-        ${detailLots('EMPLACEMENT_FOURRAGE', e.id, n.quantite)}
-      </div>
-      <div class="contenant-taux">${n.poidsMoyenBotteKg ? formatTonnes((n.quantite * n.poidsMoyenBotteKg) / 1000) + ' t' : ''}</div>
-    </div>`);
-  });
-  lots.forEach((l) => {
-    const st = getStadeById(l.stadeId);
-    // Cliquable : depuis la vue Bâtiments, un lot ne s'ouvrait pas, donc ne
-    // se modifiait ni ne se supprimait.
-    contenus.push(`<div class="contenant-ligne" data-lot="${esc(l.id)}" style="cursor:pointer">
-      <span class="contenant-icone">🐑</span>
-      <div class="contenant-body">
-        <div class="contenant-nom">${esc(l.nom)}</div>
-        <div class="contenant-detail">${l.nbBrebis} brebis · ${esc(st ? st.nom : 'stade non défini')}</div>
-      </div>
-    </div>`);
-  });
-
-  return `<div class="bat-card" data-id="${esc(b.id)}">
-    <div class="bat-card-head">
-      <span class="bat-icone" style="background:${esc(t.couleur)}">${t.icone}</span>
-      <div class="bat-card-body">
-        <div class="bat-card-nom">${esc(b.nom || 'Bâtiment')}</div>
-        <div class="bat-card-sub">${esc(t.label)}${b.latitude != null ? ' · 📍 localisé' : ''}${b.remarques ? ' · ' + esc(b.remarques) : ''}</div>
-      </div>
-    </div>
-    ${contenus.length ? `<div class="bat-contenus">${contenus.join('')}</div>` : '<p class="list-empty bat-vide">Aucun contenu — touche pour en ajouter.</p>'}
-  </div>`;
-}
-
-function ligneMouvement(m) {
-  const t = typeMouvement(m.typeMouvement);
-  const unite = m.unite === 'bottes' ? 'bottes' : 't';
-  const trajet = [m.sourceNom, m.destinationNom].filter(Boolean).join(' → ');
-  return `<div class="mvt-ligne" data-id="${esc(m.id)}">
-    <span class="mvt-icone">${t.icone}</span>
-    <div class="mvt-body">
-      <div class="mvt-nom">${esc(m.libelle || t.label)}</div>
-      <div class="mvt-sub">${esc(dateLisible(m.date))}${trajet ? ' · ' + esc(trajet) : ''}${m.intervenant ? ' · ' + esc(m.intervenant) : ''}</div>
-    </div>
-    <div class="mvt-qte ${t.sens === -1 ? 'mvt-sortie' : t.sens === 1 ? 'mvt-entree' : ''}">${t.sens === -1 ? '−' : t.sens === 1 ? '+' : ''}${formatTonnes(m.quantite)} ${unite}</div>
-  </div>`;
-}
-
-function tuile(nom, val, unite, cls) {
-  return `<div class="tuile tuile-${cls}"><div class="tuile-val">${val}<small>${unite || ''}</small></div><div class="tuile-nom">${nom}</div></div>`;
-}
-
-// ==========================================================================
 // Aperçu d'un bâtiment (ouvert depuis la carte) et bloc « Stockage par
 // bâtiment » de l'onglet Stocks. Les deux réutilisent le même rendu de
 // contenu : un bâtiment doit se lire pareil partout.
@@ -704,48 +544,10 @@ export function fermerApercuBatiment() {
   batimentAffiche = null;
 }
 
-// Rendu commun : jauges de remplissage des cellules, bottes par travée, lots
-// présents et leur stade physiologique.
+// Rendu commun avec l'onglet Bâtiments (ui-lieux.js) : même contenu, calculé
+// depuis Stocks, pour qu'un bâtiment se lise pareil partout.
 function contenuBatiment(b) {
-  const blocs = [];
-  getCellules().filter((c) => c.batimentId === b.id).forEach((c) => {
-    const n = niveauContenant('CELLULE', c.id).quantite;
-    const taux = tauxRemplissage(c, n);
-    blocs.push(`<div class="contenant-ligne">
-      <span class="contenant-icone">${iconeContenu(c)}</span>
-      <div class="contenant-body">
-        <div class="contenant-nom">${esc(c.nom)}</div>
-        <div class="contenant-detail">${formatTonnes(n)} / ${formatTonnes(c.capaciteMaxTonnes)} t · ${esc(labelContenuCellule(c))}</div>
-        ${detailLots('CELLULE', c.id, n)}
-        <div class="jauge"><div class="jauge-barre ${taux > 100 ? 'jauge-trop' : ''}" style="width:${Math.min(100, taux || 0)}%"></div></div>
-      </div>
-      <div class="contenant-taux ${taux > 100 ? 'urgent' : ''}">${taux != null ? taux + '%' : ''}</div>
-    </div>`);
-  });
-  getEmplacements().filter((e) => e.batimentId === b.id).forEach((e) => {
-    const n = niveauContenant('EMPLACEMENT_FOURRAGE', e.id);
-    blocs.push(`<div class="contenant-ligne">
-      <span class="contenant-icone">🧻</span>
-      <div class="contenant-body">
-        <div class="contenant-nom">${esc(e.nom)}</div>
-        <div class="contenant-detail">${n.quantite} botte${n.quantite > 1 ? 's' : ''} · ${esc(labelFourrage(e.typeFourrage))}${n.poidsMoyenBotteKg ? ' · ~' + n.poidsMoyenBotteKg + ' kg/botte' : ''}</div>
-        ${detailLots('EMPLACEMENT_FOURRAGE', e.id, n.quantite)}
-      </div>
-      <div class="contenant-taux">${n.poidsMoyenBotteKg ? formatTonnes((n.quantite * n.poidsMoyenBotteKg) / 1000) + ' t' : ''}</div>
-    </div>`);
-  });
-  getLots().filter((l) => l.batimentId === b.id).forEach((l) => {
-    const st = getStadeById(l.stadeId);
-    blocs.push(`<div class="contenant-ligne">
-      <span class="contenant-icone">🐑</span>
-      <div class="contenant-body">
-        <div class="contenant-nom">${esc(l.nom)}</div>
-        <div class="contenant-detail">${l.nbBrebis} brebis · ${esc(st ? st.nom : 'stade non défini')}</div>
-      </div>
-      ${st ? `<span class="pastille" style="background:${esc(st.couleur || '#9a988f')}"></span>` : ''}
-    </div>`);
-  });
-  return blocs.join('');
+  return htmlContenuBatiment(b);
 }
 
 // Bloc « Stockage par bâtiment » de l'onglet Stocks : les mêmes jauges, pour
