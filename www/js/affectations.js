@@ -27,6 +27,14 @@ import { doc, updateDoc, serverTimestamp } from "../vendor/firebase/firebase-fir
 import { aujourdhui } from './implantations.js';
 import { joursDansFenetre } from './campagne-stock.js';
 import { verifierDateModifiable } from './verrou-campagne.js';
+import { ecrire } from './ecriture-locale.js';
+
+// Rations : n'attendre que la file locale (hors réseau, « Changer la ration »
+// restait sinon suspendu jusqu'au retour du réseau).
+function ecrireAffectations(lot, affectations) {
+  const ref = doc(db, 'lots_animaux', lot.id);
+  return ecrire(ref, updateDoc(ref, { affectations, majLe: serverTimestamp() }), 'Ration');
+}
 
 export function affectationsLot(lot) {
   return Array.isArray(lot && lot.affectations) ? lot.affectations : [];
@@ -134,7 +142,7 @@ export async function distribuerRation(lot, { composants = [], dateDebut, dateFi
   };
 
   const affectations = actuelles.concat([nouvelle]);
-  await updateDoc(doc(db, 'lots_animaux', lot.id), { affectations, majLe: serverTimestamp() });
+  await ecrireAffectations(lot, affectations);
   return nouvelle;
 }
 
@@ -150,7 +158,7 @@ export async function supprimerAffectation(lot, affectationId) {
   const a = affectationsLot(lot).find((x) => x.id === affectationId);
   if (a) verifierDateModifiable(a.dateDebut, 'cette ration');
   const affectations = affectationsLot(lot).filter((a) => a.id !== affectationId);
-  return updateDoc(doc(db, 'lots_animaux', lot.id), { affectations, majLe: serverTimestamp() });
+  return ecrireAffectations(lot, affectations);
 }
 
 // Rouvre une distribution refermée (dateFin remise à null) — jamais fait
@@ -160,7 +168,7 @@ export async function rouvrirAffectation(lot, affectationId) {
   const a = affectationsLot(lot).find((x) => x.id === affectationId);
   if (a && a.dateFin) verifierDateModifiable(a.dateFin, 'cette ration');
   const affectations = affectationsLot(lot).map((a) => (a.id === affectationId ? { ...a, dateFin: null } : a));
-  return updateDoc(doc(db, 'lots_animaux', lot.id), { affectations, majLe: serverTimestamp() });
+  return ecrireAffectations(lot, affectations);
 }
 
 // Clôt une distribution encore ouverte à une date donnée (arrêt anticipé,
@@ -168,5 +176,5 @@ export async function rouvrirAffectation(lot, affectationId) {
 export async function cloturerAffectation(lot, affectationId, dateFin = aujourdhui()) {
   verifierDateModifiable(dateFin, 'cette ration');
   const affectations = affectationsLot(lot).map((a) => (a.id === affectationId ? { ...a, dateFin } : a));
-  return updateDoc(doc(db, 'lots_animaux', lot.id), { affectations, majLe: serverTimestamp() });
+  return ecrireAffectations(lot, affectations);
 }

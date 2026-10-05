@@ -69,8 +69,8 @@ export function bilanParLot(lots, campagne, date = aujourdhui()) {
     items.forEach((it) => { totaux[it.famille] = arrondi3(totaux[it.famille] + it.tonnes); });
     return {
       lotId: lot.id, lotNom: lot.nom || 'Lot',
-      // Brebis ou agnelles (lots.js/typeAnimauxDe : défaut brebis).
-      type: lot.typeAnimaux === 'AGNELLES' ? 'AGNELLES' : 'BREBIS',
+      // Brebis, agnelles ou béliers (lots.js/typeAnimauxDe : défaut brebis).
+      type: ['AGNELLES', 'BELIERS'].includes(lot.typeAnimaux) ? lot.typeAnimaux : 'BREBIS',
       items, fourrages: totaux.fourrage, cereales: totaux.cereale, aliments: totaux.aliment
     };
   });

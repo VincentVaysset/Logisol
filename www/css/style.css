@@ -2086,3 +2086,4 @@ header .campagne-select { min-height: 32px; }
 .trp-bilan-aliment-val { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
 .trp-bilan-aliment-val small { font-size: 11px; color: #94a3b8; }
 .stk-jauge-concentres { background: #d97706 !important; }
+.trp-totaux-3 { grid-template-columns: 1fr 1fr 1fr; }

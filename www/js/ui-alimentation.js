@@ -235,15 +235,19 @@ function jjmm(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '';
 function kg(v) { return (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('fr-FR'); }
 function effectifLisible(n, type) {
   const nb = Number(n) || 0;
-  return type === 'AGNELLES' ? `${nb} agnelle${nb > 1 ? 's' : ''}` : `${nb} brebis`;
+  if (type === 'AGNELLES') return `${nb} agnelle${nb > 1 ? 's' : ''}`;
+  if (type === 'BELIERS') return `${nb} bélier${nb > 1 ? 's' : ''}`;
+  return `${nb} brebis`;
 }
+const PAR_ANIMAL = { BREBIS: 'brebis', AGNELLES: 'agnelle', BELIERS: 'bélier' };
 
 export function renderVue() {
   const lots = getLots();
-  const parType = { BREBIS: 0, AGNELLES: 0 };
+  const parType = { BREBIS: 0, AGNELLES: 0, BELIERS: 0 };
   lots.forEach((l) => { parType[typeAnimauxDe(l)] += Number(l.nbBrebis) || 0; });
   document.getElementById('troupeau-sous-titre').textContent =
-    `${effectifLisible(parType.BREBIS, 'BREBIS')} · ${effectifLisible(parType.AGNELLES, 'AGNELLES')}`;
+    [effectifLisible(parType.BREBIS, 'BREBIS'), effectifLisible(parType.AGNELLES, 'AGNELLES'),
+     parType.BELIERS ? effectifLisible(parType.BELIERS, 'BELIERS') : null].filter(Boolean).join(' · ');
 
   const bandeau = document.getElementById('troupeau-reouverte');
   const reouvertes = getClotures().filter((c) => c.statut === 'reouverte').map((c) => c.id).sort();
@@ -300,7 +304,7 @@ function renderLots() {
     // bruts, informatif, aucun seuil ni couleur.
     const pa = rationParAnimal(composants);
     const total = composants.length
-      ? `<div class="stk-detail-ligne trp-total-lot"><span>Par ${type === 'AGNELLES' ? 'agnelle' : 'brebis'}</span><strong>${kg(pa.total)} kg/j</strong></div>
+      ? `<div class="stk-detail-ligne trp-total-lot"><span>Par ${PAR_ANIMAL[type] || 'brebis'}</span><strong>${kg(pa.total)} kg/j</strong></div>
          <div class="trp-par-animal">Fourrages ${kg(pa.fourrages)} kg · Concentrés ${kg(pa.concentres)} kg${pa.pctConcentres != null ? ` · ${pa.pctConcentres} % de concentrés` : ''}</div>`
       : '';
     const r = stockRestantLot(composants, stock, besoin);

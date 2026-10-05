@@ -36,6 +36,7 @@ import {
   collection, doc, addDoc, updateDoc, deleteDoc, setDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 import { aujourdhui } from './implantations.js';
+import { ecrire } from './ecriture-locale.js';
 import { cleCommerce } from './stocks.js';
 import { composantsDuStade } from './stades.js';
 
@@ -158,47 +159,55 @@ function lendemain(dateIso) {
 // journal des périodes — même principe que le niveau d'un contenant, dérivé
 // des mouvements plutôt que saisi. On le garde néanmoins en écriture pour ne
 // pas casser un lot legacy créé avant l'introduction des périodes groupées.
-// Brebis ou agnelles : ventile le Bilan campagne de Troupeau. Un lot créé
-// avant ce champ est un lot de brebis (défaut).
+// Brebis, agnelles ou béliers : ventile le Bilan campagne de Troupeau. Un lot
+// créé avant ce champ est un lot de brebis (défaut).
 export const TYPES_ANIMAUX = [
   { value: 'BREBIS', label: 'Brebis' },
-  { value: 'AGNELLES', label: 'Agnelles' }
+  { value: 'AGNELLES', label: 'Agnelles' },
+  { value: 'BELIERS', label: 'Béliers' }
 ];
-export function typeAnimauxDe(lot) { return lot && lot.typeAnimaux === 'AGNELLES' ? 'AGNELLES' : 'BREBIS'; }
+function typeValide(t) { return TYPES_ANIMAUX.some((x) => x.value === t) ? t : 'BREBIS'; }
+export function typeAnimauxDe(lot) { return typeValide(lot && lot.typeAnimaux); }
 
 export async function createLot({ nom, nbBrebis, stadeId = null, batimentId = null, notes = '', typeAnimaux = 'BREBIS' }) {
   if (!nom || !nom.trim()) throw new Error('Donne un nom au lot.');
   const n = Number(nbBrebis);
-  if (!isFinite(n) || n <= 0) throw new Error('Le nombre de brebis doit être supérieur à 0.');
-  const ref = await addDoc(COL_LOTS, {
+  if (!isFinite(n) || n <= 0) throw new Error("L'effectif doit être supérieur à 0.");
+  // N'attend que la file locale (ecriture-locale.js) : hors réseau, la fiche
+  // du lot se fermait jamais (« Enregistrement… » jusqu'au retour du réseau).
+  const ref = doc(COL_LOTS);
+  await ecrire(ref, setDoc(ref, {
     // batimentId rattache le lot à sa bergerie — c'est le « LotBergerie » du
     // schéma reçu, fusionné avec les lots existants plutôt que dupliqué : un
     // second modèle de lot aurait fait cohabiter deux effectifs concurrents
     // pour les mêmes brebis, l'un nourri par les rations, l'autre non.
     nom: nom.trim(), nbBrebis: n, stadeId, batimentId, notes,
-    typeAnimaux: typeAnimaux === 'AGNELLES' ? 'AGNELLES' : 'BREBIS',
+    typeAnimaux: typeValide(typeAnimaux),
     creeLe: serverTimestamp(), majLe: serverTimestamp()
-  });
+  }), 'Lot');
   return ref.id;
 }
 
 export async function updateLot(id, { nom, nbBrebis, batimentId = null, notes = '', typeAnimaux = 'BREBIS' }) {
   const n = Number(nbBrebis);
-  if (!isFinite(n) || n <= 0) throw new Error('Le nombre de brebis doit être supérieur à 0.');
-  return updateDoc(doc(db, 'lots_animaux', id), {
+  if (!isFinite(n) || n <= 0) throw new Error("L'effectif doit être supérieur à 0.");
+  const ref = doc(db, 'lots_animaux', id);
+  await ecrire(ref, updateDoc(ref, {
     nom: String(nom || '').trim(), nbBrebis: n, batimentId, notes,
-    typeAnimaux: typeAnimaux === 'AGNELLES' ? 'AGNELLES' : 'BREBIS',
+    typeAnimaux: typeValide(typeAnimaux),
     majLe: serverTimestamp()
-  });
+  }), 'Lot');
 }
 
 export async function deleteLot(id) {
   // Les prélèvements du lot partent avec lui : sans ça, ils continueraient à
   // amputer les stocks au nom d'un lot qui n'existe plus.
   const aSupprimer = prelevements.filter((p) => p.lotId === id);
-  await deleteDoc(doc(db, 'lots_animaux', id));
+  const ref = doc(db, 'lots_animaux', id);
+  await ecrire(ref, deleteDoc(ref), 'Suppression du lot');
   for (const p of aSupprimer) {
-    await deleteDoc(doc(db, 'prelevements', p.id)).catch(() => {});
+    const r = doc(db, 'prelevements', p.id);
+    await ecrire(r, deleteDoc(r).catch(() => {}), 'Prélèvement');
   }
 }
 

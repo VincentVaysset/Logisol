@@ -147,18 +147,36 @@ export function construireGroupes({ reste = [], depart = new Map(), entrees = ne
  * @param {Array<{type:'BREBIS'|'AGNELLES', items:Array<{cle,label,tonnes}>}>} lotsBilan
  * @param {Map<string,object>} [meta]
  */
+export const CHAMPS_ANIMAUX = { BREBIS: 'brebis', AGNELLES: 'agnelles', BELIERS: 'beliers' };
+const CHAMPS = Object.values(CHAMPS_ANIMAUX);
+
+/** Pourcentages entiers par type d'animal, dont la somme fait 100. */
+function pourcentages(x) {
+  const res = {};
+  if (!(x.total > 0)) { CHAMPS.forEach((c) => { res[c] = 0; }); return res; }
+  let reste = 100;
+  const presents = CHAMPS.filter((c) => x[c] > 0);
+  CHAMPS.forEach((c) => { res[c] = 0; });
+  presents.forEach((c, i) => {
+    res[c] = i === presents.length - 1 ? reste : Math.round((x[c] / x.total) * 100);
+    reste -= res[c];
+  });
+  return res;
+}
+
 export function bilanParTypeAnimaux(lotsBilan, meta = new Map()) {
-  const totaux = { brebis: 0, agnelles: 0 };
+  const zero = () => Object.fromEntries(CHAMPS.map((c) => [c, 0]));
+  const totaux = zero();
   const parGroupe = new Map();
   (lotsBilan || []).forEach((lb) => {
-    const champ = lb.type === 'AGNELLES' ? 'agnelles' : 'brebis';
+    const champ = CHAMPS_ANIMAUX[lb.type] || 'brebis';
     (lb.items || []).forEach((it) => {
       const t = Number(it.tonnes) || 0;
       if (!(t > 0)) return;
       const id = lireCle(it.cle).type === 'commerce' ? GROUPE_CONCENTRES.id : groupeDeCle(it.cle, meta.get(it.cle) || {});
       if (!parGroupe.has(id)) {
         const def = id === GROUPE_CONCENTRES.id ? GROUPE_CONCENTRES : GROUPES.find((g) => g.id === id);
-        parGroupe.set(id, { id, nom: def.nom, total: 0, brebis: 0, agnelles: 0, aliments: new Map() });
+        parGroupe.set(id, { id, nom: def.nom, total: 0, ...zero(), aliments: new Map() });
       }
       const g = parGroupe.get(id);
       g[champ] = arrondi3(g[champ] + t);
@@ -166,7 +184,7 @@ export function bilanParTypeAnimaux(lotsBilan, meta = new Map()) {
       totaux[champ] = arrondi3(totaux[champ] + t);
       if (!g.aliments.has(it.cle)) {
         g.aliments.set(it.cle, { cle: it.cle, libelle: libelleLigne(it.cle, it.label, meta.get(it.cle) || {}),
-          achete: estAchete(it.cle), total: 0, brebis: 0, agnelles: 0 });
+          achete: estAchete(it.cle), total: 0, ...zero() });
       }
       const a = g.aliments.get(it.cle);
       a[champ] = arrondi3(a[champ] + t);
@@ -177,8 +195,8 @@ export function bilanParTypeAnimaux(lotsBilan, meta = new Map()) {
   ordre.splice(ordre.indexOf('cereales') + 1, 0, GROUPE_CONCENTRES.id);
   const groupes = Array.from(parGroupe.values()).sort((a, b) => ordre.indexOf(a.id) - ordre.indexOf(b.id));
   groupes.forEach((g) => {
-    g.pctBrebis = g.total > 0 ? Math.round((g.brebis / g.total) * 100) : 0;
-    g.pctAgnelles = g.total > 0 ? 100 - g.pctBrebis : 0;
+    const p = pourcentages(g);
+    g.pctBrebis = p.brebis; g.pctAgnelles = p.agnelles; g.pctBeliers = p.beliers;
     g.aliments = Array.from(g.aliments.values())
       .sort((a, b) => a.achete - b.achete || b.total - a.total || a.libelle.localeCompare(b.libelle, 'fr'));
   });

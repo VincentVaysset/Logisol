@@ -18,7 +18,7 @@ import {
   getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
 } from './plan-campagne.js';
 import { openEditLot } from './ui-alimentation.js';
-import { getLots } from './lots.js';
+import { getLots, typeAnimauxDe } from './lots.js';
 import { getStades, onStadesChange } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { getCampagneStockChoisie, onCampagneStockChange } from './campagne-stock.js';
@@ -295,18 +295,20 @@ function renderBilan() {
     return;
   }
   const barre = (id, pct) => `<div class="stk-jauge"><div class="stk-jauge-${id}" style="width:${pct}%"></div></div>`;
-  bilanEl.innerHTML = `<div class="trp-totaux">
-      <div class="trp-total"><span>Brebis</span><strong>${formatTonnes(b.totaux.brebis)} t</strong></div>
-      <div class="trp-total"><span>Agnelles</span><strong>${formatTonnes(b.totaux.agnelles)} t</strong></div>
+  // Béliers : une colonne de plus seulement s'il y en a (lot de béliers ou
+  // ration distribuée) — sinon le bilan reste celui brebis / agnelles.
+  const types = [['brebis', 'Brebis', 'pctBrebis'], ['agnelles', 'Agnelles', 'pctAgnelles']];
+  if (b.totaux.beliers > 0 || getLots().some((l) => typeAnimauxDe(l) === 'BELIERS')) types.push(['beliers', 'Béliers', 'pctBeliers']);
+  bilanEl.innerHTML = `<div class="trp-totaux${types.length > 2 ? ' trp-totaux-3' : ''}">
+      ${types.map(([k, nom]) => `<div class="trp-total"><span>${nom}</span><strong>${formatTonnes(b.totaux[k])} t</strong></div>`).join('')}
     </div>
     ${b.groupes.map((g) => `<div class="stk-carte trp-bilan-carte">
       <div class="stk-groupe-tete"><span class="stk-groupe-nom">${escapeHtml(g.nom)}</span><span class="stk-groupe-val">${formatTonnes(g.total)} t</span></div>
-      <div class="trp-bilan-ligne"><div class="trp-bilan-tete"><span>Brebis</span><strong>${formatTonnes(g.brebis)} t</strong></div>${barre(g.id, g.pctBrebis)}</div>
-      <div class="trp-bilan-ligne"><div class="trp-bilan-tete"><span>Agnelles</span><strong>${formatTonnes(g.agnelles)} t</strong></div>${barre(g.id, g.pctAgnelles)}</div>
+      ${types.map(([k, nom, pct]) => `<div class="trp-bilan-ligne"><div class="trp-bilan-tete"><span>${nom}</span><strong>${formatTonnes(g[k])} t</strong></div>${barre(g.id, g[pct])}</div>`).join('')}
       <div class="trp-bilan-aliments">${g.aliments.map((a) => `<div class="trp-bilan-aliment">
         <span>${escapeHtml(a.libelle)}</span>
         <span class="trp-bilan-aliment-val"><strong>${formatTonnes(a.total)} t</strong>
-          <small>brebis ${formatTonnes(a.brebis)} · agnelles ${formatTonnes(a.agnelles)}</small></span></div>`).join('')}</div>
+          <small>${types.map(([k, nom]) => `${nom.toLowerCase()} ${formatTonnes(a[k])}`).join(' · ')}</small></span></div>`).join('')}</div>
     </div>`).join('')}`;
 }
 
