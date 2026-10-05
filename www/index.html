@@ -1067,6 +1067,39 @@
     </div>
   </div>
 
+  <!-- Période de ration d'un lot (Troupeau > Distribué > Historique) :
+       dates, aliments et kg/j modifiables, ou suppression. Contrôles :
+       chevauchement, stock (plafond-conso.js), campagne clôturée, périodes
+       à cheval sur le 31/08 affichées avant validation. -->
+  <div id="periode-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>Modifier la ration</h2>
+      <p id="periode-lot" class="champ-aide champ-aide-gris"></p>
+      <label for="periode-debut">Début</label>
+      <input type="date" id="periode-debut">
+      <label for="periode-fin">Fin (laisser vide si la ration est en cours)</label>
+      <input type="date" id="periode-fin">
+      <label>Aliments (laisser vide pour un pâturage)</label>
+      <div id="periode-composants" class="ration-composants"></div>
+      <button type="button" id="periode-composant-ajouter" class="btn btn-secondary btn-mini ration-ajouter">➕ Composant</button>
+      <div id="periode-31-08" class="stk-bandeau" hidden></div>
+      <p id="periode-erreur" class="champ-aide champ-aide-erreur" hidden></p>
+      <div id="periode-manque" class="trp-alerte trp-alerte-form" hidden>
+        <div id="periode-manque-texte"></div>
+        <div class="trp-report">
+          <select id="periode-manque-choix"></select>
+          <span class="trp-report-kg"><input type="number" id="periode-manque-kg" min="0" step="0.01" inputmode="decimal"> kg/j</span>
+          <span class="trp-report-actions"><button type="button" id="periode-manque-reporter" class="stk-btn-sombre" disabled>Reporter</button></span>
+        </div>
+      </div>
+      <div class="fiche-actions">
+        <button type="button" id="periode-enregistrer" class="btn btn-primary">Enregistrer</button>
+        <button type="button" id="periode-annuler" class="btn btn-secondary">Annuler</button>
+        <button type="button" id="periode-supprimer" class="btn btn-danger">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Aperçu d'une parcelle, ouvert en tapant son polygone sur la carte.
        Volontairement distinct de la fiche d'édition : au champ, on veut
        d'abord SAVOIR (quelle culture, depuis quand) et AGIR (noter, saisir

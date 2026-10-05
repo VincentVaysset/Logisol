@@ -2101,3 +2101,4 @@ header .campagne-select { min-height: 32px; }
 .trp-report-kg input { width: 90px; margin: 0; }
 .trp-report-actions { display: flex; align-items: center; gap: 14px; }
 .trp-epuise { color: #b45309; font-weight: 600; }
+.trp-histo-actions { display: flex; gap: 12px; }

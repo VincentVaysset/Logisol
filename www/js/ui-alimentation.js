@@ -16,7 +16,7 @@ import { getLots, createLot, updateLot, deleteLot, typeAnimauxDe } from './lots.
 import {
   ouvrirSectionRationsLot, fermerSectionRationsLot,
   initTroupeauRations, renderTroupeauRations,
-  lotsSansDistribution, resumeComposants
+  lotsSansDistribution, resumeComposants, ouvrirEditionPeriode
 } from './ui-rations.js';
 import {
   affectationEnCours, composantsAffectation, historiqueAffectations, affectationsLot,
@@ -378,6 +378,10 @@ function renderLots() {
       b.disabled = false;
     }
   }));
+  lotsEl.querySelectorAll('[data-modifier-ration]').forEach((b) => b.addEventListener('click', () => {
+    const lot = getLots().find((l) => l.id === b.dataset.lot);
+    if (lot) ouvrirEditionPeriode(lot, b.dataset.modifierRation);
+  }));
   lotsEl.querySelectorAll('[data-suppr-ration]').forEach((b) => b.addEventListener('click', async () => {
     const lot = getLots().find((l) => l.id === b.dataset.lot);
     if (!lot || !confirm('Supprimer cette ration ? Sa consommation sera retirée du stock et du bilan.')) return;
@@ -427,10 +431,12 @@ function historiqueLot(lot) {
   return `<div class="stk-mvts">${liste.map((a) => {
     const comp = composantsAffectation(a);
     const conso = comp.reduce((n, c) => n + tonnesComposant(a, c), 0);
-    const dates = a.dateFin ? `${jjmm(a.dateDebut)} → ${jjmm(a.dateFin)}` : `depuis le ${jjmm(a.dateDebut)}`;
+    const dates = a.dateFin ? `${jjmm(a.dateDebut)}/${a.dateDebut.slice(2, 4)} → ${jjmm(a.dateFin)}/${a.dateFin.slice(2, 4)}` : `depuis le ${jjmm(a.dateDebut)}/${a.dateDebut.slice(2, 4)}`;
     return `<div class="stk-mvt"><div><span class="stk-mvt-nom">${escapeHtml(dates)} · ${a.nbBrebis || 0} têtes</span>
       <span class="stk-sous-ligne">${comp.length ? escapeHtml(comp.map((c) => `${c.stockLabel} ${kg(c.kgParAnimalJour)} kg/j`).join(' · ')) : 'Pâturage'}</span></div>
-      <div class="stk-mvt-droite"><strong>${formatTonnes(conso)} t</strong><button type="button" class="stk-suppr" data-lot="${escapeAttr(lot.id)}" data-suppr-ration="${escapeAttr(a.id)}">Supprimer</button></div></div>`;
+      <div class="stk-mvt-droite"><strong>${formatTonnes(conso)} t</strong>
+        <span class="trp-histo-actions"><button type="button" class="stk-lien" data-lot="${escapeAttr(lot.id)}" data-modifier-ration="${escapeAttr(a.id)}">Modifier</button>
+        <button type="button" class="stk-suppr" data-lot="${escapeAttr(lot.id)}" data-suppr-ration="${escapeAttr(a.id)}">Supprimer</button></span></div></div>`;
   }).join('')}</div>`;
 }
 

@@ -9,8 +9,10 @@ import {
   affectationsLot, historiqueAffectations, affectationEnCours,
   distribuerRation, supprimerAffectation, tonnesComposant, composantsAffectation,
   precedenteFermeePar, rouvrirAffectation,
-  affectationsApresDistribution, affectationsApresReport, enregistrerAffectations
+  affectationsApresDistribution, affectationsApresReport, enregistrerAffectations,
+  affectationsApresModification, traverse31Aout
 } from './affectations.js';
+import { verifierDateModifiable } from './verrou-campagne.js';
 import {
   besoinJournalierParStock,
   consommationParStock, couverturePrevisionnelle, bilanParLot
@@ -501,6 +503,134 @@ async function surChangerRation() {
 }
 
 // ============================================================================
+// Modifier une période de ration passée (Historique du lot)
+// ============================================================================
+const per = {};
+['panel', 'lot', 'debut', 'fin', 'composants', 'composant-ajouter', '31-08', 'erreur',
+ 'manque', 'manque-texte', 'manque-choix', 'manque-kg', 'manque-reporter',
+ 'enregistrer', 'annuler', 'supprimer'].forEach((k) => { per[k] = document.getElementById('periode-' + k); });
+let perLot = null;
+let perAff = null;
+let perEnAttente = null;   // { finales, cle, date } : modification bloquée par un manque de stock
+
+function lendemainIso(iso) {
+  const d = new Date(iso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+// Fin effective d'une période pour le 31/08 : une ration ouverte court jusqu'à aujourd'hui.
+function finEffective(fin) { return fin || lendemainIso(aujourdhui()); }
+
+function lirePeriode() {
+  return { dateDebut: per.debut.value, dateFin: per.fin.value || null, composants: lireComposantsDe(per.composants) };
+}
+
+// Périodes qui traversent un 31/08 (avant et/ou après la modification) :
+// leur consommation se répartit sur deux campagnes — affichées avant validation.
+function periodesA31Aout() {
+  const n = lirePeriode();
+  const res = [];
+  const yA = perAff ? traverse31Aout(perAff.dateDebut, finEffective(perAff.dateFin)) : null;
+  if (yA) res.push(`ration actuelle ${jjmmaaaa(perAff.dateDebut)} → ${perAff.dateFin ? jjmmaaaa(perAff.dateFin) : 'en cours'} (31/08/${yA})`);
+  const yN = n.dateDebut ? traverse31Aout(n.dateDebut, finEffective(n.dateFin)) : null;
+  if (yN) res.push(`ration modifiée ${jjmmaaaa(n.dateDebut)} → ${n.dateFin ? jjmmaaaa(n.dateFin) : 'en cours'} (31/08/${yN})`);
+  return res;
+}
+function majBandeau31() {
+  const l = periodesA31Aout();
+  per['31-08'].hidden = !l.length;
+  per['31-08'].textContent = l.length
+    ? `À cheval sur le 31/08 — consommation répartie entre deux campagnes : ${l.join(' ; ')}.` : '';
+}
+function perErreur(m) { per.erreur.textContent = m; per.erreur.hidden = !m; }
+
+export function ouvrirEditionPeriode(lot, affectationId) {
+  perLot = lot;
+  perAff = affectationsLot(lot).find((a) => a.id === affectationId) || null;
+  if (!perAff) return;
+  perEnAttente = null;
+  per.manque.hidden = true;
+  per.lot.textContent = `${lot.nom || 'Lot'} · ${perAff.nbBrebis || 0} têtes`;
+  per.debut.value = perAff.dateDebut || '';
+  per.fin.value = perAff.dateFin || '';
+  remplirComposants(per.composants, composantsAffectation(perAff));
+  perErreur('');
+  // Période d'une campagne clôturée : verrouillée tant qu'elle n'est pas réouverte.
+  let verrou = '';
+  try { verifierDateModifiable(perAff.dateDebut, 'cette ration'); } catch (e) { verrou = e.message; }
+  per.enregistrer.disabled = !!verrou;
+  per.supprimer.disabled = !!verrou;
+  if (verrou) perErreur(verrou);
+  majBandeau31();
+  per.panel.hidden = false;
+}
+function fermerPeriode() { per.panel.hidden = true; perLot = null; perAff = null; perEnAttente = null; }
+
+async function ecrirePeriode(finales, dateTouchee) {
+  await enregistrerAffectations(perLot, finales, dateTouchee);
+  toastSucces('Ration modifiée : stocks et bilan recalculés.');
+  fermerPeriode();
+}
+
+async function enregistrerPeriode() {
+  perErreur('');
+  per.manque.hidden = true;
+  if (!perLot || !perAff) return;
+  const n = lirePeriode();
+  let finales;
+  try {
+    finales = affectationsApresModification(perLot, perAff.id, n);
+    const touchee = n.dateDebut < perAff.dateDebut ? n.dateDebut : perAff.dateDebut;
+    verifierDateModifiable(touchee, 'cette ration');
+    const a31 = periodesA31Aout();
+    if (a31.length && !confirm(`Cette modification touche une période à cheval sur le 31/08 :\n- ${a31.join('\n- ')}\nSa consommation est répartie entre deux campagnes. Valider ?`)) return;
+    // Stock : une modification qui ferait manquer un aliment est refusée,
+    // avec la date d'épuisement et la proposition de reporter.
+    const aggraves = controlerRations(getLots().map((l) => (l.id === perLot.id ? { ...l, affectations: finales } : l)));
+    if (aggraves.length) {
+      perEnAttente = { finales, cle: aggraves[0].cle, date: aggraves[0].date, touchee };
+      const nom = (cle) => (n.composants.find((c) => c.stockCle === cle) || {}).stockLabel || cle;
+      per['manque-texte'].textContent = 'Modification refusée — stock insuffisant : ' +
+        aggraves.map((a) => `${nom(a.cle)} épuisé le ${jjmmaaaa(a.date)}`).join(' · ') + `. Reporter sur un autre aliment à partir du ${jjmmaaaa(aggraves[0].date)} :`;
+      const enStock = stockAuSoir(aujourdhui())
+        .filter((g) => g.tonnes > 0.001 && g.cle !== aggraves[0].cle && lireCle(g.cle).type !== 'paille')
+        .sort((a, b) => String(a.label).localeCompare(String(b.label), 'fr'));
+      per['manque-choix'].innerHTML = '<option value="">— Aliment en stock —</option>' + enStock.map((g) =>
+        `<option value="${escapeAttr(g.cle)}" data-label="${escapeAttr(g.label)}">${escapeHtml(g.label)} (${formatTonnes(g.tonnes)} t)</option>`).join('');
+      const c = n.composants.find((x) => x.stockCle === aggraves[0].cle);
+      per['manque-kg'].value = c ? c.kgParAnimalJour : '';
+      per['manque-reporter'].disabled = true;
+      per.manque.hidden = false;
+      return;
+    }
+    await ecrirePeriode(finales, touchee);
+  } catch (err) {
+    perErreur((err && err.message) || String(err));
+  }
+}
+
+async function reporterPeriode() {
+  const p = perEnAttente;
+  const opt = per['manque-choix'].selectedOptions[0];
+  if (!p || !opt || !opt.value) return;
+  try {
+    const finales = affectationsApresReport({ ...perLot, affectations: p.finales }, perAff.id, p.cle, p.date,
+      { stockCle: opt.value, stockLabel: opt.dataset.label, kgParAnimalJour: Number(String(per['manque-kg'].value).replace(',', '.')) });
+    await ecrirePeriode(finales, p.touchee);
+  } catch (err) { perErreur((err && err.message) || String(err)); }
+}
+
+async function supprimerPeriode() {
+  if (!perLot || !perAff) return;
+  if (!confirm('Supprimer cette période de ration ? Sa consommation sera retirée du stock et du bilan.')) return;
+  try {
+    await supprimerAffectation(perLot, perAff.id);
+    toastSucces('Ration supprimée : stocks et bilan recalculés.');
+    fermerPeriode();
+  } catch (err) { perErreur((err && err.message) || String(err)); }
+}
+
+// ============================================================================
 // Init + rendu global
 // ============================================================================
 export function initTroupeauRations() {
@@ -519,6 +649,15 @@ export function initTroupeauRations() {
   manque.choix.addEventListener('change', () => { manque.reporter.disabled = !manque.choix.value; });
   manque.reporter.addEventListener('click', reporterSaisie);
   manque.annuler.addEventListener('click', cacherManque);
+
+  per['composant-ajouter'].addEventListener('click', () => ajouterLigneVide(per.composants));
+  per.debut.addEventListener('change', majBandeau31);
+  per.fin.addEventListener('change', majBandeau31);
+  per.enregistrer.addEventListener('click', enregistrerPeriode);
+  per.annuler.addEventListener('click', fermerPeriode);
+  per.supprimer.addEventListener('click', supprimerPeriode);
+  per['manque-choix'].addEventListener('change', () => { per['manque-reporter'].disabled = !per['manque-choix'].value; });
+  per['manque-reporter'].addEventListener('click', reporterPeriode);
 
 }
 

@@ -207,6 +207,48 @@ export function affectationsApresReport(lot, affectationId, cleEpuisee, date, re
   return affectationsLot(lot).map((a) => (a.id === aff.id ? { ...a, dateFin: date } : a)).concat([suite]);
 }
 
+function jjmm(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : ''; }
+
+/**
+ * Rations du lot après modification d'une période (dates, composants), SANS
+ * rien écrire. Refuse un chevauchement avec une autre période du même lot.
+ * @param {{dateDebut:string, dateFin:string|null, composants:Array}} modif
+ */
+export function affectationsApresModification(lot, affectationId, { dateDebut, dateFin = null, composants = [] }) {
+  const aff = affectationsLot(lot).find((a) => a.id === affectationId);
+  if (!aff) throw new Error('Ration introuvable.');
+  if (!dateDebut) throw new Error('La date de début est obligatoire.');
+  if (dateFin && dateFin <= dateDebut) throw new Error('La date de fin doit être postérieure à la date de début.');
+  const autre = affectationsLot(lot).find((a) => a.id !== aff.id &&
+    a.dateDebut < (dateFin || '9999-12-31') && dateDebut < (a.dateFin || '9999-12-31'));
+  if (autre) {
+    throw new Error(`Chevauche la ration ${autre.dateFin ? `du ${jjmm(autre.dateDebut)} au ${jjmm(autre.dateFin)}` : `ouverte depuis le ${jjmm(autre.dateDebut)}`} : deux rations d'un même lot ne peuvent pas se superposer.`);
+  }
+  const propres = (composants || [])
+    .filter((c) => c.stockCle && Number(c.kgParAnimalJour) > 0)
+    .map((c) => ({ stockCle: c.stockCle, stockLabel: c.stockLabel, kgParAnimalJour: Number(c.kgParAnimalJour) || 0 }));
+  return affectationsLot(lot).map((a) => {
+    if (a.id !== aff.id) return a;
+    const m = { ...a, dateDebut, dateFin: dateFin || null, composants: propres, modifieLe: new Date().toISOString() };
+    delete m.snapshot;
+    return m;
+  });
+}
+
+/** La période [debut, fin) contient-elle un 31/08 → 01/09 ? Renvoie l'année du 31/08, ou null. */
+export function traverse31Aout(debut, finExclue) {
+  if (!debut) return null;
+  const an = Number(debut.slice(0, 4));
+  for (let y = an; y <= an + 50; y++) {
+    const pivot = `${y}-08-31`;
+    if (pivot < debut) continue;
+    // Le 31/08 est dans la période ET le 01/09 aussi (fin exclue > 01/09).
+    if (!finExclue || finExclue > `${y}-09-01`) return y;
+    return null;
+  }
+  return null;
+}
+
 /** Écrit un jeu de rations déjà calculé, après le verrou de campagne (date la plus ancienne touchée). */
 export async function enregistrerAffectations(lot, affectations, dateTouchee) {
   if (dateTouchee) verifierDateModifiable(dateTouchee, 'les rations');
