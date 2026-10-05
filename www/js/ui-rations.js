@@ -8,7 +8,8 @@
 import {
   affectationsLot, historiqueAffectations, affectationEnCours,
   distribuerRation, supprimerAffectation, tonnesComposant, composantsAffectation,
-  precedenteFermeePar, rouvrirAffectation
+  precedenteFermeePar, rouvrirAffectation,
+  affectationsApresDistribution, affectationsApresReport, enregistrerAffectations
 } from './affectations.js';
 import {
   besoinJournalierParStock,
@@ -23,9 +24,10 @@ import { getStades, onStadesChange } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { getCampagneStockChoisie, onCampagneStockChange } from './campagne-stock.js';
 import { stockAuSoir } from './clotures-stock.js';
+import { controlerRations } from './plafond-conso.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes, metaParCle } from './ui-stocks.js';
-import { bilanParTypeAnimaux, estAchete } from './groupes-stock.js';
+import { bilanParTypeAnimaux, estAchete, lireCle } from './groupes-stock.js';
 import { toastSucces, toastErreur } from './toast.js';
 import { entreesCampagneParCategorie } from './fourrages.js';
 import { getMouvements, updateMouvement, deleteMouvement } from './mouvements.js';
@@ -411,14 +413,76 @@ function renderAffectationsLot(lot) {
   });
 }
 
+// Stock insuffisant pour la ration saisie : message avec la date
+// d'épuisement, et « Reporter » sur un aliment en stock (la ration se coupe
+// ce jour-là). Rien n'est enregistré tant que l'exploitant n'a pas choisi.
+const manque = {
+  bloc: document.getElementById('lot-r-manque'),
+  texte: document.getElementById('lot-r-manque-texte'),
+  choix: document.getElementById('lot-r-manque-choix'),
+  kg: document.getElementById('lot-r-manque-kg'),
+  reporter: document.getElementById('lot-r-manque-reporter'),
+  annuler: document.getElementById('lot-r-manque-annuler')
+};
+let saisieEnAttente = null;   // { composants, dateDebut, dateFin, cle, date }
+
+function jjmmaaaa(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : ''; }
+
+function montrerManque(saisie, aggraves) {
+  saisieEnAttente = { ...saisie, cle: aggraves[0].cle, date: aggraves[0].date };
+  const nom = (cle) => (saisie.composants.find((c) => c.stockCle === cle) || {}).stockLabel || cle;
+  manque.texte.textContent = 'Stock insuffisant : ' + aggraves.map((a) => `${nom(a.cle)} épuisé le ${jjmmaaaa(a.date)}`).join(' · ') +
+    `. Choisir un autre aliment à partir du ${jjmmaaaa(aggraves[0].date)} :`;
+  const enStock = stockAuSoir(aujourdhui())
+    .filter((g) => g.tonnes > 0.001 && g.cle !== aggraves[0].cle && lireCle(g.cle).type !== 'paille')
+    .sort((a, b) => String(a.label).localeCompare(String(b.label), 'fr'));
+  manque.choix.innerHTML = '<option value="">— Aliment en stock —</option>' + enStock.map((g) =>
+    `<option value="${escapeAttr(g.cle)}" data-label="${escapeAttr(g.label)}">${escapeHtml(g.label)} (${formatTonnes(g.tonnes)} t)</option>`).join('');
+  const c = saisie.composants.find((x) => x.stockCle === aggraves[0].cle);
+  manque.kg.value = c ? c.kgParAnimalJour : '';
+  manque.reporter.disabled = true;
+  manque.bloc.hidden = false;
+}
+function cacherManque() { manque.bloc.hidden = true; saisieEnAttente = null; }
+
+async function reporterSaisie() {
+  const s = saisieEnAttente;
+  if (!s || !manque.choix.value || !lotCourant) return;
+  manque.reporter.disabled = true;
+  try {
+    // Nouvelle ration + report calculés ensemble, une seule écriture.
+    const opt = manque.choix.selectedOptions[0];
+    const { affectations, nouvelle } = affectationsApresDistribution(lotCourant, s);
+    const finales = affectationsApresReport({ ...lotCourant, affectations }, nouvelle.id, s.cle, s.date,
+      { stockCle: opt.value, stockLabel: opt.dataset.label, kgParAnimalJour: Number(String(manque.kg.value).replace(',', '.')) });
+    await enregistrerAffectations(lotCourant, finales, s.dateDebut);
+    toastSucces(`Ration distribuée, reportée sur ${opt.dataset.label} à partir du ${jjmmaaaa(s.date)}.`);
+    cacherManque();
+    lotCourant = { ...lotCourant, affectations: finales };
+    lotDebut.value = aujourdhui();
+    lotFin.value = '';
+    remplirComposants(lotComposantsEl, []);
+    renderAffectationsLot(lotCourant);
+  } catch (err) {
+    showErreurLot('Report impossible : ' + ((err && err.message) || err));
+    manque.reporter.disabled = false;
+  }
+}
+
 async function surChangerRation() {
   hideErreurLot();
+  cacherManque();
   if (!lotCourant) return;
   btnChangerRation.disabled = true;
   try {
     const composants = lireComposantsDe(lotComposantsEl);
     const dateDebut = lotDebut.value || aujourdhui();
     const dateFin = lotFin.value || null;
+    if (dateFin && dateFin <= dateDebut) throw new ErreurDeSaisie('La date de fin doit être postérieure à la date de début.');
+    // Contrôle du stock AVANT d'enregistrer (y compris pour une ration passée).
+    const candidat = affectationsApresDistribution(lotCourant, { composants, dateDebut, dateFin }).affectations;
+    const aggraves = controlerRations(getLots().map((l) => (l.id === lotCourant.id ? { ...l, affectations: candidat } : l)));
+    if (aggraves.length) { montrerManque({ composants, dateDebut, dateFin }, aggraves); return; }
     const resultat = await distribuerRation(lotCourant, { composants, dateDebut, dateFin });
     lotCourant = { ...lotCourant, affectations: affectationsLot(lotCourant).filter((a) => a.id !== resultat.id).concat([resultat]) };
     log('ration distribuée au lot');
@@ -452,6 +516,9 @@ export function initTroupeauRations() {
   ajouterLigneVide(lotComposantsEl);
   btnComposantLot.addEventListener('click', () => ajouterLigneVide(lotComposantsEl));
   btnChangerRation.addEventListener('click', surChangerRation);
+  manque.choix.addEventListener('change', () => { manque.reporter.disabled = !manque.choix.value; });
+  manque.reporter.addEventListener('click', reporterSaisie);
+  manque.annuler.addEventListener('click', cacherManque);
 
 }
 

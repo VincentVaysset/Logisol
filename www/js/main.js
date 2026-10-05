@@ -86,6 +86,13 @@ import {
   ouvrirApercuBatiment, renderStockageParBatiment
 } from './ui-mouvements.js';
 import { initLieux, renderLieux as renderBatiments } from './ui-lieux.js';
+import { setFournisseurPlafonds } from './affectations.js';
+import { plafondsCourants } from './plafond-conso.js';
+
+// Consommation plafonnée au stock (plafond-conso.js) : branchée ici, une
+// fois, pour que toute tonne consommée calculée (Stocks, Bilan, Troupeau,
+// Bâtiments, Inventaire) s'arrête au stock disponible.
+setFournisseurPlafonds(plafondsCourants);
 import { verifierRegles } from './diagnostic-regles.js';
 import {
   watchMateriels, onMaterielsChange, ensureSeeded as ensureMaterielSeeded,

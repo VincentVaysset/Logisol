@@ -1052,6 +1052,15 @@
           <input type="date" id="lot-r-fin">
 
           <p id="lot-r-erreur" class="champ-aide champ-aide-erreur" hidden></p>
+          <div id="lot-r-manque" class="trp-alerte trp-alerte-form" hidden>
+            <div id="lot-r-manque-texte"></div>
+            <div class="trp-report">
+              <select id="lot-r-manque-choix"></select>
+              <span class="trp-report-kg"><input type="number" id="lot-r-manque-kg" min="0" step="0.01" inputmode="decimal"> kg/j</span>
+              <span class="trp-report-actions"><button type="button" id="lot-r-manque-reporter" class="stk-btn-sombre" disabled>Reporter</button>
+                <button type="button" id="lot-r-manque-annuler" class="stk-lien-gris">Annuler</button></span>
+            </div>
+          </div>
           <button type="button" id="lot-r-affecter" class="btn btn-secondary btn-mini">🔄 Changer la ration</button>
         </div>
       </div>

@@ -2087,3 +2087,17 @@ header .campagne-select { min-height: 32px; }
 .trp-bilan-aliment-val small { font-size: 11px; color: #94a3b8; }
 .stk-jauge-concentres { background: #d97706 !important; }
 .trp-totaux-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* Aliment épuisé (consommation plafonnée au stock) : orange, jamais rouge. */
+.trp-alerte { margin: 0 14px 10px; padding: 10px 12px; border-radius: 12px; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; font-size: 13px; }
+.trp-alerte-tete { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.trp-alerte-btn {
+  flex: 0 0 auto; background: #fff; border: 1px solid #f59e0b; color: #92400e; border-radius: 10px;
+  padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; min-height: 0 !important;
+}
+.trp-report { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.trp-report select { margin: 0; }
+.trp-report-kg { display: flex; align-items: center; gap: 6px; }
+.trp-report-kg input { width: 90px; margin: 0; }
+.trp-report-actions { display: flex; align-items: center; gap: 14px; }
+.trp-epuise { color: #b45309; font-weight: 600; }

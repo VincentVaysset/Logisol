@@ -20,8 +20,10 @@ import {
 } from './ui-rations.js';
 import {
   affectationEnCours, composantsAffectation, historiqueAffectations, affectationsLot,
-  supprimerAffectation, rouvrirAffectation, precedenteFermeePar, tonnesComposant
+  supprimerAffectation, rouvrirAffectation, precedenteFermeePar, tonnesComposant, reporterComposant
 } from './affectations.js';
+import { epuisementsDuLot } from './plafond-conso.js';
+import { lireCle } from './groupes-stock.js';
 import { besoinJournalierParStock } from './rations-calc.js';
 import { rationParAnimal } from './groupes-stock.js';
 import { stockAuSoir } from './clotures-stock.js';
@@ -49,6 +51,7 @@ const errorText = document.getElementById('lot-error-text');
 const alerteEl = document.getElementById('troupeau-alerte');
 const lotsEl = document.getElementById('troupeau-lots');
 const historiquesOuverts = new Set();
+let reportOuvert = null;   // « lotId|affId|cle » dont le choix de remplacement est déplié
 const sousVuesEl = document.getElementById('troupeau-sous-vues');
 const vuePrevisionnelEl = document.getElementById('troupeau-previsionnel');
 const vueActuelleEl = document.getElementById('troupeau-actuel');
@@ -314,12 +317,15 @@ function renderLots() {
           : `<span class="trp-epuise">Stock épuisé : ${escapeHtml(r.label)}</span>`}</span><span class="stk-lien">Stocks →</span></button>`
       : '';
     const ouvert = historiquesOuverts.has(lot.id);
+    // Aliment épuisé : la consommation est plafonnée au stock (plafond-conso.js)
+    // et rien ne bascule tout seul — l'alerte reste jusqu'au report.
+    const alertes = epuisementsDuLot(lot).map((e) => alerteEpuisement(lot, e, stock)).join('');
     return `<div class="stk-carte trp-lot" data-id="${escapeAttr(lot.id)}">
       <div class="trp-lot-tete">
         <div class="stk-groupe-tete"><span class="stk-groupe-nom">${escapeHtml(lot.nom || 'Lot')}</span>${badge}</div>
         <p class="stk-groupe-sous">${escapeHtml(sous)}</p>
       </div>
-      ${lignes}${total}${restant}
+      ${alertes}${lignes}${total}${restant}
       <div class="stk-actions">
         <button type="button" class="stk-lien" data-changer="${escapeAttr(lot.id)}">🔄 Changer la ration</button>
         <button type="button" class="stk-lien-gris" data-historique="${escapeAttr(lot.id)}">Historique ${ouvert ? '▴' : '▾'}</button>
@@ -346,6 +352,32 @@ function renderLots() {
   lotsEl.querySelectorAll('[data-vers="stocks"]').forEach((b) => b.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('logisol:vue', { detail: 'stocks' }));
   }));
+  lotsEl.querySelectorAll('[data-reporter]').forEach((b) => b.addEventListener('click', () => {
+    reportOuvert = reportOuvert === b.dataset.reporter ? null : b.dataset.reporter;
+    renderLots();
+  }));
+  lotsEl.querySelectorAll('[data-report-choix]').forEach((sel) => sel.addEventListener('change', () => {
+    const opt = sel.selectedOptions[0];
+    sel.closest('.trp-report').querySelector('[data-report-valider]').disabled = !opt || !opt.value;
+  }));
+  lotsEl.querySelectorAll('[data-report-annuler]').forEach((b) => b.addEventListener('click', () => { reportOuvert = null; renderLots(); }));
+  lotsEl.querySelectorAll('[data-report-valider]').forEach((b) => b.addEventListener('click', async () => {
+    const bloc = b.closest('.trp-alerte');
+    const [lotId, affId, cle, date] = [bloc.dataset.lot, bloc.dataset.aff, bloc.dataset.cle, bloc.dataset.date];
+    const lot = getLots().find((l) => l.id === lotId);
+    const sel = bloc.querySelector('[data-report-choix]');
+    const kgJ = Number(String(bloc.querySelector('[data-report-kg]').value).replace(',', '.'));
+    if (!lot || !sel.value) return;
+    b.disabled = true;
+    try {
+      await reporterComposant(lot, affId, cle, date, { stockCle: sel.value, stockLabel: sel.selectedOptions[0].dataset.label, kgParAnimalJour: kgJ });
+      reportOuvert = null;
+      toastSucces(`Reporté sur ${sel.selectedOptions[0].dataset.label} à partir du ${jjmm(date)}.`);
+    } catch (err) {
+      toastErreur('Report impossible : ' + ((err && err.message) || err));
+      b.disabled = false;
+    }
+  }));
   lotsEl.querySelectorAll('[data-suppr-ration]').forEach((b) => b.addEventListener('click', async () => {
     const lot = getLots().find((l) => l.id === b.dataset.lot);
     if (!lot || !confirm('Supprimer cette ration ? Sa consommation sera retirée du stock et du bilan.')) return;
@@ -363,6 +395,28 @@ function renderLots() {
       b.disabled = false;
     }
   }));
+}
+
+// « [Aliment] épuisé le JJ/MM. Choisir un autre aliment » + Reporter : la
+// ration d'origine se termine ce jour-là, une nouvelle démarre avec
+// l'aliment choisi parmi ceux en stock (même kg/j par défaut).
+function alerteEpuisement(lot, e, stock) {
+  const id = `${lot.id}|${e.aff.id}|${e.composant.stockCle}`;
+  const ouvert = reportOuvert === id;
+  const choix = ouvert ? stockAuSoir(aujourdhui())
+    .filter((g) => g.tonnes > 0.001 && g.cle !== e.composant.stockCle && lireCle(g.cle).type !== 'paille')
+    .sort((a, b) => String(a.label).localeCompare(String(b.label), 'fr')) : [];
+  return `<div class="trp-alerte" data-lot="${escapeAttr(lot.id)}" data-aff="${escapeAttr(e.aff.id)}" data-cle="${escapeAttr(e.composant.stockCle)}" data-date="${escapeAttr(e.date)}">
+    <div class="trp-alerte-tete"><span>⚠️ ${escapeHtml(e.composant.stockLabel)} épuisé le ${jjmm(e.date)}. Choisir un autre aliment</span>
+      <button type="button" class="trp-alerte-btn" data-reporter="${escapeAttr(id)}">Reporter</button></div>
+    ${ouvert ? `<div class="trp-report">
+      <select data-report-choix><option value="">— Aliment en stock —</option>${choix.map((g) =>
+        `<option value="${escapeAttr(g.cle)}" data-label="${escapeAttr(g.label)}">${escapeHtml(g.label)} (${formatTonnes(g.tonnes)} t)</option>`).join('')}</select>
+      <span class="trp-report-kg"><input type="number" data-report-kg min="0" step="0.01" inputmode="decimal" value="${escapeAttr(e.composant.kgParAnimalJour)}"> kg/j</span>
+      <span class="trp-report-actions"><button type="button" class="stk-btn-sombre" data-report-valider disabled>Reporter à partir du ${jjmm(e.date)}</button>
+        <button type="button" class="stk-lien-gris" data-report-annuler>Annuler</button></span>
+    </div>` : ''}
+  </div>`;
 }
 
 // Historique des rations d'un lot (ex-journal des distributions) : dates,

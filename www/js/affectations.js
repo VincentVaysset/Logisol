@@ -25,9 +25,18 @@
 import { db } from './firebase-config.js';
 import { doc, updateDoc, serverTimestamp } from "../vendor/firebase/firebase-firestore.js";
 import { aujourdhui } from './implantations.js';
-import { joursDansFenetre } from './campagne-stock.js';
 import { verifierDateModifiable } from './verrou-campagne.js';
 import { ecrire } from './ecriture-locale.js';
+import { joursEffectifs } from './plafond-calc.js';
+
+// Consommation plafonnée au stock (plafond-calc.js / plafond-conso.js) :
+// fourni par main.js, pour ne pas faire dépendre ce module du journal des
+// stocks (dépendance circulaire). Sans fournisseur : consommation brute.
+let fournisseurPlafonds = null;
+export function setFournisseurPlafonds(fn) { fournisseurPlafonds = fn; }
+function manquesCourants() {
+  try { return fournisseurPlafonds ? fournisseurPlafonds() : null; } catch (_) { return null; }
+}
 
 // Rations : n'attendre que la file locale (hors réseau, « Changer la ration »
 // restait sinon suspendu jusqu'au retour du réseau).
@@ -84,10 +93,23 @@ export function besoinJournalierAffectation(aff) {
   return composantsAffectation(aff).reduce((n, c) => n + nb * (Number(c.kgParAnimalJour) || 0), 0);
 }
 
-// Tonnes consommées par UN composant d'une distribution, jusqu'à une date.
+// Jours nourris d'un composant sur [debut, finExclue) : les jours où son
+// aliment manquait ne comptent que pour la part réellement couverte.
+function joursNourris(composant, debut, finExclue) {
+  if (!debut || !finExclue || finExclue <= debut) return 0;
+  const m = manquesCourants();
+  if (m) return joursEffectifs(m, composant.stockCle, debut, finExclue);
+  return Math.round((Date.parse(finExclue + 'T12:00:00') - Date.parse(debut + 'T12:00:00')) / 86400000);
+}
+
+// Tonnes consommées par UN composant d'une distribution, jusqu'à une date
+// (plafonnées au stock disponible, cf. plafond-calc.js).
 export function tonnesComposant(aff, composant, date = aujourdhui()) {
-  const nb = Number(aff && aff.nbBrebis) || 0;
-  const kg = nb * (Number(composant.kgParAnimalJour) || 0) * joursAffectation(aff, date);
+  if (!aff || !aff.dateDebut) return 0;
+  const nb = Number(aff.nbBrebis) || 0;
+  const plafond = lendemain(date);
+  const fin = aff.dateFin && aff.dateFin < plafond ? aff.dateFin : plafond;
+  const kg = nb * (Number(composant.kgParAnimalJour) || 0) * joursNourris(composant, aff.dateDebut, fin);
   return Math.round((kg / 1000) * 1000) / 1000;
 }
 
@@ -95,9 +117,14 @@ export function tonnesComposant(aff, composant, date = aujourdhui()) {
 // cf. campagne-stock.js) : une ration qui chevauche le 31/08 est coupée au
 // prorata des jours tombant de chaque côté.
 export function tonnesComposantFenetre(aff, composant, fenetre, date = aujourdhui()) {
-  const nb = Number(aff && aff.nbBrebis) || 0;
-  const j = joursDansFenetre(aff && aff.dateDebut, (aff && aff.dateFin) || null, fenetre, date);
-  const kg = nb * (Number(composant.kgParAnimalJour) || 0) * j;
+  if (!aff || !aff.dateDebut || !fenetre) return 0;
+  const nb = Number(aff.nbBrebis) || 0;
+  // [debut, fin) ∩ [01/09, 31/08] ∩ jusqu'à date (même bornes que joursDansFenetre).
+  const debut = aff.dateDebut > fenetre.debut ? aff.dateDebut : fenetre.debut;
+  let fin = lendemain(fenetre.fin);
+  if (date && lendemain(date) < fin) fin = lendemain(date);
+  if (aff.dateFin && aff.dateFin < fin) fin = aff.dateFin;
+  const kg = nb * (Number(composant.kgParAnimalJour) || 0) * joursNourris(composant, debut, fin);
   return Math.round((kg / 1000) * 1000) / 1000;
 }
 
@@ -112,14 +139,13 @@ function idAffectation() {
  * @param {{id:string, nbBrebis:number}} lot
  * @param {{composants:Array<{stockCle,stockLabel,kgParAnimalJour}>, dateDebut:string, dateFin?:string|null}} p
  */
-export async function distribuerRation(lot, { composants = [], dateDebut, dateFin = null }) {
-  if (!lot || !lot.id) throw new Error('Lot introuvable.');
+/**
+ * Rations du lot après une nouvelle distribution, SANS rien écrire (sert aussi
+ * à contrôler le stock avant d'enregistrer) : ferme la distribution encore
+ * ouverte à dateDebut, ajoute la nouvelle.
+ */
+export function affectationsApresDistribution(lot, { composants = [], dateDebut, dateFin = null }) {
   const debut = dateDebut || aujourdhui();
-  if (dateFin && dateFin <= debut) throw new Error('La date de fin doit être postérieure à la date de début.');
-  // Changer la ration modifie la consommation à partir de son début (et clôt
-  // la précédente à cette date) : interdit dans une campagne clôturée.
-  verifierDateModifiable(debut, 'les rations');
-
   const actuelles = affectationsLot(lot).map((a) => {
     if (!a.dateFin || a.dateFin > debut) {
       if (a.dateDebut >= debut) return null; // remplacée avant même d'avoir commencé
@@ -140,10 +166,56 @@ export async function distribuerRation(lot, { composants = [], dateDebut, dateFi
     dateFin: dateFin || null,
     creeLe: new Date().toISOString()
   };
+  return { affectations: actuelles.concat([nouvelle]), nouvelle };
+}
 
-  const affectations = actuelles.concat([nouvelle]);
+export async function distribuerRation(lot, { composants = [], dateDebut, dateFin = null }) {
+  if (!lot || !lot.id) throw new Error('Lot introuvable.');
+  const debut = dateDebut || aujourdhui();
+  if (dateFin && dateFin <= debut) throw new Error('La date de fin doit être postérieure à la date de début.');
+  // Changer la ration modifie la consommation à partir de son début (et clôt
+  // la précédente à cette date) : interdit dans une campagne clôturée.
+  verifierDateModifiable(debut, 'les rations');
+  const { affectations, nouvelle } = affectationsApresDistribution(lot, { composants, dateDebut: debut, dateFin });
   await ecrireAffectations(lot, affectations);
   return nouvelle;
+}
+
+/**
+ * « Reporter » un aliment épuisé, SANS rien écrire : la ration d'origine se
+ * termine le jour D où l'aliment a manqué ; une nouvelle ration démarre à D,
+ * identique sauf l'aliment épuisé, remplacé (même kg/j par défaut).
+ * @param {{stockCle, stockLabel, kgParAnimalJour}} remplacement
+ */
+export function affectationsApresReport(lot, affectationId, cleEpuisee, date, remplacement) {
+  const aff = affectationsLot(lot).find((a) => a.id === affectationId);
+  if (!aff) throw new Error('Ration introuvable.');
+  if (!remplacement || !remplacement.stockCle || !(Number(remplacement.kgParAnimalJour) > 0)) {
+    throw new Error("Choisis l'aliment de remplacement et sa dose.");
+  }
+  const composants = [];
+  composantsAffectation(aff).forEach((c) => { if (c.stockCle !== cleEpuisee) composants.push({ ...c }); });
+  const deja = composants.find((c) => c.stockCle === remplacement.stockCle);
+  if (deja) deja.kgParAnimalJour = Math.round((Number(deja.kgParAnimalJour) + Number(remplacement.kgParAnimalJour)) * 1000) / 1000;
+  else composants.push({ stockCle: remplacement.stockCle, stockLabel: remplacement.stockLabel, kgParAnimalJour: Number(remplacement.kgParAnimalJour) });
+  if (date <= aff.dateDebut) {
+    return affectationsLot(lot).map((a) => (a.id === aff.id ? { ...a, composants } : a));
+  }
+  const suite = { ...aff, id: idAffectation(), dateDebut: date, dateFin: aff.dateFin || null, composants,
+    reportDe: aff.id, creeLe: new Date().toISOString() };
+  delete suite.snapshot;
+  return affectationsLot(lot).map((a) => (a.id === aff.id ? { ...a, dateFin: date } : a)).concat([suite]);
+}
+
+/** Écrit un jeu de rations déjà calculé, après le verrou de campagne (date la plus ancienne touchée). */
+export async function enregistrerAffectations(lot, affectations, dateTouchee) {
+  if (dateTouchee) verifierDateModifiable(dateTouchee, 'les rations');
+  return ecrireAffectations(lot, affectations);
+}
+
+export async function reporterComposant(lot, affectationId, cleEpuisee, date, remplacement) {
+  verifierDateModifiable(date, 'les rations');
+  return ecrireAffectations(lot, affectationsApresReport(lot, affectationId, cleEpuisee, date, remplacement));
 }
 
 // La distribution que "affectation" a fermée en démarrant (sa dateDebut est
