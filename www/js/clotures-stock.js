@@ -23,8 +23,8 @@ import { ecrire } from './ecriture-locale.js';
 
 function arrondi3(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
 
-function journalAuSoir(date) {
-  return stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots(), date);
+function journalAuSoir(date, opts) {
+  return stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots(), date, opts);
 }
 
 /** Dernière clôture (avec instantané) dont le 31/08 précède strictement date. */
@@ -39,11 +39,11 @@ function departApplicable(date) {
  * l'Inventaire et du « Stock restant » de Troupeau.
  * @returns {Array<{cle,label,tonnes}>}
  */
-export function stockAuSoir(date) {
-  const actuel = journalAuSoir(date);
+export function stockAuSoir(date, opts = {}) {
+  const actuel = journalAuSoir(date, opts);
   const depart = departApplicable(date);
   if (!depart) return actuel;
-  const auFin = new Map(journalAuSoir(bornesCampagneStock(depart.id).fin).map((g) => [g.cle, g.tonnes]));
+  const auFin = new Map(journalAuSoir(bornesCampagneStock(depart.id).fin, opts).map((g) => [g.cle, g.tonnes]));
   const parCle = new Map();
   const ligne = (cle, label) => {
     if (!parCle.has(cle)) parCle.set(cle, { cle, label, tonnes: 0, bottes: 0 });
@@ -54,6 +54,9 @@ export function stockAuSoir(date) {
   auFin.forEach((t, cle) => { const x = ligne(cle, cle); x.tonnes = arrondi3(x.tonnes - t); });
   return Array.from(parCle.values()).sort((a, b) => b.tonnes - a.tonnes);
 }
+
+/** Stock « journal brut » au soir d'une date, sans instantané de clôture (aperçu Diagnostic). */
+export function journalSansCloture(date, opts = {}) { return journalAuSoir(date, opts); }
 
 export function stockTheoriqueAu(cle, date) {
   const g = stockAuSoir(date).find((x) => x.cle === cle);

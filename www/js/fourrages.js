@@ -19,6 +19,7 @@ import { getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacementById } from './emplacements.js';
 import { niveauContenant } from './mouvements.js';
 import { consommationParStock } from './rations-calc.js';
+import { ventilationAvecTransferts } from './transferts-calc.js';
 
 function arrondi3(v) { return Math.round((Number(v) || 0) * 1000) / 1000; }
 
@@ -297,11 +298,38 @@ export function croiseCoupeFourrage(categories) {
  * ici — elle reste dans le total brut affiché à côté, pas fondue dedans.
  * @returns {Array<{cle, label, tonnes, bottes}>}
  */
-export function stockNetParCategorie(mouvements, cellules, emplacements) {
-  const parCle = new Map();
+// opts.transferts : un transfert conserve le stock (transferts-calc.js). Pas
+// encore le calcul de Stocks : il n'est utilisé que par l'aperçu avant /
+// après du Diagnostic, en attendant la validation sur les vraies données.
+export const TRANSFERTS_CONSERVES = false;
+
+/** Ventilation de chaque contenant, avec ou sans prise en compte des transferts. */
+export function ventilationsDesContenants(mouvements, cellules, emplacements, opts = {}) {
+  const avecTransferts = opts.transferts != null ? opts.transferts : TRANSFERTS_CONSERVES;
+  const res = new Map();
+  const tout = avecTransferts
+    ? ventilationAvecTransferts(mouvements, { identite: identiteDuMouvement, tonnes: tonnesDuMouvement })
+    : null;
   const ajouter = (type, id) => {
+    const k = `${type}|${id}`;
     const niveau = niveauContenant(type, id, mouvements);
-    const v = ventilationContenant(type, id, mouvements, niveau.quantite);
+    if (tout) {
+      const v = tout.get(k) || { niveau: 0, unite: type === 'EMPLACEMENT_FOURRAGE' ? 'bottes' : 't', lots: [] };
+      res.set(k, { ...v, poidsMoyenBotteKg: niveau.poidsMoyenBotteKg || 0 });
+      return;
+    }
+    res.set(k, { ...ventilationContenant(type, id, mouvements, niveau.quantite), poidsMoyenBotteKg: niveau.poidsMoyenBotteKg || 0 });
+  };
+  (cellules || []).forEach((c) => ajouter('CELLULE', c.id));
+  (emplacements || []).forEach((e) => ajouter('EMPLACEMENT_FOURRAGE', e.id));
+  return res;
+}
+
+export function stockNetParCategorie(mouvements, cellules, emplacements, opts = {}) {
+  const parCle = new Map();
+  const ventilations = ventilationsDesContenants(mouvements, cellules, emplacements, opts);
+  const ajouter = (type, id) => {
+    const v = ventilations.get(`${type}|${id}`);
     v.lots.forEach((l) => {
       if (!parCle.has(l.cle)) {
         parCle.set(l.cle, { cle: l.cle, label: l.label, tonnes: 0, bottes: 0 });
@@ -341,10 +369,10 @@ export function stockNetParCategorie(mouvements, cellules, emplacements) {
 // Les AJUSTEMENTS (écart constaté à un inventaire, sans contenant) s'ajoutent
 // par catégorie après le calcul par contenant, comme la consommation : ils
 // corrigent le stock, jamais la consommation (le Bilan ne lit que les rations).
-export function stockDisponibleCanonique(mouvements, cellules, emplacements, lots, date) {
+export function stockDisponibleCanonique(mouvements, cellules, emplacements, lots, date, opts = {}) {
   const retenus = (mouvements || []).filter((m) => m.typeMouvement !== 'SORTIE_ALIMENTATION' &&
     !m.excluCalcul && (!date || m.date <= date));
-  const net = stockNetParCategorie(retenus.filter((m) => m.typeMouvement !== 'AJUSTEMENT'), cellules, emplacements);
+  const net = stockNetParCategorie(retenus.filter((m) => m.typeMouvement !== 'AJUSTEMENT'), cellules, emplacements, opts);
   const parCle = new Map(net.map((g) => [g.cle, { ...g }]));
   const ligne = (cle, label) => {
     if (!parCle.has(cle)) parCle.set(cle, { cle, label, tonnes: 0, bottes: 0 });

@@ -10,12 +10,14 @@ import {
 } from '../vendor/firebase/firebase-firestore.js';
 import { lireJournal, viderJournal, ligneJournal } from './journal-ecritures.js';
 import { toastSucces, toastErreur } from './toast.js';
+import { rapportTransferts } from './diagnostic-transferts.js';
 
 const DELAI_SERVEUR_MS = 8000;
 const el = {};
 
 export function initOutilsDiagnostic() {
-  ['panel', 'etat', 'parcelle', 'parcelles', 'date', 'chercher', 'resultat', 'journal', 'copier', 'vider', 'fermer']
+  ['panel', 'etat', 'parcelle', 'parcelles', 'date', 'chercher', 'resultat', 'journal', 'copier', 'vider', 'fermer',
+   'transferts', 'transferts-resultat']
     .forEach((k) => { el[k] = document.getElementById('diag-' + k); });
   const bouton = document.getElementById('debug-outils');
   if (!bouton || !el.panel) return;
@@ -27,6 +29,11 @@ export function initOutilsDiagnostic() {
     viderJournal().then(afficherJournal);
   });
   el.copier.addEventListener('click', copierTout);
+  el.transferts.addEventListener('click', () => {
+    el['transferts-resultat'].hidden = false;
+    try { el['transferts-resultat'].textContent = rapportTransferts(); }
+    catch (err) { el['transferts-resultat'].textContent = 'Aperçu impossible : ' + raison(err); }
+  });
 }
 
 async function ouvrir() {
@@ -231,6 +238,7 @@ async function afficherJournal() {
 
 async function copierTout() {
   const texte = [el.etat.textContent, el.resultat.hidden ? '' : el.resultat.textContent,
+    el['transferts-resultat'].hidden ? '' : el['transferts-resultat'].textContent,
     'JOURNAL DES ÉCRITURES (plus récent en premier)', el.journal.textContent].filter(Boolean).join('\n\n');
   try {
     await navigator.clipboard.writeText(texte);
