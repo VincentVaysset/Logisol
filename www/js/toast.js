@@ -38,3 +38,28 @@ export function toastErreur(message) {
   console.error('[Logisol]', message);
   afficherToast(message, 'erreur');
 }
+
+/**
+ * Confirmation avec une action (« Annuler ») : reste plus longtemps, et le
+ * bouton est cliquable (le conteneur, lui, laisse passer les taps).
+ */
+export function toastAction(message, libelleAction, onAction, dureeMs = 6000) {
+  const c = conteneur();
+  const el = document.createElement('div');
+  el.className = 'toast toast-succes toast-avec-action';
+  const texte = document.createElement('span');
+  texte.textContent = message;
+  const bouton = document.createElement('button');
+  bouton.type = 'button';
+  bouton.className = 'toast-action';
+  bouton.textContent = libelleAction;
+  const fermer = () => {
+    el.classList.remove('toast-visible');
+    setTimeout(() => el.remove(), 250);
+  };
+  bouton.addEventListener('click', () => { bouton.disabled = true; fermer(); onAction(); });
+  el.append(texte, bouton);
+  c.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('toast-visible')));
+  setTimeout(fermer, dureeMs);
+}

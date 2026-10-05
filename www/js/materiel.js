@@ -14,9 +14,10 @@
 import { db, auth } from './firebase-config.js';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, getDoc, getDocs, setDoc,
-  onSnapshot, serverTimestamp
+  onSnapshot, serverTimestamp, query, where
 } from "../vendor/firebase/firebase-firestore.js";
 import { aujourdhui } from './implantations.js';
+import { ecrire } from './ecriture-locale.js';
 
 const COL = collection(db, 'lgs_materiel');
 
@@ -29,17 +30,28 @@ const COL = collection(db, 'lgs_materiel');
 // précédente.
 const COL_ENTRETIEN = collection(db, 'lgs_materiel_entretien');
 
+// « Niveaux / Pression » et « Nettoyage » restent : des entrées existent
+// peut-être déjà. « Autre » porte un libellé libre, reproposé ensuite comme
+// un type à part (cf. libellesAutres) : les types personnalisés, sans
+// collection de plus.
 export const TYPES_ENTRETIEN = [
-  { value: 'GRAISSAGE',  label: 'Graissage',                    icone: '🛢️' },
-  { value: 'SOUFFLAGE',  label: 'Soufflage filtres/radiateurs',  icone: '💨' },
-  { value: 'VIDANGE',    label: 'Vidange',                       icone: '🔧' },
-  { value: 'NIVEAUX',    label: 'Niveaux / Pression',            icone: '📏' },
-  { value: 'NETTOYAGE',  label: 'Nettoyage / Lavage',            icone: '🧼' }
+  { value: 'GRAISSAGE',  label: 'Graissage',                       icone: '🛢️' },
+  { value: 'VIDANGE',    label: 'Vidange',                         icone: '🔧' },
+  { value: 'FILTRES',    label: 'Filtres',                         icone: '🧽' },
+  { value: 'SOUFFLAGE',  label: 'Soufflage filtres / radiateurs',  icone: '💨' },
+  { value: 'NIVEAUX',    label: 'Niveaux / Pression',              icone: '📏' },
+  { value: 'NETTOYAGE',  label: 'Nettoyage / Lavage',              icone: '🧼' },
+  { value: 'AUTRE',      label: 'Autre',                           icone: '🛠️' }
 ];
 
-export function labelEntretien(type) {
-  const t = TYPES_ENTRETIEN.find((x) => x.value === type);
-  return t ? t.label : type;
+/** Libellé d'un type, ou d'une entrée du journal (« Autre » : son libellé). */
+export function labelEntretien(typeOuEntree) {
+  if (typeOuEntree && typeof typeOuEntree === 'object') {
+    if (typeOuEntree.type === 'AUTRE' && typeOuEntree.libelle) return typeOuEntree.libelle;
+    return labelEntretien(typeOuEntree.type);
+  }
+  const t = TYPES_ENTRETIEN.find((x) => x.value === typeOuEntree);
+  return t ? t.label : typeOuEntree;
 }
 
 // Le marqueur d'amorçage vit dans la collection du matériel plutôt que dans
@@ -59,7 +71,22 @@ const ID_MARQUEUR = '_seed';
  * @property {string} [dateDernierGraissage]   "AAAA-MM-JJ" — hérité, non
  *   réédité par la fiche (cf. dernierEntretien/annulerDernierEntretien)
  * @property {string} [noteEntretien]
+ * @property {boolean} [cuma]                  CUMA / entreprise : ni bouton
+ *   Graissé ni suivi d'entretien
+ * @property {number} [compteurHeures]         dernier relevé du compteur, saisi
+ *   à la main (jamais calculé depuis la durée des activités, gardée telle
+ *   quelle pour une automatisation future)
+ * @property {string} [compteurDate]           "AAAA-MM-JJ" de ce relevé
+ * @property {Object<string,number>} [intervallesHeures]  EXTENSION PRÉVUE,
+ *   non utilisée : intervalle d'heures facultatif par type d'entretien
+ *   (clé = TYPES_ENTRETIEN.value). Absent par défaut, jamais affiché, aucun
+ *   seuil ni alerte construit dessus ; un champ facultatif d'un document
+ *   Firestore s'ajoute sans migration.
  */
+
+// Engins à moteur : les seuls dont la fiche propose un compteur d'heures.
+const CATEGORIES_COMPTEUR = ['TRACTEUR', 'MANUTENTION'];
+export function avecCompteur(m) { return !!m && !m.cuma && CATEGORIES_COMPTEUR.includes(m.categorie); }
 
 export const CATEGORIES_MATERIEL = [
   { value: 'MANUTENTION',      label: 'Manutention',             icone: '🏗️' },
@@ -215,27 +242,32 @@ function nettoyer(data) {
     categorie: data.categorie || 'AUTRE',
     largeurTravailMetres: isFinite(l) && l > 0 ? l : null,
     actions: Array.isArray(data.actions) ? data.actions.map(String) : [],
-    noteEntretien: String(data.noteEntretien || '').trim()
+    noteEntretien: String(data.noteEntretien || '').trim(),
+    cuma: !!data.cuma
   };
 }
 
 export async function createMateriel(data) {
   const m = nettoyer(data);
   if (!m.nom) throw new Error('Donne un nom au matériel.');
-  return addDoc(COL, {
+  const ref = doc(COL);
+  await ecrire(ref, setDoc(ref, {
     ...m, creeLe: serverTimestamp(), majLe: serverTimestamp(),
     creePar: auth.currentUser ? auth.currentUser.uid : null
-  });
+  }), 'Matériel');
+  return ref;
 }
 
 export async function updateMateriel(id, data) {
   const m = nettoyer(data);
   if (!m.nom) throw new Error('Donne un nom au matériel.');
-  return updateDoc(doc(db, 'lgs_materiel', id), { ...m, majLe: serverTimestamp() });
+  const ref = doc(db, 'lgs_materiel', id);
+  await ecrire(ref, updateDoc(ref, { ...m, majLe: serverTimestamp() }), 'Matériel');
 }
 
 export async function deleteMateriel(id) {
-  return deleteDoc(doc(db, 'lgs_materiel', id));
+  const ref = doc(db, 'lgs_materiel', id);
+  await ecrire(ref, deleteDoc(ref), 'Matériel');
 }
 
 // --- Journal d'entretien -----------------------------------------------------
@@ -252,15 +284,122 @@ export function watchEntretiens() {
   });
 }
 
-/** Enregistre une opération d'entretien à la date du jour (ou la date donnée). */
-export async function enregistrerEntretien(materielId, type, date = aujourdhui()) {
+function nombreOuNull(v) {
+  if (v === '' || v == null) return null;
+  const n = Number(String(v).replace(',', '.'));
+  return isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Enregistre une opération d'entretien. N'attend que la file locale (cf.
+ * ecriture-locale.js) : hors réseau, le bouton Graissé répond tout de suite
+ * au lieu de rester bloqué jusqu'au retour de la couverture.
+ * @param {{date?, cout?, libelle?, compteurHeures?}} [opts]
+ * @returns {Promise<string>} id de l'entrée créée (pour l'annuler)
+ */
+export async function enregistrerEntretien(materielId, type, opts = {}) {
   if (!materielId) throw new Error('Matériel manquant.');
   if (!TYPES_ENTRETIEN.some((t) => t.value === type)) throw new Error("Type d'entretien inconnu.");
-  return addDoc(COL_ENTRETIEN, {
+  const o = typeof opts === 'string' ? { date: opts } : (opts || {});
+  const libelle = String(o.libelle || '').trim();
+  if (type === 'AUTRE' && !libelle) throw new Error("Donne un nom à cet entretien (type « Autre »).");
+  const date = o.date || aujourdhui();
+  const compteurHeures = nombreOuNull(o.compteurHeures);
+  const ref = doc(COL_ENTRETIEN);
+  await ecrire(ref, setDoc(ref, {
     materielId, type, date,
+    libelle: type === 'AUTRE' ? libelle : null,
+    cout: nombreOuNull(o.cout),
+    compteurHeures,
     creeLe: serverTimestamp(),
     creePar: auth.currentUser ? auth.currentUser.uid : null
+  }), 'Entretien');
+  // Un compteur noté à l'entretien est aussi le dernier relevé de l'engin,
+  // sauf s'il existe déjà un relevé plus récent.
+  const m = getMaterielById(materielId);
+  if (compteurHeures != null && m && (!m.compteurDate || date >= m.compteurDate)) {
+    await mettreAJourCompteur(materielId, compteurHeures, date);
+  }
+  return ref.id;
+}
+
+/** Relevé du compteur d'heures (saisi à la main, information seulement). */
+export async function mettreAJourCompteur(materielId, heures, date = aujourdhui()) {
+  const h = nombreOuNull(heures);
+  if (h == null) throw new Error('Compteur invalide.');
+  const ref = doc(db, 'lgs_materiel', materielId);
+  await ecrire(ref, updateDoc(ref, { compteurHeures: h, compteurDate: date, majLe: serverTimestamp() }), 'Compteur');
+}
+
+/**
+ * Entrées d'entretien d'un matériel, la plus récente d'abord ; l'ancien champ
+ * dateDernierGraissage y figure comme un Graissage (source 'legacy').
+ */
+export function entretiensDe(materielId, liste = entretiensCourants) {
+  const m = getMaterielById(materielId);
+  const res = liste.filter((e) => e.materielId === materielId).map((e) => ({ ...e, source: 'journal' }));
+  if (m && m.dateDernierGraissage) res.push({ id: null, type: 'GRAISSAGE', date: m.dateDernierGraissage, source: 'legacy' });
+  return res.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : msDe(b.creeLe) - msDe(a.creeLe)));
+}
+
+function msDe(ts) { return ts && typeof ts.toMillis === 'function' ? ts.toMillis() : 0; }
+
+/** Supprime une entrée (journal) ou efface l'ancien repère hérité. */
+export async function supprimerEntretien(entree, materielId) {
+  if (entree.source === 'legacy') {
+    const ref = doc(db, 'lgs_materiel', materielId);
+    return ecrire(ref, updateDoc(ref, { dateDernierGraissage: null, majLe: serverTimestamp() }), 'Entretien');
+  }
+  const ref = doc(db, 'lgs_materiel_entretien', entree.id);
+  return ecrire(ref, deleteDoc(ref), 'Entretien');
+}
+
+/** Libellés « Autre » déjà utilisés, reproposés comme types personnalisés. */
+export function libellesAutres(liste = entretiensCourants) {
+  const vus = new Map();
+  liste.filter((e) => e.type === 'AUTRE' && e.libelle).forEach((e) => {
+    const k = e.libelle.trim().toLowerCase();
+    if (!vus.has(k)) vus.set(k, e.libelle.trim());
   });
+  return Array.from(vus.values()).sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
+/** « aujourd'hui », « hier », « il y a 12 j » : information, jamais une alerte. */
+export function ilYa(date, refDate = aujourdhui()) {
+  if (!date) return '';
+  const j = Math.round((Date.parse(refDate + 'T12:00:00') - Date.parse(date + 'T12:00:00')) / 86400000);
+  if (!isFinite(j)) return '';
+  if (j <= 0) return "aujourd'hui";
+  if (j === 1) return 'hier';
+  return `il y a ${j} j`;
+}
+
+// --- Photos et factures (collection lgs_materiel_pieces) ----------------------
+// Une photo par document (compressée sous 600 Ko par photo.js) : la limite
+// de 1 Mio par document Firestore interdit d'en ranger plusieurs dans la
+// fiche du matériel. Une facture se photographie, pas de PDF.
+const COL_PIECES = collection(db, 'lgs_materiel_pieces');
+
+/** Écoute les photos d'un matériel (seulement quand sa fiche est ouverte). */
+export function ecouterPieces(materielId, cb) {
+  return onSnapshot(query(COL_PIECES, where('materielId', '==', materielId)), (snap) => {
+    cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)));
+  }, () => cb([]));
+}
+
+export async function ajouterPiece(materielId, dataUrl, libelle = '') {
+  const ref = doc(COL_PIECES);
+  await ecrire(ref, setDoc(ref, {
+    materielId, dataUrl, libelle: String(libelle || '').trim(), date: aujourdhui(),
+    creeLe: serverTimestamp(), creePar: auth.currentUser ? auth.currentUser.uid : null
+  }), 'Photo');
+  return ref.id;
+}
+
+export async function supprimerPiece(id) {
+  const ref = doc(db, 'lgs_materiel_pieces', id);
+  return ecrire(ref, deleteDoc(ref), 'Photo');
 }
 
 /**

@@ -692,15 +692,8 @@
         <select id="mat-actions" multiple size="6"></select>
         <p class="champ-aide">Ces activités proposeront ce matériel en tête de liste. Rien n'est jamais filtré : tout le parc reste sélectionnable.</p>
 
-        <div id="mat-entretien-bloc" hidden>
-          <label>Entretien</label>
-          <div id="mat-entretien-resume" class="champ-aide"></div>
-          <div class="graissage-box">
-            <select id="mat-entretien-type"></select>
-            <button type="button" id="mat-entretien-enregistrer" class="btn btn-primary btn-mini">✅ Enregistrer aujourd'hui</button>
-          </div>
-          <button type="button" id="mat-entretien-annuler" class="btn btn-secondary btn-mini">↩ Annuler la dernière opération</button>
-        </div>
+        <label class="case-ligne"><input type="checkbox" id="mat-cuma"> CUMA / entreprise</label>
+        <p class="champ-aide champ-aide-gris">Matériel partagé ou d'entreprise : étiquette CUMA, ni bouton Graissé ni suivi d'entretien.</p>
 
         <label for="mat-note">Note d'entretien</label>
         <textarea id="mat-note" rows="3" placeholder="Pièces à changer, réglages, remarques..."></textarea>

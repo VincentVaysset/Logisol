@@ -1627,50 +1627,81 @@ header button {
 .vue-head-sous { margin: 22px 0 10px; align-items: baseline; }
 .section-titre-inline { flex: 1; margin: 0; }
 
-.mat-card {
-  display: flex; align-items: flex-start; gap: 11px;
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 11px 13px; margin-bottom: 7px;
-  cursor: pointer;
+.mat-categorie > summary { padding: 14px; }
+.mat-machine { border-top: 1px solid #f1f5f9; }
+.mat-ligne {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; cursor: pointer; min-height: 44px;
 }
-.mat-icone { font-size: 19px; flex: 0 0 26px; text-align: center; }
+.mat-ligne:active { background: #f8fafc; }
 .mat-body { flex: 1; min-width: 0; }
-.mat-nom { font-size: 15px; font-weight: 700; }
-.mat-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-.mat-graissage { font-size: 12px; color: var(--primary); font-weight: 600; margin-top: 3px; }
-.mat-note {
-  font-size: 12px; color: var(--text); margin-top: 4px;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-/* Zone de tap du « Graissé » : toute la colonne droite de la carte, du haut
-   en bas et jusqu'au bord (marges négatives = rembourrage de la carte). Le
-   bouton ne couvrait que son libellé en haut d'une carte de 3-4 lignes : un
-   pouce posé à côté tombait sur la carte, et seul le recalage tactile de
-   Chrome (imprévisible) le renvoyait parfois au bouton, sinon la fiche
-   s'ouvrait. Le visuel reste la pastille compacte. */
+.mat-nom { font-size: 14px; font-weight: 600; color: #0f172a; }
+.mat-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+/* Zone de tap du « Graissé » : toute la colonne droite de la ligne, du haut
+   en bas et jusqu'au bord (marges négatives = rembourrage de la ligne). Un
+   bouton limité à son libellé laissait le pouce tomber sur la ligne : seul
+   le recalage tactile de Chrome (imprévisible) le renvoyait parfois au
+   bouton, sinon la fiche s'ouvrait. Le visuel reste la pastille compacte. */
 .mat-graisser {
   flex: 0 0 auto; align-self: stretch; white-space: nowrap;
-  margin: -11px -13px -11px -11px; padding: 11px 13px 11px 11px;
+  margin: -12px -14px -12px -6px; padding: 12px 14px 12px 6px;
   display: flex; align-items: center;
-  background: transparent; border: none; font: inherit; color: inherit;
-  border-radius: 0;
+  background: transparent; border: none; border-radius: 0; font: inherit; color: inherit;
+  min-height: 0 !important;
   cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .mat-graisser-pastille {
-  display: inline-flex; align-items: center; min-height: 40px;
+  display: inline-flex; align-items: center; min-height: 34px;
   padding: 0 12px; border-radius: 12px;
-  background: white; border: 1px solid var(--border);
-  font-size: 13px; font-weight: 600; color: var(--text);
+  background: #fff; border: 1px solid #cbd5e1;
+  font-size: 12px; font-weight: 600; color: #1e293b;
   pointer-events: none;
 }
 .mat-graisser:active .mat-graisser-pastille { background: #f1f5f9; }
 .mat-graisser:disabled { opacity: .6; }
-.mat-actions { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-style: italic; }
-.mat-groupe-titre {
-  font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--text-muted); margin: 14px 0 6px;
+.mat-cuma {
+  flex: 0 0 auto; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 600;
+  padding: 4px 8px; border-radius: 6px;
 }
-.mat-groupe-titre:first-child { margin-top: 2px; }
+.mat-fiche { background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 10px 14px 12px; font-size: 13px; color: #1e293b; }
+.mat-fiche-infos { margin: 0 0 8px; font-size: 12px; color: #64748b; }
+.mat-fiche-label { font-size: 12px; color: #64748b; margin: 10px 0 4px; }
+.mat-gris { color: #94a3b8; font-size: 12px; }
+.mat-aucun { margin: 0; }
+.mat-compteur { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mat-compteur .mat-fiche-label { margin: 0; }
+.mat-compteur strong { font-weight: 700; }
+.mat-compteur .stk-lien { margin-left: 8px; }
+.mat-compteur-saisie { display: flex; align-items: center; gap: 8px; }
+.mat-compteur-saisie input { width: 96px; min-height: 36px !important; padding: 4px 8px; margin: 0; }
+.mat-entretien { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; }
+.mat-entretien + .mat-entretien { border-top: 1px dashed #e2e8f0; }
+.mat-entretien-droite { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8; white-space: nowrap; }
+.mat-suppr {
+  background: none; border: none; color: #94a3b8; font-size: 13px; cursor: pointer;
+  min-height: 0 !important; padding: 4px 6px;
+}
+.mat-form-entretien { margin-top: 8px; padding: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+.mat-form-entretien label { margin: 6px 0 4px; font-size: 12px; }
+.mat-form-entretien input, .mat-form-entretien select { margin-bottom: 4px; }
+.mat-form-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.mat-form-actions { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.mat-photos { display: flex; flex-wrap: wrap; gap: 8px; }
+.mat-photo { padding: 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; width: 64px; height: 64px; background: #fff; min-height: 0 !important; cursor: pointer; }
+.mat-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mat-photo-ajout {
+  display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; margin: 0;
+  border: 1px dashed #cbd5e1; border-radius: 8px; font-size: 11px; color: #64748b; cursor: pointer; text-align: center;
+}
+.mat-fiche-pied { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.mat-photo-plein {
+  position: fixed; inset: 0; z-index: 3000; background: rgba(15, 23, 42, 0.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px;
+}
+.mat-photo-plein img { max-width: 100%; max-height: 80vh; border-radius: 8px; }
+.mat-photo-plein-pied { display: flex; align-items: center; gap: 16px; margin-top: 12px; color: #e2e8f0; font-size: 13px; }
+.case-ligne { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text); margin: 8px 0 4px; }
+.case-ligne input { width: 20px; height: 20px; min-height: 0 !important; margin: 0; }
 #mat-actions { min-height: 130px; }
 
 /* ------------------------------------------------------------------------
@@ -1779,6 +1810,11 @@ header button {
 .toast-visible { opacity: 1; transform: translateY(0); }
 .toast-succes { background: var(--primary); }
 .toast-erreur { background: var(--danger); }
+.toast-avec-action { display: flex; align-items: center; justify-content: space-between; gap: 12px; pointer-events: auto; }
+.toast-action {
+  flex: 0 0 auto; background: rgba(255,255,255,0.18); color: #fff; border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 8px; padding: 6px 12px; font-weight: 700; font-size: 13px; cursor: pointer; min-height: 0 !important;
+}
 
 /* ========================================================================
    RESPONSIVE MOBILE (< 600px) — smartphone en une main.
