@@ -1,5 +1,5 @@
-// Diagnostic > Outils > Transferts : ce que changerait la correction « un
-// transfert conserve le stock » sur TES données, AVANT de l'activer. Rien
+// Diagnostic > Outils > Transferts : ce que change la correction « un
+// transfert conserve le stock » sur TES données (ancien calcul vs actuel). Rien
 // n'est écrit : on calcule les deux versions côte à côte (ancien calcul,
 // nouveau calcul) pour Stocks, Bâtiments et les campagnes clôturées.
 import { getMouvements } from './mouvements.js';
@@ -37,10 +37,10 @@ function comparer(avant, apres) {
   return { lignes, totA, totB };
 }
 
-function nomContenant(cle) {
+function nomContenant(cle, nomFige) {
   const [type, id] = cle.split('|');
   const c = type === 'CELLULE' ? getCellules().find((x) => x.id === id) : getEmplacements().find((x) => x.id === id);
-  if (!c) return cle;
+  if (!c) return nomFige || cle;
   const b = getBatimentById(c.batimentId);
   return `${b ? b.nom + ' — ' : ''}${c.nom || id}`;
 }
@@ -63,7 +63,9 @@ export function rapportTransferts() {
   transferts.slice().sort((a, b) => (a.date < b.date ? -1 : 1)).forEach((m, i) => {
     const unite = m.unite === 'bottes' ? 'bottes' : 't';
     const meme = m.sourceId && m.sourceId === m.destinationId;
-    out.push(`${i + 1}. ${dateFr(m.date)} · ${m.sourceNom || nomContenant(`${m.sourceType}|${m.sourceId}`)} → ${m.destinationNom || nomContenant(`${m.destinationType}|${m.destinationId}`)} · ${n(m.quantite)} ${unite}` +
+    // Nom du bâtiment compris : deux hangars s'appellent souvent pareil
+    // (« Stockage foin → Stockage foin »).
+    out.push(`${i + 1}. ${dateFr(m.date)} · ${nomContenant(`${m.sourceType}|${m.sourceId}`, m.sourceNom)} → ${nomContenant(`${m.destinationType}|${m.destinationId}`, m.destinationNom)} · ${n(m.quantite)} ${unite}` +
       (m.excluCalcul ? ' · EXCLU du calcul' : '') + (meme ? ' · VERS LUI-MÊME (sans effet)' : ''));
     const lots = compo.get(m.id) || [];
     out.push(lots.length

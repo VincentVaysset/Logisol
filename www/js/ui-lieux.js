@@ -46,7 +46,8 @@ export function initLieux() {
 // préfixe technique de la clé.
 function libelleLot(l) {
   if (l.typeFourrage) return `${l.typeFourrage} ${labelCoupe(l.numeroCoupe)}`;
-  return String(l.label || '').replace(/^Céréale\s*—\s*/, '');
+  const t = String(l.label || '').replace(/^Céréale\s*—\s*/, '');
+  return t ? t[0].toUpperCase() + t.slice(1) : t;   // « Orge », comme dans Stocks
 }
 
 function contenuBatiment(b, rep) {

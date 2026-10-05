@@ -29,7 +29,6 @@ import {
 } from './map.js';
 import { toastSucces, toastErreur } from './toast.js';
 import { messagePermission } from './diagnostic-regles.js';
-import { ventilationContenant, resumeLot } from './fourrages.js';
 import { contenuDesLieux, contenuDuLieu } from './lieux.js';
 import { fmt1 } from './contenu-lieux.js';
 
@@ -186,23 +185,14 @@ function ligneContenant(icone, nom, detail, kind, id, taux, lots) {
   </div>`;
 }
 
-// « dont 15 t 1ʳᵉ coupe Luzerne, 10 t 2ᵉ coupe RGA ». Ce que contient
-// réellement un contenant, lot par lot, reconstruit depuis les entrées du
-// journal. Les sorties ne disent pas de quel lot elles proviennent : quand il
-// en est sorti, la répartition est au prorata et l'écran le dit.
-export function detailLots(type, id, niveau) {
-  const v = ventilationContenant(type, id, getMouvements(), niveau);
-  if (!v.lots.length) return '';
-  const tracables = v.lots.filter((l) => l.typeFourrage || l.cle !== 'inconnu');
-  if (!tracables.length) return '';
-  return `<div class="contenant-lots">dont ${esc(tracables.map((l) => resumeLot(l, v.unite)).join(', '))}` +
-    `${v.prorata ? ' <span class="contenant-prorata">(au prorata des entrées)</span>' : ''}</div>`;
-}
-
 // « Luzerne 1ʳᵉ coupe 68,3 t · Orge 12 t » : le contenu réparti depuis Stocks.
 function detailReparti(v, unite) {
   if (!v || !v.lots.length) return '';
-  const quoi = (l) => (l.typeFourrage ? `${l.typeFourrage} ${labelCoupe(l.numeroCoupe)}` : String(l.label || '').replace(/^Céréale\s*—\s*/, ''));
+  const quoi = (l) => {
+    if (l.typeFourrage) return `${l.typeFourrage} ${labelCoupe(l.numeroCoupe)}`;
+    const t = String(l.label || '').replace(/^Céréale\s*—\s*/, '');
+    return t ? t[0].toUpperCase() + t.slice(1) : t;
+  };
   return `<div class="contenant-lots">${esc(v.lots.map((l) => (unite === 'bottes'
     ? `${Math.round(l.quantite)} bottes ${quoi(l)}` : `${quoi(l)} ${fmt1(l.tonnes)} t`)).join(' · '))}</div>`;
 }

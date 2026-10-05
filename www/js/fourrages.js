@@ -298,10 +298,10 @@ export function croiseCoupeFourrage(categories) {
  * ici — elle reste dans le total brut affiché à côté, pas fondue dedans.
  * @returns {Array<{cle, label, tonnes, bottes}>}
  */
-// opts.transferts : un transfert conserve le stock (transferts-calc.js). Pas
-// encore le calcul de Stocks : il n'est utilisé que par l'aperçu avant /
-// après du Diagnostic, en attendant la validation sur les vraies données.
-export const TRANSFERTS_CONSERVES = false;
+// Un transfert conserve le stock (transferts-calc.js) : activé après l'aperçu
+// avant / après sur les vraies données (1 transfert, +4,5 t retrouvées).
+// opts.transferts = false redonne l'ancien calcul (aperçu du Diagnostic).
+export const TRANSFERTS_CONSERVES = true;
 
 /** Ventilation de chaque contenant, avec ou sans prise en compte des transferts. */
 export function ventilationsDesContenants(mouvements, cellules, emplacements, opts = {}) {
