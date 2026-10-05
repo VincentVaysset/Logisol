@@ -4,18 +4,20 @@ import {
   createStock, updateStock, deleteStock, calculerTonnes
 } from './stocks.js';
 import {
-  stockDisponibleCanonique, entreesParCleFenetre, mouvementsDeAliment, tonnesDuMouvement, identiteDuMouvement
+  entreesParCleFenetre, mouvementsDeAliment, tonnesDuMouvement, identiteDuMouvement
 } from './fourrages.js';
 import { getMouvements, deleteMouvement, typeMouvement } from './mouvements.js';
 import { consommationCampagneParStock, lotsConsommateurs } from './rations-calc.js';
 import { construireGroupes } from './groupes-stock.js';
-import { getCampagneStockChoisie, bornesCampagneStock, dateReferenceCampagne } from './campagne-stock.js';
+import { getCampagneStockChoisie, bornesCampagneStock, dateReferenceCampagne, campagneStockSuivante } from './campagne-stock.js';
 import { getInterventions } from './interventions.js';
 import { openEditIntervention } from './ui-intervention.js';
 import { openCreateMouvement, openEditMouvement } from './ui-mouvements.js';
 import { ouvrirAjustement } from './ui-ajustement.js';
-import { getCellules } from './cellules.js';
-import { getEmplacements, getEmplacementById } from './emplacements.js';
+import { stockAuSoir, stockTheoriqueAu, reouvrirCampagne } from './clotures-stock.js';
+import { ouvrirInventaire } from './ui-inventaire.js';
+import { getCloture, getClotures } from './verrou-campagne.js';
+import { getEmplacementById } from './emplacements.js';
 import { getLots } from './lots.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
@@ -111,6 +113,7 @@ export function setStocks(list) {
 
 export function initStocks(opts = {}) {
   onChangeExterne = opts.onChange || (() => {});
+  document.getElementById('btn-inventaire').addEventListener('click', () => ouvrirInventaire());
   document.getElementById('stock-cancel').addEventListener('click', fermer);
   [selectCategorie, selectConservation].forEach((el) => el.addEventListener('change', appliquerCategorie));
   selectFourrage.addEventListener('change', () => {
@@ -330,18 +333,8 @@ function veille(dateIso) {
   return d.toISOString().slice(0, 10);
 }
 
-function stockAuSoir(date) {
-  return stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots(), date);
-}
 
-// Stock théorique d'un aliment au soir d'une date — utilisé par
-// l'ajustement (ui-ajustement.js) et, au commit suivant, par l'Inventaire.
-export function stockTheoriqueAu(cle, date) {
-  const g = stockAuSoir(date).find((x) => x.cle === cle);
-  return g ? g.tonnes : 0;
-}
-
-function metaParCle() {
+export function metaParCle() {
   const meta = new Map();
   categories.forEach((c) => meta.set(c.cle, { fourrage: c.fourrage || null, espece: c.espece || null }));
   // Enrubannage / ensilage : la clé ne le dit pas (stocké « en botte ») — on
@@ -380,6 +373,8 @@ export function renderVue() {
   document.getElementById('stocks-sous-titre').textContent =
     `${formatTonnes(d.totaux.total)} t disponibles` + (enCours ? '' : ` au ${dateLisible(d.b.fin)}`);
 
+  renderCloture(d.campagne);
+
   totauxEl.innerHTML = [
     ['🌿', 'Fourrages', d.totaux.fourrages],
     ['🌾', 'Céréales', d.totaux.cereales],
@@ -390,6 +385,32 @@ export function renderVue() {
     ? d.groupes.map((g) => carteGroupe(g, d)).join('')
     : '<p class="list-empty">Aucun stock sur cette campagne. Une récolte saisie dans une activité (pressage, séchage en grange, moisson) apparaît ici automatiquement.</p>';
   cablerGroupes(groupesEl, d);
+}
+
+// État de clôture : la campagne choisie (clôturée -> « Réouvrir ») et, tant
+// qu'une campagne est réouverte, le bandeau demandé.
+function renderCloture(campagne) {
+  const bandeau = document.getElementById('stocks-reouverte');
+  const carte = document.getElementById('stocks-cloture');
+  const reouvertes = getClotures().filter((c) => c.statut === 'reouverte').map((c) => c.id).sort();
+  bandeau.hidden = !reouvertes.length;
+  bandeau.innerHTML = reouvertes.map((c) => `Campagne ${escapeHtml(c)} réouverte : le stock de départ ${escapeHtml(campagneStockSuivante(c))} sera recalculé à la clôture.
+    <button type="button" class="stk-lien" data-recloturer="${escapeAttr(c)}">Clôturer à nouveau</button>`).join('<br>');
+  bandeau.querySelectorAll('[data-recloturer]').forEach((b) => b.addEventListener('click', () => ouvrirInventaire({ cloture: true })));
+
+  const cl = getCloture(campagne);
+  carte.hidden = !(cl && cl.statut === 'cloturee');
+  if (carte.hidden) return;
+  const dc = cl.dateComptage ? `${cl.dateComptage.slice(8, 10)}/${cl.dateComptage.slice(5, 7)}/${cl.dateComptage.slice(0, 4)}` : '?';
+  carte.innerHTML = `<div class="stk-cloture-texte">🔒 Campagne ${escapeHtml(campagne)} clôturée au 31/08 (comptage du ${dc}).
+      <span class="stk-sous-ligne">Stock de départ de ${escapeHtml(campagneStockSuivante(campagne))}. Les saisies jusqu'au 31/08 sont verrouillées.</span></div>
+    <button type="button" class="stk-lien" id="btn-reouvrir">Réouvrir la campagne</button>`;
+  document.getElementById('btn-reouvrir').addEventListener('click', async () => {
+    if (!confirm(`Réouvrir la campagne ${campagne} ?\nRécoltes, mouvements et rations datés jusqu'au 31/08 redeviennent modifiables. ` +
+      `Le stock de départ ${campagneStockSuivante(campagne)} sera recalculé à la prochaine clôture.`)) return;
+    try { await reouvrirCampagne(campagne); toastSucces(`Campagne ${campagne} réouverte.`); }
+    catch (err) { toastErreur('Réouverture impossible : ' + ((err && err.message) || err)); }
+  });
 }
 
 function sousTitreGroupe(g) {

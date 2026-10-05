@@ -17,6 +17,14 @@ import {
 import { setQuantite, getCelluleById } from './cellules.js';
 import { setNiveau, getEmplacementById } from './emplacements.js';
 import { ecrire } from './ecriture-locale.js';
+import { verifierDateModifiable } from './verrou-campagne.js';
+
+// Une sortie alimentation manuelle ne compte plus nulle part dans le stock
+// (cf. fourrages.js/stockDisponibleCanonique) : la nettoyer ne touche pas une
+// campagne clôturée, elle échappe donc au verrou.
+function verrou(m, quoi) {
+  if (m && m.typeMouvement !== 'SORTIE_ALIMENTATION') verifierDateModifiable(m.date, quoi);
+}
 
 const COL = collection(db, 'lgs_mouvements_stock');
 
@@ -324,6 +332,7 @@ function valider(m) {
 export async function createMouvement(data) {
   const m = nettoyer(data);
   valider(m);
+  verrou(m, 'les stocks');
   const ref = doc(COL);
   await ecrire(ref, setDoc(ref, {
     ...m, creeLe: serverTimestamp(), majLe: serverTimestamp(),
@@ -341,6 +350,8 @@ export async function updateMouvement(id, data) {
   const m = nettoyer(data);
   valider(m);
   const avant = courants.find((x) => x.id === id);
+  verrou(avant, 'ce mouvement');
+  verrou(m, 'un mouvement');
   const ref = doc(db, 'lgs_mouvements_stock', id);
   await ecrire(ref, updateDoc(ref, { ...m, majLe: serverTimestamp() }), 'Mouvement de stock');
   // On rafraîchit AUSSI les contenants d'avant modification : déplacer un
@@ -357,6 +368,7 @@ export async function updateMouvement(id, data) {
 
 export async function deleteMouvement(id) {
   const avant = courants.find((x) => x.id === id);
+  verrou(avant, 'ce mouvement');
   const ref = doc(db, 'lgs_mouvements_stock', id);
   await ecrire(ref, deleteDoc(ref), 'Suppression de mouvement');
   if (avant) {

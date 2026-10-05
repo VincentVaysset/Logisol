@@ -26,6 +26,7 @@ import { db } from './firebase-config.js';
 import { doc, updateDoc, serverTimestamp } from "../vendor/firebase/firebase-firestore.js";
 import { aujourdhui } from './implantations.js';
 import { joursDansFenetre } from './campagne-stock.js';
+import { verifierDateModifiable } from './verrou-campagne.js';
 
 export function affectationsLot(lot) {
   return Array.isArray(lot && lot.affectations) ? lot.affectations : [];
@@ -107,6 +108,9 @@ export async function distribuerRation(lot, { composants = [], dateDebut, dateFi
   if (!lot || !lot.id) throw new Error('Lot introuvable.');
   const debut = dateDebut || aujourdhui();
   if (dateFin && dateFin <= debut) throw new Error('La date de fin doit être postérieure à la date de début.');
+  // Changer la ration modifie la consommation à partir de son début (et clôt
+  // la précédente à cette date) : interdit dans une campagne clôturée.
+  verifierDateModifiable(debut, 'les rations');
 
   const actuelles = affectationsLot(lot).map((a) => {
     if (!a.dateFin || a.dateFin > debut) {
@@ -143,6 +147,8 @@ export function precedenteFermeePar(lot, affectation) {
 }
 
 export async function supprimerAffectation(lot, affectationId) {
+  const a = affectationsLot(lot).find((x) => x.id === affectationId);
+  if (a) verifierDateModifiable(a.dateDebut, 'cette ration');
   const affectations = affectationsLot(lot).filter((a) => a.id !== affectationId);
   return updateDoc(doc(db, 'lots_animaux', lot.id), { affectations, majLe: serverTimestamp() });
 }
@@ -151,6 +157,8 @@ export async function supprimerAffectation(lot, affectationId) {
 // automatiquement : c'est un choix explicite proposé après suppression de la
 // distribution qui l'avait fermée (cf. ui-rations.js).
 export async function rouvrirAffectation(lot, affectationId) {
+  const a = affectationsLot(lot).find((x) => x.id === affectationId);
+  if (a && a.dateFin) verifierDateModifiable(a.dateFin, 'cette ration');
   const affectations = affectationsLot(lot).map((a) => (a.id === affectationId ? { ...a, dateFin: null } : a));
   return updateDoc(doc(db, 'lots_animaux', lot.id), { affectations, majLe: serverTimestamp() });
 }
@@ -158,6 +166,7 @@ export async function rouvrirAffectation(lot, affectationId) {
 // Clôt une distribution encore ouverte à une date donnée (arrêt anticipé,
 // sans en ouvrir une nouvelle) — symétrique de lots.js/cloturerPrelevement.
 export async function cloturerAffectation(lot, affectationId, dateFin = aujourdhui()) {
+  verifierDateModifiable(dateFin, 'cette ration');
   const affectations = affectationsLot(lot).map((a) => (a.id === affectationId ? { ...a, dateFin } : a));
   return updateDoc(doc(db, 'lots_animaux', lot.id), { affectations, majLe: serverTimestamp() });
 }

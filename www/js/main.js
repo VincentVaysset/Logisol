@@ -17,6 +17,7 @@ import {
 import { ensureSeeded as ensureTypesSeeded, watchTypes, onTypesChange } from './interventions-types.js';
 import { watchInterventions } from './interventions.js';
 import { onCacheMemoireSeulement } from './firebase-config.js';
+import { watchClotures, onCloturesChange } from './verrou-campagne.js';
 import { journaliser } from './journal-ecritures.js';
 import { initOutilsDiagnostic } from './diagnostic-outils.js';
 import { resolveCouleur, resolveLabel } from './vocation.js';
@@ -917,6 +918,10 @@ async function boot() {
     onEntretiensChange(() => { if (currentView === 'batiments') renderMateriels(); });
     watchEntretiens();
     watchPsDefauts();
+    // Clôtures de campagne Stocks/Troupeau : stock de départ et verrou des
+    // saisies jusqu'au 31/08 d'une campagne clôturée.
+    onCloturesChange(() => recomputeStocksEtTroupeau());
+    watchClotures();
 
     // Dépendances des calculs (campagnes, reprise, historique PS) : de
     // simples imports de modules locaux, jamais le réseau — chargées AVANT

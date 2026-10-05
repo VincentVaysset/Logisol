@@ -25,10 +25,11 @@ import { getLots } from './lots.js';
 import { getStades, onStadesChange } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { getCampagneStockChoisie, onCampagneStockChange } from './campagne-stock.js';
+import { stockAuSoir } from './clotures-stock.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
 import { toastSucces, toastErreur } from './toast.js';
-import { stockDisponibleCanonique, entreesCampagneParCategorie } from './fourrages.js';
+import { entreesCampagneParCategorie } from './fourrages.js';
 import { getMouvements, updateMouvement, deleteMouvement } from './mouvements.js';
 import { getCellules } from './cellules.js';
 import { getEmplacements } from './emplacements.js';
@@ -221,7 +222,7 @@ function renderPrevisionnel() {
 // supprimé tant que Vincent ne clique pas lui-même sur "Supprimer".
 const sortiesManuellesEl = document.getElementById('troupeau-sorties-manuelles');
 
-function renderSortiesManuelles() {
+export function renderSortiesManuelles() {
   if (!sortiesManuellesEl) return;
   const liste = getMouvements()
     .filter((m) => m.typeMouvement === 'SORTIE_ALIMENTATION')
@@ -416,7 +417,7 @@ function renderBilan() {
 // troupeau/stocks) ; "Déjà consommé" reste propre aux distributions
 // (consommationParStock), un chiffre troupeau, pas un stock.
 export function totauxDistribution() {
-  const dispo = stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots());
+  const dispo = stockAuSoir(aujourdhui());
   const consomme = consommationParStock(getLots());
   const besoin = besoinJournalierParStock(getLots());
   return {

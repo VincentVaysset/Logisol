@@ -1899,3 +1899,53 @@ header .campagne-select { min-height: 32px; }
 .stk-ecart { font-size: 13px; font-weight: 700; color: #cbd5e1; margin: 4px 0 10px; }
 .stk-ecart-plus { color: #059669; }
 .stk-ecart-moins { color: #ef4444; }
+
+/* Inventaire (maquette_inventaire.html) et état de clôture de Stocks. */
+.inv-panel { background: #f8fafc; }
+.inv-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.inv-retour {
+  width: 32px; height: 32px; min-height: 0 !important; border-radius: 999px; border: none;
+  background: #f1f5f9; color: #475569; font-size: 14px; cursor: pointer; flex: 0 0 auto;
+}
+.inv-bloc { padding: 12px 14px; margin-bottom: 16px; }
+.inv-bloc input { margin-bottom: 4px; }
+.inv-ligne {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 12px 14px;
+}
+.inv-ligne + .inv-ligne { border-top: 1px solid #f1f5f9; }
+.inv-ligne-bloquante { background: #fef2f2; }
+.inv-nom { display: block; font-size: 14px; font-weight: 600; color: #1e293b; }
+.inv-theo { display: block; font-size: 11px; color: #94a3b8; }
+.inv-ecart { display: block; font-size: 11px; font-weight: 700; color: #cbd5e1; }
+.inv-ecart-plus { color: #059669; }
+.inv-ecart-moins { color: #ef4444; }
+.inv-bloquant { display: block; margin-top: 4px; font-size: 11px; color: #b91c1c; font-weight: 600; }
+.inv-bloquant input { width: auto; min-height: 0 !important; margin: 0 4px 0 0; vertical-align: middle; }
+.inv-saisie { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: 0 0 auto; }
+.inv-saisie > span:first-child { font-size: 12px; color: #94a3b8; white-space: nowrap; }
+.inv-saisie input {
+  width: 80px; margin: 0; text-align: right; font-size: 14px; font-weight: 700;
+  border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; background: #f8fafc;
+}
+.inv-saisie input:focus { outline: none; border-color: #10b981; }
+.inv-saisie-label { font-size: 10px; color: #94a3b8; }
+.inv-info {
+  margin: 16px 0 12px; padding: 12px; border-radius: 12px; font-size: 12px;
+  background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+}
+.inv-cloture { display: flex; gap: 10px; align-items: flex-start; padding: 14px; font-size: 14px; margin-bottom: 8px; cursor: pointer; }
+.inv-cloture input { width: 18px; height: 18px; min-height: 0 !important; margin: 2px 0 0; accent-color: #059669; flex: 0 0 auto; }
+.inv-cloture strong { display: block; color: #0f172a; }
+.inv-btn-valider {
+  width: 100%; margin: 8px 0 24px; padding: 12px; border: none; border-radius: 12px;
+  background: #059669; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(6, 78, 59, 0.2);
+}
+.inv-btn-valider:disabled { opacity: 0.6; }
+.inv-section-nettoyage { margin-top: 8px; }
+.stk-cloture {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 12px 14px; margin-bottom: 12px; font-size: 13px; color: #1e293b;
+}
+.stk-cloture[hidden] { display: none; }

@@ -499,8 +499,10 @@
         <h2 class="stk-titre">Stocks</h2>
         <p id="stocks-sous-titre" class="stk-sous"></p>
       </div>
+      <button type="button" id="btn-inventaire" class="stk-btn-sombre">📋 Inventaire</button>
     </div>
     <div id="stocks-reouverte" class="stk-bandeau" hidden></div>
+    <div id="stocks-cloture" class="stk-carte stk-cloture" hidden></div>
     <!-- En-tête : 3 lignes Fourrages / Céréales / Paille, reste en t. Même
          calcul que partout (fourrages.js/stockDisponibleCanonique), à la date
          de référence de la campagne choisie dans l'en-tête. -->
@@ -605,10 +607,6 @@
          prélèvement) a été retiré de l'UI — la collection Firestore
          "prelevements" n'est pas supprimée pour autant. -->
     <div id="troupeau-historique" hidden>
-      <h3 class="section-titre">Sorties alimentation manuelles</h3>
-      <p class="champ-aide">Sorties de stock saisies à la main pour le troupeau, avant les distributions — désormais toujours exclues du calcul de stock (une distribution décrit la même consommation). Supprime les doublons, ou marque "Exclure du calcul" pour garder la trace sans qu'elles comptent nulle part.</p>
-      <div id="troupeau-sorties-manuelles"></div>
-
       <h3 class="section-titre">Distributions (ration directe)</h3>
       <div id="troupeau-distributions-journal"></div>
 
@@ -1103,6 +1101,39 @@
         <button type="button" id="diag-vider" class="btn btn-secondary">Vider le journal</button>
         <button type="button" id="diag-fermer" class="btn btn-secondary">Fermer</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Inventaire (Stocks > 📋 Inventaire) : stock réel compté à une date,
+       écarts -> AJUSTEMENT ; clôture facultative de la campagne au 31/08 à
+       partir d'un comptage fait le 31/08 ou après (inventaire-calc.js). -->
+  <div id="inventaire-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel inv-panel">
+      <div class="inv-head">
+        <button type="button" id="inv-retour" class="inv-retour" aria-label="Retour aux stocks">←</button>
+        <div>
+          <h2 class="stk-titre">Inventaire</h2>
+          <p class="stk-sous">Saisis le stock réel. Seuls les écarts sont enregistrés.</p>
+        </div>
+      </div>
+      <div class="stk-carte inv-bloc">
+        <label for="inv-date">Date du comptage</label>
+        <input type="date" id="inv-date">
+        <p class="champ-aide">Compté avant la distribution du jour ? Mets la date de la veille.</p>
+      </div>
+      <div id="inv-lignes"></div>
+      <div class="inv-info">ℹ️ Un ajustement corrige le stock. Il n'est pas compté comme consommation dans le bilan du troupeau.</div>
+      <label class="stk-carte inv-cloture">
+        <input type="checkbox" id="inv-cloture">
+        <span><strong id="inv-cloture-titre"></strong><span id="inv-cloture-texte" class="stk-sous-ligne"></span></span>
+      </label>
+      <p id="inv-limite" class="stk-note" hidden>L'estimation de consommation depuis le 01/09 est reportée dans l'écart du 31/08 : si les rations saisies s'éloignent de la réalité, l'écart l'absorbe.</p>
+      <p id="inv-erreur" class="champ-aide champ-aide-erreur" hidden></p>
+      <button type="button" id="inv-valider" class="inv-btn-valider">✓ Valider les ajustements</button>
+
+      <h3 class="stk-section inv-section-nettoyage">Nettoyage : sorties alimentation manuelles</h3>
+      <p class="stk-note">Sorties saisies à la main pour le troupeau avant les distributions — déjà exclues du calcul de stock (une distribution décrit la même consommation). Supprime les doublons, ou exclus-les pour garder la trace.</p>
+      <div id="troupeau-sorties-manuelles"></div>
     </div>
   </div>
 
