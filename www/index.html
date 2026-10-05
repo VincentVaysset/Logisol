@@ -493,26 +493,21 @@
 
   <!-- Vue Stocks : synthèse d'exploitation construite à partir des récoltes
        saisies parcelle par parcelle. -->
-  <div id="stocks-view" class="scroll-view" hidden>
-    <div class="vue-head">
-      <h2>Stocks</h2>
-      <button type="button" id="btn-new-achat-vente" class="btn btn-primary btn-mini">💰 Achat / Vente</button>
+  <div id="stocks-view" class="scroll-view vue-claire" hidden>
+    <div class="stk-head">
+      <div>
+        <h2 class="stk-titre">Stocks</h2>
+        <p id="stocks-sous-titre" class="stk-sous"></p>
+      </div>
     </div>
-    <div id="stocks-totaux" class="tuiles"></div>
-    <h3 class="section-titre">Stock disponible</h3>
-    <p class="champ-aide">Récoltes + achats, moins ventes/pertes (journal des mouvements) et moins la consommation réelle des distributions de ration — même calcul, même chiffre que la tuile « Stock restant » de Troupeau.</p>
-    <h4 class="section-sous-titre">Fourrages</h4>
-    <div id="stocks-net-fourrages"></div>
-    <h4 class="section-sous-titre">Céréales &amp; concentrés</h4>
-    <div id="stocks-net-cereales"></div>
-    <h3 class="section-titre">Foin — coupe × type de fourrage</h3>
-    <div id="stocks-croise" class="table-scroll"></div>
-    <h3 class="section-titre">Par catégorie</h3>
-    <div id="stocks-categories"></div>
-    <h3 class="section-titre">Stockage par bâtiment</h3>
-    <div id="stocks-batiments"></div>
-    <h3 class="section-titre">Récoltes saisies</h3>
-    <div id="stocks-lignes"></div>
+    <div id="stocks-reouverte" class="stk-bandeau" hidden></div>
+    <!-- En-tête : 3 lignes Fourrages / Céréales / Paille, reste en t. Même
+         calcul que partout (fourrages.js/stockDisponibleCanonique), à la date
+         de référence de la campagne choisie dans l'en-tête. -->
+    <div id="stocks-totaux" class="stk-carte stk-totaux"></div>
+    <h3 class="stk-section">Détail par type</h3>
+    <div id="stocks-groupes" class="stk-groupes"></div>
+    <p class="stk-note">Reste = récoltes + achats − ventes et pertes − rations distribuées ± ajustements. Le même chiffre que « Stock restant » dans Troupeau.</p>
   </div>
 
   <!-- Vue Bâtiments : bergeries, silos à grain, hangars à fourrage. -->
@@ -1107,6 +1102,31 @@
         <button type="button" id="diag-copier" class="btn btn-secondary">📋 Copier tout</button>
         <button type="button" id="diag-vider" class="btn btn-secondary">Vider le journal</button>
         <button type="button" id="diag-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ajustement de stock (Stocks > groupe > « + Achat / ajustement ») :
+       l'écart réel − théorique devient un mouvement AJUSTEMENT, daté,
+       supprimable, jamais compté comme consommation. -->
+  <div id="ajust-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>⚖️ Ajustement de stock</h2>
+      <label for="ajust-aliment">Aliment</label>
+      <select id="ajust-aliment"></select>
+      <label for="ajust-date">Date du comptage</label>
+      <input type="date" id="ajust-date">
+      <p id="ajust-theorique" class="champ-aide"></p>
+      <label for="ajust-reel" id="ajust-reel-label">Stock réel, fin de journée (t)</label>
+      <input type="number" id="ajust-reel" step="any" min="0" inputmode="decimal">
+      <p class="champ-aide">Compté avant la distribution du jour ? Mets la date de la veille.</p>
+      <p id="ajust-ecart" class="stk-ecart"></p>
+      <label for="ajust-note">Note</label>
+      <input type="text" id="ajust-note" placeholder="facultatif">
+      <p id="ajust-erreur" class="champ-aide champ-aide-erreur" hidden></p>
+      <div class="diag-actions">
+        <button type="button" id="ajust-valider" class="btn btn-primary">Enregistrer l'ajustement</button>
+        <button type="button" id="ajust-annuler" class="btn btn-secondary">Annuler</button>
       </div>
     </div>
   </div>

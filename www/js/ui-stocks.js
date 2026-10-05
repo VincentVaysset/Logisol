@@ -1,18 +1,26 @@
 // Vue Stocks : synthèse d'exploitation + saisie d'une récolte.
 import {
-  CATEGORIES, CONSERVATIONS, COUPES, FOURRAGES, labelCoupe,
+  CATEGORIES, CONSERVATIONS, COUPES, FOURRAGES,
   createStock, updateStock, deleteStock, calculerTonnes
 } from './stocks.js';
-import { croiseCoupeFourrage, stockDisponibleCanonique, categoriesAvecStockNet } from './fourrages.js';
-import { getMouvements } from './mouvements.js';
+import {
+  stockDisponibleCanonique, entreesParCleFenetre, mouvementsDeAliment, tonnesDuMouvement, identiteDuMouvement
+} from './fourrages.js';
+import { getMouvements, deleteMouvement, typeMouvement } from './mouvements.js';
+import { consommationCampagneParStock, lotsConsommateurs } from './rations-calc.js';
+import { construireGroupes } from './groupes-stock.js';
+import { getCampagneStockChoisie, bornesCampagneStock, dateReferenceCampagne } from './campagne-stock.js';
+import { getInterventions } from './interventions.js';
+import { openEditIntervention } from './ui-intervention.js';
+import { openCreateMouvement, openEditMouvement } from './ui-mouvements.js';
+import { ouvrirAjustement } from './ui-ajustement.js';
 import { getCellules } from './cellules.js';
-import { getEmplacements } from './emplacements.js';
+import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getLots } from './lots.js';
-import { ouvrirFicheAliment } from './ui-fiche-aliment.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { toastSucces, toastErreur } from './toast.js';
-import { poidsBotteEffectif } from './poids-bottes.js';
+import { poidsBotteEffectif, setPoidsBotteStock } from './poids-bottes.js';
 
 const panel = document.getElementById('stock-panel');
 const form = document.getElementById('stock-form');
@@ -44,11 +52,6 @@ const errorBanner = document.getElementById('stock-error-banner');
 const errorText = document.getElementById('stock-error-text');
 
 const totauxEl = document.getElementById('stocks-totaux');
-const netFourragesEl = document.getElementById('stocks-net-fourrages');
-const netCerealesEl = document.getElementById('stocks-net-cereales');
-const croiseEl = document.getElementById('stocks-croise');
-const categoriesEl = document.getElementById('stocks-categories');
-const lignesEl = document.getElementById('stocks-lignes');
 
 const AUTRE = '__autre__';
 
@@ -312,150 +315,246 @@ async function supprimer() {
 }
 
 // --- Vue ------------------------------------------------------------------
+// Groupes dépliables (groupes-stock.js) : Luzerne, Foin de prairie (PT + PN),
+// Enrubannage / ensilage, Céréales (+ Concentrés achetés), Paille. Tous les
+// chiffres pour la campagne choisie dans l'en-tête (campagne-stock.js,
+// 01/09-31/08) : reste à la date de référence (aujourd'hui, ou le 31/08 d'une
+// campagne passée), récolté/acheté et consommé sur la fenêtre de la campagne.
+const groupesOuverts = new Set(['luzerne']);
+const mouvementsOuverts = new Set();
+const menusOuverts = new Set();
+
+function veille(dateIso) {
+  const d = new Date(dateIso + 'T12:00:00');
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function stockAuSoir(date) {
+  return stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots(), date);
+}
+
+// Stock théorique d'un aliment au soir d'une date — utilisé par
+// l'ajustement (ui-ajustement.js) et, au commit suivant, par l'Inventaire.
+export function stockTheoriqueAu(cle, date) {
+  const g = stockAuSoir(date).find((x) => x.cle === cle);
+  return g ? g.tonnes : 0;
+}
+
+function metaParCle() {
+  const meta = new Map();
+  categories.forEach((c) => meta.set(c.cle, { fourrage: c.fourrage || null, espece: c.espece || null }));
+  // Enrubannage / ensilage : la clé ne le dit pas (stocké « en botte ») — on
+  // le lit sur le type du hangar où l'aliment est entré.
+  getMouvements().forEach((m) => {
+    if (m.typeMouvement !== 'ENTREE_RECOLTE' && m.typeMouvement !== 'ENTREE_ACHAT') return;
+    if (m.destinationType !== 'EMPLACEMENT_FOURRAGE') return;
+    const e = getEmplacementById(m.destinationId);
+    const id = identiteDuMouvement(m);
+    if (!e || !id) return;
+    if (e.typeFourrage === 'ENRUBANNAGE' || e.typeFourrage === 'SILAGE') {
+      meta.set(id.cle, { ...(meta.get(id.cle) || {}), enrubannage: true });
+    }
+  });
+  return meta;
+}
+
+function donneesCampagne() {
+  const campagne = getCampagneStockChoisie();
+  const b = bornesCampagneStock(campagne);
+  const dateRef = dateReferenceCampagne(campagne);
+  const lots = getLots();
+  const reste = stockAuSoir(dateRef);
+  const depart = new Map(stockAuSoir(veille(b.debut)).map((g) => [g.cle, g.tonnes]));
+  const entrees = entreesParCleFenetre(getMouvements(), b.debut, dateRef);
+  const conso = new Map(consommationCampagneParStock(lots, campagne, dateRef).map((c) => [c.cle, c.tonnes]));
+  const mangeePar = lotsConsommateurs(lots, campagne, dateRef);
+  return { campagne, b, dateRef, ...construireGroupes({ reste, depart, entrees, conso, meta: metaParCle(), mangeePar }) };
+}
+
 export function renderVue() {
-  // stockDisponibleCanonique() : LA seule fonction de stock restant de
-  // l'appli (fourrages.js) — la même que la tuile "Stock restant" de
-  // Troupeau (ui-rations.js/totauxDistribution()). Tuiles, tableau croisé et
-  // "Par catégorie" lisaient jusqu'ici les entrées BRUTES (categories,
-  // jamais réduites par une sortie) : categoriesAvecStockNet() y substitue
-  // ce même tonnage net, en gardant les métadonnées (coupe, fourrage...) que
-  // seules les entrées portent — un seul chiffre partout dans Stocks.
-  const net = stockDisponibleCanonique(getMouvements(), getCellules(), getEmplacements(), getLots());
-  const catsNet = categoriesAvecStockNet(categories, net);
+  const groupesEl = document.getElementById('stocks-groupes');
+  if (!groupesEl) return;
+  const d = donneesCampagne();
+  const enCours = d.dateRef !== d.b.fin;
+  document.getElementById('stocks-sous-titre').textContent =
+    `${formatTonnes(d.totaux.total)} t disponibles` + (enCours ? '' : ` au ${dateLisible(d.b.fin)}`);
 
-  const tf = { foin: 0, cereale: 0, paille: 0 };
-  catsNet.forEach((c) => {
-    const fam = c.categorie || 'foin';
-    tf[fam] = Math.round(((tf[fam] || 0) + (Number(c.tonnes) || 0)) * 1000) / 1000;
-  });
   totauxEl.innerHTML = [
-    tuile('Foin', tf.foin, 'foin'),
-    tuile('Céréales', tf.cereale, 'cereale'),
-    tuile('Paille', tf.paille, 'paille')
-  ].join('');
+    ['🌿', 'Fourrages', d.totaux.fourrages],
+    ['🌾', 'Céréales', d.totaux.cereales],
+    ['🧺', 'Paille', d.totaux.paille]
+  ].map(([ico, nom, t]) => `<div class="stk-ligne-total"><span><span class="stk-ico">${ico}</span>${nom}</span><strong>${formatTonnes(t)} t</strong></div>`).join('');
 
-  // Fourrages (foin, paille) vs Céréales & concentrés (céréales, commerce) :
-  // séparation purement visuelle, sur le champ categorie déjà porté par
-  // chaque ligne (catsNet, lossless — cf. fourrages.js/categoriesAvecStockNet)
-  // — aucun recalcul, la somme des deux sections vaut exactement
-  // stockDisponibleCanonique().
-  const estCerealeOuConcentre = (c) => c.categorie === 'cereale' || c.categorie === 'commerce';
-  renderStockNet(netFourragesEl, catsNet.filter((c) => !estCerealeOuConcentre(c)));
-  renderStockNet(netCerealesEl, catsNet.filter(estCerealeOuConcentre));
+  groupesEl.innerHTML = d.groupes.length
+    ? d.groupes.map((g) => carteGroupe(g, d)).join('')
+    : '<p class="list-empty">Aucun stock sur cette campagne. Une récolte saisie dans une activité (pressage, séchage en grange, moisson) apparaît ici automatiquement.</p>';
+  cablerGroupes(groupesEl, d);
+}
 
-  // Le croisement se construit sur les catégories FUSIONNÉES (un pressage
-  // saisi dans le tunnel d'activité y apparaît au même titre qu'une récolte
-  // saisie ici) avec le tonnage NET substitué (catsNet) : seules les coupes
-  // réellement rencontrées sont affichées, pour ne pas montrer quatre lignes
-  // vides sur une exploitation qui en fait deux.
-  const { fourrages, coupes, valeur } = croiseCoupeFourrage(catsNet);
-  if (!fourrages.length) {
-    croiseEl.innerHTML = '<p class="list-empty">Aucune récolte de foin enregistrée. Une récolte saisie dans une activité (pressage, séchage en grange) apparaît ici automatiquement.</p>';
-  } else {
-    const lignesCoupes = coupes.length ? coupes : COUPES.map((c) => c.value);
-    const totalLigne = (c) => fourrages.reduce((n, f) => n + valeur(c, f), 0);
-    const totalCol = (f) => lignesCoupes.reduce((n, c) => n + valeur(c, f), 0);
-    croiseEl.innerHTML = `
-      <table class="tableau">
-        <thead><tr><th></th>${fourrages.map((f) => `<th>${escapeHtml(f)}</th>`).join('')}<th class="total">Total</th></tr></thead>
-        <tbody>
-          ${lignesCoupes.map((c) => `
-            <tr>
-              <th>${escapeHtml(c ? labelCoupe(c) : 'coupe non précisée')}</th>
-              ${fourrages.map((f) => cellule(valeur(c, f))).join('')}
-              <td class="total">${formatTonnes(totalLigne(c))}</td>
-            </tr>`).join('')}
-        </tbody>
-        <tfoot><tr><th>Total</th>${fourrages.map((f) => `<td class="total">${formatTonnes(totalCol(f))}</td>`).join('')}
-          <td class="total">${formatTonnes(fourrages.reduce((n, f) => n + totalCol(f), 0))}</td></tr></tfoot>
-      </table>`;
-  }
+function sousTitreGroupe(g) {
+  const parts = [];
+  if (g.depart > 0.001) parts.push(`départ ${formatTonnes(g.depart)} t`);
+  parts.push(`récolté ${formatTonnes(g.recolte)} t`);
+  if (g.achat > 0.001) parts.push(`acheté ${formatTonnes(g.achat)} t`);
+  parts.push(g.id === 'paille' ? 'pas de suivi de consommation' : `consommé ${formatTonnes(g.conso)} t`);
+  const t = parts.join(' · ');
+  return t[0].toUpperCase() + t.slice(1);
+}
 
-  categoriesEl.innerHTML = catsNet.length
-    ? catsNet.map((c) => `
-      <div class="cat-card cat-card-cliquable" data-cle="${escapeAttr(c.cle)}" data-label="${escapeAttr(c.label)}">
-        <div class="cat-card-nom">${escapeHtml(c.label)}</div>
-        <div class="cat-card-detail">${detailCategorie(c)}</div>
-        <div class="cat-card-tonnes">${formatTonnes(c.tonnes)} t</div>
-      </div>`).join('')
-    : '<p class="list-empty">Aucune récolte saisie.</p>';
-  categoriesEl.querySelectorAll('[data-cle]').forEach((el) => {
-    el.addEventListener('click', () => ouvrirFicheAliment(el.dataset.cle, el.dataset.label));
+function bottesDe(ligne) {
+  if (!ligne.cle) return null;
+  const poids = poidsBotteEffectif(categories, ligne.cle);
+  const cat = categories.find((c) => c.cle === ligne.cle);
+  if (!(poids > 0) || !(cat && cat.nbBottes > 0)) return null;
+  return { poids, nb: Math.round((ligne.reste * 1000) / poids) };
+}
+
+function carteGroupe(g, d) {
+  const ouvert = groupesOuverts.has(g.id);
+  const lignes = g.lignes.map((l) => {
+    const bottes = bottesDe(l);
+    const detail = l.cle === null ? `<span class="stk-sous-ligne">${escapeHtml(l.produits.join(', '))}</span>` : '';
+    const bot = bottes ? `<span class="stk-sous-ligne">≈ ${bottes.nb} bottes · <input type="number" class="stk-poids" data-cle="${escapeAttr(l.cle)}" value="${bottes.poids}" min="0" step="1" inputmode="numeric"> kg/botte</span>` : '';
+    return `<div class="stk-detail-ligne"><span class="stk-detail-nom">${escapeHtml(l.libelle)}${detail}${bot}</span><strong>${formatTonnes(l.reste)} t</strong></div>`;
+  }).join('');
+  const mangee = g.id !== 'paille' && g.mangeePar.length
+    ? `<button type="button" class="stk-lien-ligne" data-vers="troupeau"><span>Mangée par ${escapeHtml(g.mangeePar.join(', '))}</span><span class="stk-lien">Troupeau →</span></button>`
+    : '';
+  const menu = menusOuverts.has(g.id) ? `<div class="stk-menu">
+      <button type="button" data-action="ENTREE_ACHAT">🛒 Achat</button>
+      <button type="button" data-action="SORTIE_VENTE">💰 Vente</button>
+      <button type="button" data-action="PERTE">🗑️ Perte</button>
+      <button type="button" data-action="AJUSTEMENT">⚖️ Ajustement</button>
+    </div>` : '';
+  const mouvements = mouvementsOuverts.has(g.id) ? listeMouvements(g, d) : '';
+  const jauge = g.jauge == null ? '' : `<div class="stk-jauge"><div class="stk-jauge-${g.id}" style="width:${g.jauge}%"></div></div>`;
+  return `<details class="stk-groupe" data-groupe="${g.id}"${ouvert ? ' open' : ''}>
+    <summary>
+      <div class="stk-groupe-tete"><span class="stk-groupe-nom">${escapeHtml(g.nom)}${g.precision ? ` <small>(${escapeHtml(g.precision)})</small>` : ''}</span>
+        <span class="stk-groupe-val">${formatTonnes(g.reste)} t <span class="stk-chev">▾</span></span></div>
+      <p class="stk-groupe-sous">${escapeHtml(sousTitreGroupe(g))}</p>
+      ${jauge}
+    </summary>
+    ${lignes}
+    ${mangee}
+    <div class="stk-actions">
+      <button type="button" class="stk-lien" data-menu="${g.id}">＋ Achat / ajustement</button>
+      <button type="button" class="stk-lien-gris" data-mouvements="${g.id}">Mouvements ${mouvementsOuverts.has(g.id) ? '▴' : '▾'}</button>
+    </div>
+    ${menu}
+    ${mouvements}
+  </details>`;
+}
+
+const SUPPRIMABLES = ['ENTREE_ACHAT', 'SORTIE_VENTE', 'PERTE', 'AJUSTEMENT'];
+
+function mouvementsDuGroupe(g, d) {
+  const mvts = getMouvements().filter((m) => m.typeMouvement !== 'SORTIE_ALIMENTATION');
+  const parId = new Map();
+  g.cles.forEach((cle) => mouvementsDeAliment(cle, mvts).forEach((m) => parId.set(m.id, m)));
+  return Array.from(parId.values())
+    .filter((m) => m.date >= d.b.debut && m.date <= d.b.fin)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+function listeMouvements(g, d) {
+  const mvts = mouvementsDuGroupe(g, d);
+  const anciennes = stocks.filter((s) => g.cles.includes(s.categorieCle) && s.date >= d.b.debut && s.date <= d.b.fin);
+  if (!mvts.length && !anciennes.length) return '<p class="stk-vide">Aucun mouvement sur cette campagne.</p>';
+  const itv = getInterventions();
+  const lignesMvt = mvts.map((m) => {
+    const t = typeMouvement(m.typeMouvement);
+    const q = m.typeMouvement === 'AJUSTEMENT'
+      ? `${m.quantite > 0 ? '+' : ''}${formatTonnes(m.quantite)} t`
+      : `${t.sens === -1 ? '−' : t.sens === 1 ? '+' : ''}${formatTonnes(m.unite === 'bottes' ? tonnesDuMouvement(m) : m.quantite)} t`;
+    const activite = m.typeMouvement === 'ENTREE_RECOLTE' ? itv.find((i) => i.mouvementId === m.id) : null;
+    const action = activite
+      ? `<button type="button" class="stk-lien" data-activite="${escapeAttr(activite.id)}">Activité →</button>`
+      : SUPPRIMABLES.includes(m.typeMouvement)
+        ? `<button type="button" class="stk-suppr" data-supprimer="${escapeAttr(m.id)}">Supprimer</button>`
+        : `<button type="button" class="stk-lien-gris" data-modifier="${escapeAttr(m.id)}">Modifier</button>`;
+    const quoi = m.typeMouvement === 'AJUSTEMENT' ? (m.categorieLabel || '') : [m.sourceNom, m.destinationNom].filter(Boolean).join(' → ');
+    return `<div class="stk-mvt"><div><span class="stk-mvt-nom">${t.icone} ${escapeHtml(t.label)} · ${escapeHtml(dateLisible(m.date))}</span>
+      <span class="stk-sous-ligne">${escapeHtml(quoi || m.libelle || '')}</span></div>
+      <div class="stk-mvt-droite"><strong>${q}</strong>${action}</div></div>`;
+  }).join('');
+  const lignesAnciennes = anciennes.map((s) => `<div class="stk-mvt"><div><span class="stk-mvt-nom">🌾 Récolte saisie à la main · ${escapeHtml(dateLisible(s.date))}</span>
+      <span class="stk-sous-ligne">${escapeHtml(s.parcelleNom || 'sans parcelle')} · ancienne saisie, hors stock</span></div>
+      <div class="stk-mvt-droite"><strong>${formatTonnes(s.tonnes)} t</strong><button type="button" class="stk-lien-gris" data-ancienne="${escapeAttr(s.id)}">Modifier</button></div></div>`).join('');
+  return `<div class="stk-mvts">${lignesMvt}${lignesAnciennes}</div>`;
+}
+
+function cablerGroupes(racine, d) {
+  racine.querySelectorAll('details.stk-groupe').forEach((det) => {
+    det.addEventListener('toggle', () => {
+      if (det.open) groupesOuverts.add(det.dataset.groupe); else groupesOuverts.delete(det.dataset.groupe);
+    });
   });
-
-  lignesEl.innerHTML = stocks.length
-    ? stocks.map((s) => `
-      <div class="stock-ligne" data-id="${escapeAttr(s.id)}">
-        <div class="stock-ligne-body">
-          <div class="stock-ligne-nom">${escapeHtml(s.categorieLabel || '')}</div>
-          <div class="stock-ligne-sub">${escapeHtml(s.parcelleNom || 'sans parcelle')} · ${escapeHtml(dateLisible(s.date))}${detailSaisie(s)}</div>
-        </div>
-        <div class="stock-ligne-tonnes">${formatTonnes(s.tonnes)} t</div>
-      </div>`).join('')
-    : '<p class="list-empty">Aucune récolte saisie.</p>';
-  lignesEl.querySelectorAll('.stock-ligne').forEach((el) => {
-    el.addEventListener('click', () => {
-      const s = stocks.find((x) => x.id === el.dataset.id);
-      if (s) openEdit(s);
+  const groupe = (id) => d.groupes.find((g) => g.id === id);
+  racine.querySelectorAll('[data-menu]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.menu;
+    if (menusOuverts.has(id)) menusOuverts.delete(id); else menusOuverts.add(id);
+    renderVue();
+  }));
+  racine.querySelectorAll('[data-mouvements]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.dataset.mouvements;
+    if (mouvementsOuverts.has(id)) mouvementsOuverts.delete(id); else mouvementsOuverts.add(id);
+    renderVue();
+  }));
+  racine.querySelectorAll('.stk-menu [data-action]').forEach((b) => b.addEventListener('click', () => {
+    const g = groupe(b.closest('details').dataset.groupe);
+    const action = b.dataset.action;
+    menusOuverts.delete(g.id);
+    if (action === 'AJUSTEMENT') {
+      ouvrirAjustement({
+        lignes: g.cles.map((cle) => ({ cle, libelle: libelleLigneGroupe(g, cle), label: libelleLigneGroupe(g, cle) })),
+        date: d.dateRef,
+        theoriqueAu: stockTheoriqueAu
+      });
+    } else {
+      openCreateMouvement({ typeMouvement: action });
+    }
+    renderVue();
+  }));
+  racine.querySelectorAll('[data-vers="troupeau"]').forEach((b) => b.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('logisol:vue', { detail: 'troupeau' }));
+  }));
+  racine.querySelectorAll('[data-activite]').forEach((b) => b.addEventListener('click', () => {
+    const itv = getInterventions().find((i) => i.id === b.dataset.activite);
+    if (itv) openEditIntervention(itv);
+  }));
+  racine.querySelectorAll('[data-modifier]').forEach((b) => b.addEventListener('click', () => {
+    const m = getMouvements().find((x) => x.id === b.dataset.modifier);
+    if (m) openEditMouvement(m);
+  }));
+  racine.querySelectorAll('[data-ancienne]').forEach((b) => b.addEventListener('click', () => {
+    const st = stocks.find((x) => x.id === b.dataset.ancienne);
+    if (st) openEdit(st);
+  }));
+  racine.querySelectorAll('[data-supprimer]').forEach((b) => b.addEventListener('click', async () => {
+    const m = getMouvements().find((x) => x.id === b.dataset.supprimer);
+    if (!m) return;
+    const t = typeMouvement(m.typeMouvement);
+    if (!confirm(`Supprimer ${t.label.toLowerCase()} du ${dateLisible(m.date)} (${formatTonnes(m.quantite)} ${m.unite === 'bottes' ? 'bottes' : 't'}) ? Le stock sera recalculé.`)) return;
+    b.disabled = true;
+    try { await deleteMouvement(m.id); toastSucces('Mouvement supprimé.'); }
+    catch (err) { toastErreur('Suppression impossible : ' + ((err && err.message) || err)); b.disabled = false; }
+  }));
+  racine.querySelectorAll('.stk-poids').forEach((input) => {
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('change', async () => {
+      try { await setPoidsBotteStock(input.dataset.cle, input.value); toastSucces('Poids de botte enregistré.'); }
+      catch (err) { toastErreur('Enregistrement impossible : ' + ((err && err.message) || err)); }
     });
   });
 }
 
-// Rend une section de "Stock disponible" (Fourrages, ou Céréales &
-// concentrés) — même carte, même calcul de bottes que l'ancien #stocks-net,
-// juste réparti en deux conteneurs distincts (cf. renderVue()).
-function renderStockNet(container, lignes) {
-  if (!container) return;
-  container.innerHTML = lignes.length
-    ? lignes.map((g) => {
-        // Nombre de bottes TOUJOURS recalculé depuis le tonnage net et le
-        // poids/botte (poids-bottes.js) — jamais depuis un compte de
-        // bottes qui ne décroît qu'au fil des mouvements physiques, sans
-        // jamais refléter une consommation dérivée des distributions.
-        const poids = poidsBotteEffectif(categories, g.cle);
-        const bottes = poids > 0 ? Math.round((g.tonnes * 1000) / poids) : null;
-        return `
-      <div class="cat-card cat-card-cliquable" data-cle="${escapeAttr(g.cle)}" data-label="${escapeAttr(g.label)}">
-        <div class="cat-card-nom">${escapeHtml(g.label)}</div>
-        <div class="cat-card-detail">${bottes != null ? bottes + ' bottes restantes' : 'en vrac'}</div>
-        <div class="cat-card-tonnes">${formatTonnes(g.tonnes)} t</div>
-      </div>`;
-      }).join('')
-    : '<p class="list-empty">Rien pour l\'instant.</p>';
-  container.querySelectorAll('[data-cle]').forEach((el) => {
-    el.addEventListener('click', () => ouvrirFicheAliment(el.dataset.cle, el.dataset.label));
-  });
-}
-
-function detailCategorie(c) {
-  const bouts = [`${c.nbRecoltes} récolte${c.nbRecoltes > 1 ? 's' : ''}`];
-  // Bottes restantes : depuis le tonnage NET (c.tonnes, déjà substitué par
-  // categoriesAvecStockNet) et le poids/botte — jamais depuis c.nbBottes
-  // (compte d'ENTRÉE brute, ne décroît jamais avec une distribution).
-  const poids = poidsBotteEffectif(categories, c.cle);
-  if (poids > 0 && c.nbBottes) bouts.push(`${Math.round((c.tonnes * 1000) / poids)} bottes`);
-  if (c.nbRemorques) bouts.push(`${c.nbRemorques} remorques`);
-  if (c.surfaceHa) bouts.push(`${c.surfaceHa} ha`);
-  // D'où vient le chiffre : saisi ici, remonté du journal des activités, ou
-  // les deux. Sans ça, un total qui bouge tout seul serait inexplicable.
-  if (c.origine === 'journal') bouts.push('depuis les activités');
-  else if (c.origine === 'mixte') bouts.push('saisies + activités');
-  return escapeHtml(bouts.join(' · '));
-}
-
-function detailSaisie(s) {
-  if (s.nbBottes) return ` · ${s.nbBottes} × ${s.poidsBotteKg || '?'} kg`;
-  if (s.nbRemorques) return ` · ${s.nbRemorques} rem. × ${s.kgMSParRemorque || '?'} kg MS`;
-  if (s.surfaceHa) return ` · ${s.surfaceHa} ha`;
-  return '';
-}
-
-function tuile(nom, tonnes, cls) {
-  return `<div class="tuile tuile-${cls}"><div class="tuile-val">${formatTonnes(tonnes)}<small> t</small></div><div class="tuile-nom">${nom}</div></div>`;
-}
-
-function cellule(v) {
-  return v > 0 ? `<td>${formatTonnes(v)}</td>` : '<td class="vide">—</td>';
+function libelleLigneGroupe(g, cle) {
+  const l = g.lignes.find((x) => x.cle === cle);
+  if (l) return l.libelle;
+  const cat = categories.find((c) => c.cle === cle);
+  return (cat && cat.label) || cle;
 }
 
 export function formatTonnes(v) {

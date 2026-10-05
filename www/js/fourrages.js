@@ -332,14 +332,40 @@ export function stockNetParCategorie(mouvements, cellules, emplacements) {
 // distribution qui décrit la même consommation, et le stock semblerait plus
 // bas qu'il ne l'est réellement. Ces mouvements ne sont pas supprimés (cf.
 // "Sorties alimentation manuelles", ui-rations.js) : seulement écartés d'ici.
+//
+// date (facultative) : stock AU SOIR de cette date — seuls les mouvements
+// datés jusqu'à elle comptent, et la consommation s'arrête à elle. Sans date,
+// tout le journal et la consommation jusqu'à aujourd'hui (comportement
+// d'origine).
+//
+// Les AJUSTEMENTS (écart constaté à un inventaire, sans contenant) s'ajoutent
+// par catégorie après le calcul par contenant, comme la consommation : ils
+// corrigent le stock, jamais la consommation (le Bilan ne lit que les rations).
 export function stockDisponibleCanonique(mouvements, cellules, emplacements, lots, date) {
-  const retenus = (mouvements || []).filter((m) => m.typeMouvement !== 'SORTIE_ALIMENTATION' && !m.excluCalcul);
-  const net = stockNetParCategorie(retenus, cellules, emplacements);
+  const retenus = (mouvements || []).filter((m) => m.typeMouvement !== 'SORTIE_ALIMENTATION' &&
+    !m.excluCalcul && (!date || m.date <= date));
+  const net = stockNetParCategorie(retenus.filter((m) => m.typeMouvement !== 'AJUSTEMENT'), cellules, emplacements);
   const parCle = new Map(net.map((g) => [g.cle, { ...g }]));
+  const ligne = (cle, label) => {
+    if (!parCle.has(cle)) parCle.set(cle, { cle, label, tonnes: 0, bottes: 0 });
+    return parCle.get(cle);
+  };
   consommationParStock(lots || [], date).forEach((c) => {
-    if (!parCle.has(c.cle)) parCle.set(c.cle, { cle: c.cle, label: c.label, tonnes: 0, bottes: 0 });
-    const g = parCle.get(c.cle);
+    const g = ligne(c.cle, c.label);
     g.tonnes = arrondi3(g.tonnes - c.tonnes);
+  });
+  retenus.filter((m) => m.typeMouvement === 'AJUSTEMENT' && m.categorieCle).forEach((m) => {
+    const g = ligne(m.categorieCle, m.categorieLabel || m.categorieCle);
+    g.tonnes = arrondi3(g.tonnes + (Number(m.quantite) || 0));
+  });
+  // Concentrés achetés (tourteaux, complets...) : livrés « Autre », hors de
+  // tout silo ou hangar suivi — sans cette ligne, leur achat n'entrait jamais
+  // dans le stock alors que leur consommation en ration en était déduite.
+  retenus.filter((m) => m.typeMouvement === 'ENTREE_ACHAT' && m.destinationType === 'AUTRE').forEach((m) => {
+    const id = identiteDuMouvement(m);
+    if (!id || id.famille !== 'commerce') return;
+    const g = ligne(id.cle, id.label);
+    g.tonnes = arrondi3(g.tonnes + tonnesDuMouvement(m));
   });
   // Un aliment distribué au-delà de son stock net (sur-affecté, ou consommé
   // avant la saisie de sa récolte) doit rester VISIBLE, y compris négatif —
@@ -347,6 +373,27 @@ export function stockDisponibleCanonique(mouvements, cellules, emplacements, lot
   // d'affichage est refait ici (stockNetParCategorie triait sur le stock
   // brut, avant déduction des distributions).
   return Array.from(parCle.values()).sort((a, b) => b.tonnes - a.tonnes);
+}
+
+/**
+ * Entrées d'une période [debut, fin] (bornes incluses) par catégorie :
+ * récolté (ENTREE_RECOLTE) et acheté (ENTREE_ACHAT), en tonnes — pour
+ * « Récolté X t · consommé Y t » et la jauge des groupes de l'onglet Stocks.
+ * @returns {Map<string,{cle,label,recolte:number,achat:number}>}
+ */
+export function entreesParCleFenetre(mouvements, debut, fin) {
+  const parCle = new Map();
+  (mouvements || []).forEach((m) => {
+    if (!ENTREES.includes(m.typeMouvement) || m.excluCalcul) return;
+    if (m.date < debut || m.date > fin) return;
+    const id = identiteDuMouvement(m);
+    if (!id) return;
+    if (!parCle.has(id.cle)) parCle.set(id.cle, { cle: id.cle, label: id.label, recolte: 0, achat: 0 });
+    const g = parCle.get(id.cle);
+    const champ = m.typeMouvement === 'ENTREE_ACHAT' ? 'achat' : 'recolte';
+    g[champ] = arrondi3(g[champ] + tonnesDuMouvement(m));
+  });
+  return parCle;
 }
 
 // Types comptés comme "entrée" pour le Prévisionnel : récoltes, achats, un

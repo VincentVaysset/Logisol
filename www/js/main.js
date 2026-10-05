@@ -283,6 +283,10 @@ function peuplerCampagnesStock() {
 if (campagneStockSelectEl) {
   campagneStockSelectEl.addEventListener('change', () => setCampagneStockChoisie(campagneStockSelectEl.value));
 }
+// Liens entre onglets (« Mangée par … » de Stocks -> Troupeau, « Stock
+// restant » de Troupeau -> Stocks) : les modules d'affichage ne connaissent
+// pas setView, ils demandent la vue par un événement.
+document.addEventListener('logisol:vue', (e) => setView(e.detail));
 onCampagneStockChange(() => {
   if (currentView === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (currentView === 'troupeau') renderTroupeau();

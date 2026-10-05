@@ -212,3 +212,21 @@ export function stockDisponibleParItem(categories, lots, date = aujourdhui()) {
   return Array.from(parCle.values()).map((c) => ({ ...c, disponible: arrondi3(c.entrees - c.consomme) }));
 }
 
+
+/** Lots qui ont mangé chaque aliment sur la campagne (« Mangée par … » de Stocks). */
+export function lotsConsommateurs(lots, campagne, date = aujourdhui()) {
+  const fenetre = bornesCampagneStock(campagne);
+  const parCle = new Map();
+  (lots || []).forEach((lot) => {
+    historiqueAffectations(lot).forEach((aff) => {
+      composantsAffectation(aff).forEach((c) => {
+        if (!c.stockCle || !(tonnesComposantFenetre(aff, c, fenetre, date) > 0)) return;
+        if (!parCle.has(c.stockCle)) parCle.set(c.stockCle, []);
+        const noms = parCle.get(c.stockCle);
+        const nom = lot.nom || 'Lot';
+        if (!noms.includes(nom)) noms.push(nom);
+      });
+    });
+  });
+  return parCle;
+}

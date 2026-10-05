@@ -55,7 +55,12 @@ export const TYPES_MOUVEMENT = [
   { value: 'SORTIE_ALIMENTATION', label: 'Sortie — alimentation', sens: -1, icone: '🐑' },
   { value: 'SORTIE_VENTE',        label: 'Sortie — vente',        sens: -1, icone: '💰' },
   { value: 'PERTE',               label: 'Perte / déchet',        sens: -1, icone: '🗑️' },
-  { value: 'INVENTAIRE',          label: 'Correction d\'inventaire', sens: 0, icone: '📋' }
+  { value: 'INVENTAIRE',          label: 'Correction d\'inventaire', sens: 0, icone: '📋' },
+  // Écart (stock réel − stock théorique) sur UNE catégorie d'aliment, signé,
+  // sans contenant : appliqué après le calcul par contenant, comme la
+  // consommation des rations (fourrages.js/stockDisponibleCanonique). Jamais
+  // compté comme consommation : le Bilan ne lit que les rations distribuées.
+  { value: 'AJUSTEMENT',          label: 'Ajustement',            sens: 0,  icone: '⚖️' }
 ];
 
 // Produits proposés pour un achat/vente (mouvement ENTREE_ACHAT/SORTIE_VENTE) —
@@ -279,6 +284,11 @@ function nettoyer(data) {
 function valider(m) {
   if (!m.date) throw new Error('La date est obligatoire.');
   if (!m.typeMouvement) throw new Error('Choisis un type de mouvement.');
+  if (m.typeMouvement === 'AJUSTEMENT') {
+    if (!m.categorieCle) throw new Error('Un ajustement porte sur un aliment précis.');
+    if (!m.quantite) throw new Error('Aucun écart à enregistrer.');
+    return;
+  }
   // Un inventaire peut constater un stock à zéro (remise à zéro explicite,
   // ex. paille en fin de campagne, cf. vider-paille.js) — c'est le seul type
   // où "0" est une valeur vraiment saisie, jamais une case oubliée : les

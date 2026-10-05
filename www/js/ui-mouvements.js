@@ -79,7 +79,9 @@ function hideError() { el['error-banner'].hidden = true; }
 // l'option n'est désactivée qu'à la création (permettreAlimentation=false).
 function peuplerTypesMouvement(permettreAlimentation) {
   const valeur = el.type.value;
-  el.type.innerHTML = TYPES_MOUVEMENT.map((t) => {
+  // AJUSTEMENT : jamais par ce formulaire (il n'a pas de champ aliment) —
+  // seulement depuis Stocks (« + Achat / ajustement ») et l'Inventaire.
+  el.type.innerHTML = TYPES_MOUVEMENT.filter((t) => t.value !== 'AJUSTEMENT').map((t) => {
     const bloque = t.value === 'SORTIE_ALIMENTATION' && !permettreAlimentation;
     return `<option value="${t.value}" ${bloque ? 'disabled' : ''}>${t.icone} ${t.label}${bloque ? ' — via Distributions (Troupeau)' : ''}</option>`;
   }).join('');
@@ -364,6 +366,17 @@ export function openCreateMouvement(prefill = {}) {
 }
 
 export function openEditMouvement(m) {
+  if (m && m.typeMouvement === 'AJUSTEMENT') {
+    // Un ajustement ne se modifie pas : il se supprime et se refait (Stocks
+    // ou Inventaire), ce qui garde la trace de chaque écart constaté.
+    const q = Number(m.quantite) || 0;
+    if (confirm(`Ajustement du ${dateLisible(m.date)} : ${q > 0 ? '+' : ''}${formatTonnes(q)} t (${m.categorieLabel || m.categorieCle}).\nLe supprimer ?`)) {
+      deleteMouvement(m.id)
+        .then(() => { onChangeExterne(); toastSucces('Ajustement supprimé.'); })
+        .catch((err) => toastErreur('Suppression impossible : ' + messageErreur(err)));
+    }
+    return;
+  }
   editId = m.id;
   panel.hidden = false;
   saveToken++;
