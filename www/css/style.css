@@ -890,6 +890,9 @@ header button {
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
 }
+/* display:flex ci-dessus l'emporte sur l'attribut hidden : sans cette règle,
+   « Dérobée / couvert — » s'affichait pour toute parcelle sans dérobée. */
+.apercu-infos > div[hidden] { display: none; }
 .apercu-infos dt { margin: 0; font-size: 13px; color: var(--text-muted); }
 .apercu-infos dd { margin: 0; font-size: 15px; font-weight: 600; text-align: right; }
 .apercu-sous-titre { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); font-weight: 600; }
