@@ -2102,3 +2102,13 @@ header .campagne-select { min-height: 32px; }
 .trp-report-actions { display: flex; align-items: center; gap: 14px; }
 .trp-epuise { color: #b45309; font-weight: 600; }
 .trp-histo-actions { display: flex; gap: 12px; }
+
+/* Cycle d'un lot : clôturer, renouveler, lots clôturés (repliés). */
+.trp-lot-cycle { border-top: none; padding-top: 0; }
+.trp-cycle { margin: 0 14px 12px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.trp-cycle label { margin: 6px 0 4px; font-size: 12px; }
+.trp-cycle input, .trp-cycle select { margin-bottom: 4px; }
+.trp-cycle-aide { margin: 4px 0 8px; font-size: 12px; color: #64748b; }
+.trp-clotures { margin-top: 12px; }
+.trp-clos { padding: 10px 14px; border-top: 1px solid #f1f5f9; }
+.trp-clos .stk-mvts { margin: 6px -14px 0; }

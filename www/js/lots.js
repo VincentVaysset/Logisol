@@ -37,6 +37,8 @@ import {
 } from "../vendor/firebase/firebase-firestore.js";
 import { aujourdhui } from './implantations.js';
 import { ecrire } from './ecriture-locale.js';
+import { affectationsApresClotureLot, rationAuDernierJour, composantsAffectation, finExclueDe, affectationsLot } from './affectations.js';
+import { verifierDateModifiable } from './verrou-campagne.js';
 import { cleCommerce } from './stocks.js';
 import { composantsDuStade } from './stades.js';
 
@@ -49,6 +51,11 @@ const listenersLots = new Set();
 const listenersPrel = new Set();
 
 export function getLots() { return lots; }
+// Lot clôturé : dateCloture = son DERNIER jour (inclus). Il reste en base, dans
+// le Bilan campagne et dans l'historique ; il sort des bâtiments, des listes
+// de saisie et de la consommation après ce jour.
+export function estCloture(lot) { return !!(lot && lot.dateCloture); }
+export function getLotsActifs() { return lots.filter((l) => !estCloture(l)); }
 export function getPrelevements() { return prelevements; }
 
 export function onLotsChange(cb) { listenersLots.add(cb); cb(lots); return () => listenersLots.delete(cb); }
@@ -197,6 +204,67 @@ export async function updateLot(id, { nom, nbBrebis, batimentId = null, notes = 
     typeAnimaux: typeValide(typeAnimaux),
     majLe: serverTimestamp()
   }), 'Lot');
+}
+
+/** Clôture un lot : la ration en cours se termine à son dernier jour (inclus). */
+export async function cloturerLot(lot, dernierJour = aujourdhui()) {
+  if (!lot || !lot.id) throw new Error('Lot introuvable.');
+  if (estCloture(lot)) throw new Error('Ce lot est déjà clôturé.');
+  const affectations = affectationsApresClotureLot(lot, dernierJour);
+  verifierDateModifiable(finExclueDe(dernierJour), 'ce lot');
+  const ref = doc(db, 'lots_animaux', lot.id);
+  await ecrire(ref, updateDoc(ref, { dateCloture: dernierJour, affectations, majLe: serverTimestamp() }), 'Clôture du lot');
+}
+
+/**
+ * Rouvre un lot clôturé (supprime sa date de fin). Sa dernière ration, si elle
+ * s'arrêtait exactement à la clôture, peut être rouverte aussi — sur demande.
+ */
+export async function rouvrirLot(lot, { rouvrirRation = false } = {}) {
+  if (!estCloture(lot)) return;
+  const finExclue = finExclueDe(lot.dateCloture);
+  verifierDateModifiable(finExclue, 'ce lot');
+  const derniere = affectationsLot(lot).filter((a) => a.dateFin === finExclue)
+    .sort((a, b) => (a.dateDebut < b.dateDebut ? 1 : -1))[0];
+  const affectations = rouvrirRation && derniere
+    ? affectationsLot(lot).map((a) => (a.id === derniere.id ? { ...a, dateFin: null } : a))
+    : affectationsLot(lot);
+  const ref = doc(db, 'lots_animaux', lot.id);
+  await ecrire(ref, updateDoc(ref, { dateCloture: null, affectations, majLe: serverTimestamp() }), 'Réouverture du lot');
+}
+
+/** La ration qui serait rouverte avec le lot (celle qui s'arrêtait à la clôture). */
+export function rationFermeeParCloture(lot) {
+  if (!estCloture(lot)) return null;
+  const finExclue = finExclueDe(lot.dateCloture);
+  return affectationsLot(lot).filter((a) => a.dateFin === finExclue).sort((a, b) => (a.dateDebut < b.dateDebut ? 1 : -1))[0] || null;
+}
+
+/**
+ * Renouvelle un lot en un geste : clôture l'ancien à son dernier jour, crée
+ * le suivant à partir du lendemain (même bâtiment), avec ou sans la ration
+ * en cours copiée (effectif du nouveau lot).
+ * @returns {Promise<string>} id du nouveau lot
+ */
+export async function renouvelerLot(lot, { dernierJour = aujourdhui(), nom, nbBrebis, typeAnimaux, copierRation = true }) {
+  if (!nom || !String(nom).trim()) throw new Error('Donne un nom au nouveau lot.');
+  const n = Number(nbBrebis);
+  if (!isFinite(n) || n <= 0) throw new Error("L'effectif doit être supérieur à 0.");
+  const debut = finExclueDe(dernierJour);
+  const ration = copierRation ? rationAuDernierJour(lot, dernierJour) : null;
+  await cloturerLot(lot, dernierJour);
+  const ref = doc(COL_LOTS);
+  const affectations = ration && composantsAffectation(ration).length ? [{
+    id: Math.random().toString(36).slice(2, 10),
+    composants: composantsAffectation(ration).map((c) => ({ stockCle: c.stockCle, stockLabel: c.stockLabel, kgParAnimalJour: Number(c.kgParAnimalJour) || 0 })),
+    nbBrebis: n, dateDebut: debut, dateFin: null, creeLe: new Date().toISOString()
+  }] : [];
+  await ecrire(ref, setDoc(ref, {
+    nom: String(nom).trim(), nbBrebis: n, stadeId: lot.stadeId || null, batimentId: lot.batimentId || null, notes: '',
+    typeAnimaux: typeValide(typeAnimaux), affectations, renouveleDe: lot.id,
+    creeLe: serverTimestamp(), majLe: serverTimestamp()
+  }), 'Nouveau lot');
+  return ref.id;
 }
 
 export async function deleteLot(id) {

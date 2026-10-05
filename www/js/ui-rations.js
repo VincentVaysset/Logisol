@@ -21,7 +21,7 @@ import {
   getPlan, onPlanChange, ajouterLignePlan, supprimerLignePlan, campagneCourante
 } from './plan-campagne.js';
 import { openEditLot } from './ui-alimentation.js';
-import { getLots, typeAnimauxDe } from './lots.js';
+import { getLots, typeAnimauxDe, getLotsActifs } from './lots.js';
 import { getStades, onStadesChange } from './stades.js';
 import { aujourdhui } from './implantations.js';
 import { getCampagneStockChoisie, onCampagneStockChange } from './campagne-stock.js';
@@ -335,7 +335,7 @@ export function totauxDistribution() {
 // (alimentation.js, prélèvements) pour l'alerte de la sous-vue Ration
 // actuelle, désormais basée sur les distributions.
 export function lotsSansDistribution() {
-  return getLots().filter((l) => !affectationEnCours(l));
+  return getLotsActifs().filter((l) => !affectationEnCours(l));
 }
 
 // ============================================================================

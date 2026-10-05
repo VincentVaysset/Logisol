@@ -46,7 +46,7 @@ let demarreurTrace = null;
 export function setDemarreurTrace(fn) { demarreurTrace = fn; }
 import { getCellules, getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacements, getEmplacementById } from './emplacements.js';
-import { getLots } from './lots.js';
+import { getLots, getLotsActifs } from './lots.js';
 import { niveauContenant, createMouvement, updateMouvement, deleteMouvement, getMouvements } from './mouvements.js';
 import {
   implantationEnCours, historiqueParcelle, setImplantation, cloturerImplantation, deleteImplantation
@@ -342,7 +342,7 @@ function ciblesDisponibles() {
     nom: b.nom || 'Bergerie',
     surfaceHa: null,
     couleur: '#8a6d5c',
-    sousTitre: getLots().filter((l) => l.batimentId === b.id).reduce((n, l) => n + (Number(l.nbBrebis) || 0), 0) + ' brebis'
+    sousTitre: getLotsActifs().filter((l) => l.batimentId === b.id).reduce((n, l) => n + (Number(l.nbBrebis) || 0), 0) + ' brebis'
   }));
 }
 
@@ -1099,7 +1099,7 @@ function contenantsOptions({ cellules = 'TOUS', emplacements = true } = {}) {
 }
 
 function lotsOptions() {
-  return getLots().map((l) => ({ value: 'LOT_BERGERIE:' + l.id, label: `${l.nom} (${l.nbBrebis} brebis)` }));
+  return getLotsActifs().map((l) => ({ value: 'LOT_BERGERIE:' + l.id, label: `${l.nom} (${l.nbBrebis} brebis)` }));
 }
 
 function remplirSelect(select, options, valeur) {

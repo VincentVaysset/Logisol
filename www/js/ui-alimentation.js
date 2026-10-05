@@ -12,7 +12,7 @@
 // "prelevements" n'est PAS supprimée pour autant (lots.js garde ses
 // fonctions de lecture/écriture, inutilisées ici mais intactes) — seule
 // l'UI qui l'affichait/l'alimentait a disparu.
-import { getLots, createLot, updateLot, deleteLot, typeAnimauxDe } from './lots.js';
+import { getLots, createLot, updateLot, deleteLot, typeAnimauxDe, getLotsActifs, estCloture, cloturerLot, rouvrirLot, renouvelerLot, rationFermeeParCloture, TYPES_ANIMAUX } from './lots.js';
 import {
   ouvrirSectionRationsLot, fermerSectionRationsLot,
   initTroupeauRations, renderTroupeauRations,
@@ -52,6 +52,9 @@ const alerteEl = document.getElementById('troupeau-alerte');
 const lotsEl = document.getElementById('troupeau-lots');
 const historiquesOuverts = new Set();
 let reportOuvert = null;   // « lotId|affId|cle » dont le choix de remplacement est déplié
+let clotureOuverte = null;  // id du lot dont le formulaire « Clôturer » est déplié
+let renouvOuvert = null;    // id du lot dont le formulaire « Renouveler » est déplié
+let cloturesOuverts = false;
 const sousVuesEl = document.getElementById('troupeau-sous-vues');
 const vuePrevisionnelEl = document.getElementById('troupeau-previsionnel');
 const vueActuelleEl = document.getElementById('troupeau-actuel');
@@ -218,6 +221,20 @@ async function enregistrer(e) {
 
 async function supprimer() {
   if (!editingId) return;
+  // Un lot qui a mangé ne se supprime pas : sa consommation disparaîtrait des
+  // stocks et du bilan. On propose de le clôturer à la place.
+  const lot = getLots().find((l) => l.id === editingId);
+  const conso = lot ? affectationsLot(lot).reduce((t, a) => t + composantsAffectation(a).reduce((n, c) => n + tonnesComposant(a, c), 0), 0) : 0;
+  if (conso > 0.0005) {
+    const msg = `Suppression refusée : ce lot a ${formatTonnes(conso)} t de consommation enregistrée (stocks et bilan campagne). Le clôturer à la place ?`;
+    showError(msg);
+    if (lot && !estCloture(lot) && confirm(msg)) {
+      fermer();
+      clotureOuverte = lot.id;
+      renderLots();
+    }
+    return;
+  }
   if (!confirm('Supprimer ce lot ? Cette action est irréversible.')) return;
   btnDelete.disabled = true;
   try {
@@ -245,7 +262,7 @@ function effectifLisible(n, type) {
 const PAR_ANIMAL = { BREBIS: 'brebis', AGNELLES: 'agnelle', BELIERS: 'bélier' };
 
 export function renderVue() {
-  const lots = getLots();
+  const lots = getLotsActifs();
   const parType = { BREBIS: 0, AGNELLES: 0, BELIERS: 0 };
   lots.forEach((l) => { parType[typeAnimauxDe(l)] += Number(l.nbBrebis) || 0; });
   document.getElementById('troupeau-sous-titre').textContent =
@@ -285,8 +302,10 @@ function stockRestantLot(composants, stock, besoin) {
 }
 
 function renderLots() {
-  const lots = getLots();
-  if (!lots.length) {
+  const tous = getLots();
+  const lots = tous.filter((l) => !estCloture(l));
+  const clos = tous.filter((l) => estCloture(l)).sort((a, b) => (a.dateCloture < b.dateCloture ? 1 : -1));
+  if (!tous.length) {
     lotsEl.innerHTML = '<p class="list-empty">Aucun lot. Utilise « ➕ Lot » pour en créer un.</p>';
     return;
   }
@@ -330,9 +349,15 @@ function renderLots() {
         <button type="button" class="stk-lien" data-changer="${escapeAttr(lot.id)}">🔄 Changer la ration</button>
         <button type="button" class="stk-lien-gris" data-historique="${escapeAttr(lot.id)}">Historique ${ouvert ? '▴' : '▾'}</button>
       </div>
+      <div class="stk-actions trp-lot-cycle">
+        <button type="button" class="stk-lien-gris" data-cloturer="${escapeAttr(lot.id)}">Clôturer le lot</button>
+        <button type="button" class="stk-lien-gris" data-renouveler="${escapeAttr(lot.id)}">Renouveler le lot</button>
+      </div>
+      ${clotureOuverte === lot.id ? formCloture(lot) : ''}
+      ${renouvOuvert === lot.id ? formRenouvellement(lot) : ''}
       ${ouvert ? historiqueLot(lot) : ''}
     </div>`;
-  }).join('');
+  }).join('') + sectionClotures(clos);
 
   lotsEl.querySelectorAll('.trp-lot-tete').forEach((el) => {
     el.addEventListener('click', () => {
@@ -378,6 +403,57 @@ function renderLots() {
       b.disabled = false;
     }
   }));
+  lotsEl.querySelectorAll('[data-cloturer]').forEach((b) => b.addEventListener('click', () => {
+    clotureOuverte = clotureOuverte === b.dataset.cloturer ? null : b.dataset.cloturer;
+    renouvOuvert = null;
+    renderLots();
+  }));
+  lotsEl.querySelectorAll('[data-renouveler]').forEach((b) => b.addEventListener('click', () => {
+    renouvOuvert = renouvOuvert === b.dataset.renouveler ? null : b.dataset.renouveler;
+    clotureOuverte = null;
+    renderLots();
+  }));
+  lotsEl.querySelectorAll('[data-cycle-annuler]').forEach((b) => b.addEventListener('click', () => { clotureOuverte = null; renouvOuvert = null; renderLots(); }));
+  lotsEl.querySelectorAll('[data-cloture-valider]').forEach((b) => b.addEventListener('click', async () => {
+    const bloc = b.closest('.trp-cycle');
+    const lot = getLots().find((l) => l.id === bloc.dataset.lot);
+    const date = bloc.querySelector('[data-cycle-date]').value;
+    if (!lot || !date) return;
+    b.disabled = true;
+    try {
+      await cloturerLot(lot, date);
+      clotureOuverte = null;
+      toastSucces(`Lot « ${lot.nom} » clôturé au ${jjmm(date)}. Il reste dans le bilan campagne.`);
+    } catch (err) { erreurCycle(bloc, err); b.disabled = false; }
+  }));
+  lotsEl.querySelectorAll('[data-renouv-valider]').forEach((b) => b.addEventListener('click', async () => {
+    const bloc = b.closest('.trp-cycle');
+    const lot = getLots().find((l) => l.id === bloc.dataset.lot);
+    const v = (k) => bloc.querySelector(`[data-renouv-${k}]`);
+    if (!lot) return;
+    b.disabled = true;
+    try {
+      await renouvelerLot(lot, { dernierJour: bloc.querySelector('[data-cycle-date]').value, nom: v('nom').value, nbBrebis: v('nb').value,
+        typeAnimaux: v('type').value, copierRation: v('copier').checked });
+      renouvOuvert = null;
+      toastSucces(`Lot « ${lot.nom} » clôturé, « ${v('nom').value} » créé.`);
+    } catch (err) { erreurCycle(bloc, err); b.disabled = false; }
+  }));
+  lotsEl.querySelectorAll('[data-cycle-date]').forEach((i) => i.addEventListener('change', () => {
+    const info = i.closest('.trp-cycle').querySelector('[data-renouv-debut]');
+    if (info && i.value) info.textContent = `Nouveau lot à partir du ${jjmmaaaa(lendemainIso(i.value))}.`;
+  }));
+  const det = lotsEl.querySelector('details.trp-clotures');
+  if (det) det.addEventListener('toggle', () => { cloturesOuverts = det.open; });
+  lotsEl.querySelectorAll('[data-rouvrir]').forEach((b) => b.addEventListener('click', async () => {
+    const lot = getLots().find((l) => l.id === b.dataset.rouvrir);
+    if (!lot || !confirm(`Rouvrir le lot « ${lot.nom} » ? Sa date de fin (${jjmmaaaa(lot.dateCloture)}) sera supprimée.`)) return;
+    const ration = rationFermeeParCloture(lot);
+    const rouvrirRation = !!ration && confirm(`Rouvrir aussi sa dernière ration (${resumeComposants(composantsAffectation(ration))}) à partir du ${jjmmaaaa(lendemainIso(lot.dateCloture))} ?`);
+    b.disabled = true;
+    try { await rouvrirLot(lot, { rouvrirRation }); toastSucces(`Lot « ${lot.nom} » rouvert.`); }
+    catch (err) { toastErreur('Réouverture impossible : ' + ((err && err.message) || err)); b.disabled = false; }
+  }));
   lotsEl.querySelectorAll('[data-modifier-ration]').forEach((b) => b.addEventListener('click', () => {
     const lot = getLots().find((l) => l.id === b.dataset.lot);
     if (lot) ouvrirEditionPeriode(lot, b.dataset.modifierRation);
@@ -399,6 +475,67 @@ function renderLots() {
       b.disabled = false;
     }
   }));
+}
+
+function jjmmaaaa(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : ''; }
+function lendemainIso(iso) { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); }
+function erreurCycle(bloc, err) {
+  const p = bloc.querySelector('.trp-cycle-erreur');
+  p.textContent = (err && err.message) || String(err);
+  p.hidden = false;
+}
+
+// « Clôturer le lot » : dernier jour (aujourd'hui par défaut). Le lot et ses
+// rations restent en base et dans le bilan ; il sort des bâtiments et ne
+// consomme plus après ce jour.
+function formCloture(lot) {
+  return `<div class="trp-cycle" data-lot="${escapeAttr(lot.id)}">
+    <label>Dernier jour du lot</label>
+    <input type="date" data-cycle-date value="${aujourdhui()}">
+    <p class="trp-cycle-aide">La ration en cours s'arrête ce jour-là. Le lot et ses rations restent dans le bilan campagne, dans « Lots clôturés ».</p>
+    <p class="champ-aide champ-aide-erreur trp-cycle-erreur" hidden></p>
+    <div class="trp-report-actions"><button type="button" class="stk-btn-sombre" data-cloture-valider>Clôturer le lot</button>
+      <button type="button" class="stk-lien-gris" data-cycle-annuler>Annuler</button></div>
+  </div>`;
+}
+
+// « Renouveler le lot » : clôture l'ancien et crée le suivant en un geste
+// (début = lendemain du dernier jour, même bâtiment, ration copiée au choix).
+function formRenouvellement(lot) {
+  const type = typeAnimauxDe(lot);
+  return `<div class="trp-cycle" data-lot="${escapeAttr(lot.id)}">
+    <label>Dernier jour de « ${escapeHtml(lot.nom || 'Lot')} »</label>
+    <input type="date" data-cycle-date value="${aujourdhui()}">
+    <p class="trp-cycle-aide" data-renouv-debut>Nouveau lot à partir du ${jjmmaaaa(lendemainIso(aujourdhui()))}.</p>
+    <label>Nom du nouveau lot</label>
+    <input type="text" data-renouv-nom value="${escapeAttr(lot.nom || '')}">
+    <label>Effectif (têtes)</label>
+    <input type="number" data-renouv-nb min="1" step="1" inputmode="numeric" value="${escapeAttr(lot.nbBrebis || '')}">
+    <label>Type</label>
+    <select data-renouv-type>${TYPES_ANIMAUX.map((t) => `<option value="${t.value}"${t.value === type ? ' selected' : ''}>${t.label}</option>`).join('')}</select>
+    <label class="case-ligne"><input type="checkbox" data-renouv-copier checked> Copier la ration actuelle</label>
+    <p class="champ-aide champ-aide-erreur trp-cycle-erreur" hidden></p>
+    <div class="trp-report-actions"><button type="button" class="stk-btn-sombre" data-renouv-valider>Renouveler le lot</button>
+      <button type="button" class="stk-lien-gris" data-cycle-annuler>Annuler</button></div>
+  </div>`;
+}
+
+// Lots clôturés : repliés, consultables (historique en lecture), « Rouvrir le
+// lot » seulement sur action explicite.
+function sectionClotures(clos) {
+  if (!clos.length) return '';
+  return `<details class="stk-groupe trp-clotures"${cloturesOuverts ? ' open' : ''}>
+    <summary><div class="stk-groupe-tete"><span class="stk-groupe-nom">Lots clôturés <small>(${clos.length})</small></span><span class="stk-chev">▼</span></div></summary>
+    ${clos.map((lot) => {
+      const conso = affectationsLot(lot).reduce((t, a) => t + composantsAffectation(a).reduce((n, c) => n + tonnesComposant(a, c), 0), 0);
+      return `<div class="trp-clos" data-id="${escapeAttr(lot.id)}">
+        <div class="stk-groupe-tete"><span class="stk-detail-nom">${escapeHtml(lot.nom || 'Lot')}</span><strong>${formatTonnes(conso)} t</strong></div>
+        <p class="stk-groupe-sous">${escapeHtml(effectifLisible(lot.nbBrebis, typeAnimauxDe(lot)))} · clôturé le ${jjmmaaaa(lot.dateCloture)}</p>
+        ${historiqueLot(lot, { lecture: true })}
+        <div class="stk-actions"><span></span><button type="button" class="stk-lien-gris" data-rouvrir="${escapeAttr(lot.id)}">Rouvrir le lot</button></div>
+      </div>`;
+    }).join('')}
+  </details>`;
 }
 
 // « [Aliment] épuisé le JJ/MM. Choisir un autre aliment » + Reporter : la
@@ -425,7 +562,7 @@ function alerteEpuisement(lot, e, stock) {
 
 // Historique des rations d'un lot (ex-journal des distributions) : dates,
 // composants, consommé ; chaque ration est supprimable.
-function historiqueLot(lot) {
+function historiqueLot(lot, { lecture = false } = {}) {
   const liste = historiqueAffectations(lot);
   if (!liste.length) return '<p class="stk-vide">Aucune ration distribuée à ce lot.</p>';
   return `<div class="stk-mvts">${liste.map((a) => {
@@ -436,8 +573,8 @@ function historiqueLot(lot) {
     return `<div class="stk-mvt"><div><span class="stk-mvt-nom">${escapeHtml(dates)} · ${a.nbBrebis || 0} têtes</span>
       <span class="stk-sous-ligne">${comp.length ? escapeHtml(comp.map((c) => `${c.stockLabel} ${kg(c.kgParAnimalJour)} kg/j`).join(' · ')) : 'Pâturage'}</span></div>
       <div class="stk-mvt-droite"><strong>${formatTonnes(conso)} t</strong>
-        <span class="trp-histo-actions"><button type="button" class="stk-lien" data-lot="${escapeAttr(lot.id)}" data-modifier-ration="${escapeAttr(a.id)}">Modifier</button>
-        <button type="button" class="stk-suppr" data-lot="${escapeAttr(lot.id)}" data-suppr-ration="${escapeAttr(a.id)}">Supprimer</button></span></div></div>`;
+        ${lecture ? '' : `<span class="trp-histo-actions"><button type="button" class="stk-lien" data-lot="${escapeAttr(lot.id)}" data-modifier-ration="${escapeAttr(a.id)}">Modifier</button>
+        <button type="button" class="stk-suppr" data-lot="${escapeAttr(lot.id)}" data-suppr-ration="${escapeAttr(a.id)}">Supprimer</button></span>`}</div></div>`;
   }).join('')}</div>`;
 }
 

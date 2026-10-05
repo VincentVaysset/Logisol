@@ -18,7 +18,7 @@ import {
   TYPES_MOUVEMENT, typeMouvement, getMouvements, mouvementsDuContenant,
   createMouvement, updateMouvement, deleteMouvement
 } from './mouvements.js';
-import { getLots } from './lots.js';
+import { getLots, getLotsActifs } from './lots.js';
 import { openEditLot } from './ui-alimentation.js';
 import { getStadeById } from './stades.js';
 import { aujourdhui } from './implantations.js';
@@ -121,7 +121,7 @@ export function openEditBatiment(b) {
 function renderContenantsDuBatiment(b) {
   const cels = cellulesDuBatiment(b.id);
   const emps = emplacementsDuBatiment(b.id);
-  const lots = getLots().filter((l) => l.batimentId === b.id);
+  const lots = getLotsActifs().filter((l) => l.batimentId === b.id);
   // Une cellule se compte en tonnes : c'est un silo à grain, MAIS AUSSI une
   // cellule de séchage en grange. Un bâtiment de stockage fourrage doit donc
   // pouvoir en recevoir — sans quoi le séchage en grange n'a nulle part où

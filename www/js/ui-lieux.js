@@ -7,7 +7,7 @@ import { getBatiments, getBatimentById } from './batiments.js';
 import { getCellules, getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getMouvements, typeMouvement } from './mouvements.js';
-import { getLots } from './lots.js';
+import { getLots, getLotsActifs } from './lots.js';
 import { getMateriels } from './materiel.js';
 import { getInterventions } from './interventions.js';
 import { labelCoupe } from './stocks.js';
@@ -59,7 +59,7 @@ function contenuBatiment(b, rep) {
   const emps = getEmplacements().filter((e) => e.batimentId === b.id).map((e) => ({
     e, v: rep.get(`EMPLACEMENT_FOURRAGE|${e.id}`) || { tonnes: 0, quantite: 0, lots: [] }
   }));
-  const lots = getLots().filter((l) => l.batimentId === b.id);
+  const lots = getLotsActifs().filter((l) => l.batimentId === b.id);
   return { cels, emps, lots };
 }
 
@@ -209,7 +209,7 @@ export function renderLieux() {
     const g = groupeBatiment(b.type, {
       fourrage: getEmplacements().some((e) => e.batimentId === b.id) || cels.some((c) => contenuDe(c) === 'FOURRAGE'),
       grain: cels.some((c) => contenuDe(c) !== 'FOURRAGE'),
-      lots: getLots().some((l) => l.batimentId === b.id)
+      lots: getLotsActifs().some((l) => l.batimentId === b.id)
     });
     parGroupe.get(g).push(carte(b, g, rep));
   });

@@ -263,6 +263,24 @@ export function traverse31Aout(debut, finExclue) {
   return null;
 }
 
+/**
+ * Rations d'un lot clôturé, SANS rien écrire : tout ce qui court au-delà du
+ * dernier jour s'arrête au lendemain (fin exclue). Une ration qui ne
+ * commencerait qu'après le dernier jour rend la clôture impossible (elle
+ * serait effacée sans le dire).
+ */
+export function affectationsApresClotureLot(lot, dernierJourInclus) {
+  const finExclue = lendemain(dernierJourInclus);
+  const apres = affectationsLot(lot).find((a) => a.dateDebut >= finExclue);
+  if (apres) throw new Error(`Une ration commence le ${jjmm(apres.dateDebut)}, après le dernier jour du lot : modifie-la ou supprime-la d'abord.`);
+  return affectationsLot(lot).map((a) => (!a.dateFin || a.dateFin > finExclue ? { ...a, dateFin: finExclue } : a));
+}
+
+/** Ration en cours au DERNIER jour d'un lot (celle qu'on propose de copier en renouvelant). */
+export function rationAuDernierJour(lot, dernierJourInclus) {
+  return affectationEnCours(lot, dernierJourInclus);
+}
+
 /** Écrit un jeu de rations déjà calculé, après le verrou de campagne (date la plus ancienne touchée). */
 export async function enregistrerAffectations(lot, affectations, dateTouchee) {
   if (dateTouchee) verifierDateModifiable(dateTouchee, 'les rations');

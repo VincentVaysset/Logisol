@@ -17,7 +17,7 @@ import {
   TYPES_MOUVEMENT, typeMouvement, getMouvements, niveauContenant,
   createMouvement, updateMouvement, deleteMouvement, PRODUITS_ACHAT_VENTE
 } from './mouvements.js';
-import { getLots } from './lots.js';
+import { getLots, getLotsActifs } from './lots.js';
 import { aujourdhui } from './implantations.js';
 import { dateLisible } from './accueil.js';
 import { formatTonnes } from './ui-stocks.js';
@@ -190,7 +190,7 @@ function optionsPour(type) {
     });
   }
   if (type === 'LOT_BERGERIE') {
-    return getLots().map((l) => ({ value: l.id, label: `${l.nom} (${l.nbBrebis} brebis)` }));
+    return getLotsActifs().map((l) => ({ value: l.id, label: `${l.nom} (${l.nbBrebis} brebis)` }));
   }
   return [];
 }
