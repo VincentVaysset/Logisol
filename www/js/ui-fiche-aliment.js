@@ -27,6 +27,8 @@ import { clePaille } from './stocks.js';
 import { getCellules } from './cellules.js';
 import { getEmplacements } from './emplacements.js';
 import { previsualiserVidage, viderStockPaille } from './vider-paille.js';
+import { estAchete } from './groupes-stock.js';
+import { apercuRenommage, renommerAliment } from './renommer-aliment.js';
 
 const panel = document.getElementById('aliment-panel');
 const nomEl = document.getElementById('aliment-nom');
@@ -34,6 +36,7 @@ const erreurBanner = document.getElementById('aliment-erreur');
 const erreurTexte = document.getElementById('aliment-erreur-texte');
 const mouvementsEl = document.getElementById('aliment-mouvements');
 const viderBtn = document.getElementById('aliment-vider');
+const renommerBtn = document.getElementById('aliment-renommer');
 
 let cleCourante = null;
 
@@ -50,8 +53,33 @@ export function ouvrirFicheAliment(cle, label) {
   // Remise à zéro fin de campagne : proposée uniquement sur la fiche Paille
   // (aucun suivi de consommation, cf. CLAUDE.md/ticket paille point 7).
   if (viderBtn) viderBtn.hidden = cle !== clePaille();
+  renommerBtn.hidden = !estAchete(cle);
   render();
 }
+
+// Renommer un aliment acheté : partout d'un coup (renommer-aliment.js),
+// annoncé avant d'être appliqué.
+renommerBtn.addEventListener('click', async () => {
+  hideErreur();
+  const nom = prompt('Nouveau nom de l\'aliment :', nomEl.textContent.replace(/ · acheté$/, ''));
+  if (nom == null || !nom.trim()) return;
+  const a = apercuRenommage(cleCourante, nom);
+  if (!a) return;
+  if (a.conflit) { showErreur(`Un autre aliment acheté s'appelle déjà « ${a.nom} ».`); return; }
+  if (!confirm(`Renommer en « ${a.nom} » ? ${a.mouvements.length} mouvement(s), ${a.lots.length} lot(s) (rations) et ${a.clotures.length} clôture(s) seront mis à jour. Aucune quantité ne change.`)) return;
+  renommerBtn.disabled = true;
+  try {
+    await renommerAliment(cleCourante, nom);
+    cleCourante = a.cle;
+    nomEl.textContent = a.nom;
+    toastSucces('Aliment renommé.');
+    render();
+  } catch (err) {
+    showErreur('Renommage impossible : ' + ((err && err.message) || err));
+  } finally {
+    renommerBtn.disabled = false;
+  }
+});
 
 // La paille n'a aucune sortie automatique (ni rations, ni bergerie) : c'est
 // le seul moyen de remettre son stock à 0 en fin de campagne — un mouvement
