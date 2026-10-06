@@ -86,18 +86,12 @@ export function initMap(containerId, opts = {}) {
   });
 
   // SURCOUCHE DE REPÈRES : l'ortho seule ne montre ni nom de commune, ni
-  // route, ni lieu-dit — impossible de se situer. Cette couche CARTO est une
-  // image PNG TRANSPARENTE ne contenant QUE les étiquettes (noms de communes,
-  // lieux-dits, numéros de routes) : posée par-dessus le satellite, elle rend
-  // la photo lisible sans la masquer. Activée par défaut.
-  // Variante "dark_only_labels" : texte CLAIR à halo sombre, conçu pour être
-  // posé sur un fond foncé — donc lisible sur une photo aérienne de champs
-  // (vert/brun), là où la variante à texte noir se confondrait avec le sol.
-  const reperes = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_only_labels/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap, &copy; CARTO'
-  }).addTo(map);
+  // route, ni lieu-dit — impossible de se situer. Couche IGN « Noms
+  // géographiques » : PNG TRANSPARENT ne contenant que les toponymes (texte à
+  // halo clair), posé par-dessus le satellite. Activée par défaut.
+  // Remplace CARTO dark_only_labels, qui exige désormais une clé API et
+  // incruste « API KEY REQUIRED » sur toute la carte.
+  const reperes = coucheIgn('GEOGRAPHICALNAMES.NAMES', 'image/png', { maxNativeZoom: 18 }).addTo(map);
 
   // Parcellaire cadastral IGN : limites officielles des parcelles, en
   // surcouche transparente. Sert de calque de référence pour caler un tracé
@@ -120,7 +114,7 @@ export function initMap(containerId, opts = {}) {
 
   L.control.layers(
     { 'Satellite IGN': ortho, 'Plan IGN': planIgn, 'OpenStreetMap': osm },
-    { 'Noms de lieux et routes': reperes, 'Limites cadastrales': cadastre },
+    { 'Noms de lieux': reperes, 'Limites cadastrales': cadastre },
     { position: 'topright', collapsed: true }
   ).addTo(map);
 

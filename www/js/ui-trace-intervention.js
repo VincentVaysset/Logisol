@@ -62,9 +62,16 @@ export function initTraceUi() {
 }
 
 /** Reflète l'état du tracé (appelé par trace-intervention.js à chaque fix GPS). */
-export function majEtatTrace({ distanceM, surfaceHa, dureeMin, modeFilaire, mode, erreur }) {
+// Sous 0,1 ha, en m² : « 0 ha » après 16 m de déchaumeur laissait croire que
+// rien n'était compté.
+function libelleSurface(surfaceHa, surfaceM2) {
+  if (surfaceM2 != null && surfaceM2 < 1000) return `${surfaceM2.toLocaleString('fr-FR')} m² couverts`;
+  return `${Number(surfaceHa).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ha couverts`;
+}
+
+export function majEtatTrace({ distanceM, surfaceHa, surfaceM2, dureeMin, modeFilaire, mode, erreur }) {
   distanceEl.textContent = `${distanceM} m · ${dureeMin} min`;
-  surfaceEl.textContent = (modeFilaire ? '(tracé filaire, pas de largeur)' : `${Number(surfaceHa).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ha couverts`) +
+  surfaceEl.textContent = (modeFilaire ? '(tracé filaire, pas de largeur)' : libelleSurface(surfaceHa, surfaceM2)) +
     (mode === 'arriere-plan' ? ' · 📍 suivi écran éteint (notification)'
       : ecranMaintenuAllume() ? ' · 🔆 écran maintenu allumé' : ' · ⚠️ laisse l\'écran allumé') +
     (erreur ? ` · ⚠️ ${erreur}` : '');

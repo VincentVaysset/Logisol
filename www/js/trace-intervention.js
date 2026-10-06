@@ -137,6 +137,7 @@ function notifier() {
       actif: watchHandle != null,
       distanceM: Math.round(distanceTotaleM),
       surfaceHa: surfaceHaCouverte(),
+      surfaceM2: largeurM ? Math.round(cellulesCouvertes.size * AIRE_CELLULE_M2 / (echelleMercator * echelleMercator)) : null,
       dureeMin: debutTraceMs != null ? Math.round((Date.now() - debutTraceMs) / 60000) : 0,
       modeFilaire: !largeurM,
       mode: watchHandle ? watchHandle.mode : null,

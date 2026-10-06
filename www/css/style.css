@@ -588,6 +588,14 @@ header button {
   padding: 4px 8px;
   font-size: 14px;
 }
+/* Sur 2 lignes : matériel + Terminer/Annuler en haut, état en dessous —
+   sur une seule ligne, l'état (long) poussait les boutons hors de l'écran. */
+#trace-toolbar { flex-wrap: wrap; overflow-x: visible; row-gap: 6px; }
+#trace-toolbar .trace-saut { order: 2; flex: 0 0 100%; height: 0; }
+#trace-toolbar #trace-distance { order: 3; }
+#trace-toolbar #trace-surface { order: 4; flex: 1 1 0; min-width: 0; white-space: normal; }
+#trace-toolbar .draw-btn { flex: 0 0 auto; }
+#trace-toolbar .trace-materiel-select { flex: 1 1 0; min-width: 0; }
 .releve-sommet-label::before { display: none; }
 
 /* --- Étiquette permanente du nom de parcelle sur la carte --- */

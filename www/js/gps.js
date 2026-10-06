@@ -142,7 +142,11 @@ export function ecouterPositionChantier(callback, opts = {}) {
   const BG = moduleArrierePlan();
   if (!BG) { replier(); return handle; }
   try {
-    BG.addWatcher({
+    // Dans l'APK, addWatcher (méthode « callback » Capacitor) renvoie
+    // directement l'identifiant, pas une promesse : Promise.resolve couvre
+    // les deux formes (sinon .then plantait et on retombait à tort sur
+    // l'écran allumé).
+    Promise.resolve(BG.addWatcher({
       backgroundTitle: 'Logisol — tracé du chantier en cours',
       backgroundMessage: 'Le GPS suit le chantier, écran éteint compris. Termine le tracé dans Logisol pour l\'arrêter.',
       requestPermissions: true,
@@ -162,7 +166,7 @@ export function ecouterPositionChantier(callback, opts = {}) {
         fixType: classifierFixType(loc.accuracy), source: 'NATIF',
         horodatage: loc.time || Date.now()
       });
-    }).then((id) => {
+    })).then((id) => {
       if (handle.arrete) BG.removeWatcher({ id }).catch(() => {});
       else { handle.id = id; if (opts.onMode) opts.onMode(handle.mode); }
     }).catch(replier);   // module absent de l'APK installé, refus... : repli écran allumé
