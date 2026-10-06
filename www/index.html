@@ -1317,6 +1317,12 @@
             <label for="itv-materiel-id">Matériel utilisé</label>
             <select id="itv-materiel-id"></select>
             <input type="text" id="itv-materiel" placeholder="Précision libre (réglage, attelage...)">
+            <!-- Tracé GPS du chantier, pour toute activité de parcelle : la
+                 largeur vient du matériel choisi juste au-dessus. -->
+            <div id="itv-trace-commun" class="itv-trace" hidden>
+              <button type="button" id="itv-trace-lancer" class="btn btn-secondary btn-mini">📡 Tracer le chantier en direct</button>
+              <span id="itv-trace-resume" class="champ-aide champ-aide-gris"></span>
+            </div>
           </div>
 
           <label>Statut</label>

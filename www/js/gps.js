@@ -112,6 +112,36 @@ export function arreterEcoutePositionNative(handle) {
   if (handle != null && navigator.geolocation) navigator.geolocation.clearWatch(handle);
 }
 
+// --- Écran maintenu allumé pendant un tracé ---------------------------------
+// Le GPS du navigateur s'arrête dès que l'écran se verrouille ou que l'appli
+// passe en arrière-plan : un tracé de chantier aurait alors des trous. On
+// demande donc à l'appareil de garder l'écran allumé (Screen Wake Lock), et
+// on redemande au retour au premier plan (le verrou saute à chaque passage
+// en arrière-plan). Sans support : le tracé marche, l'écran doit rester
+// allumé à la main — la barre du tracé le dit.
+let verrouEcran = null;
+let veutEcranAllume = false;
+async function demanderVerrouEcran() {
+  if (!navigator.wakeLock || typeof navigator.wakeLock.request !== 'function') return false;
+  try {
+    verrouEcran = await navigator.wakeLock.request('screen');
+    verrouEcran.addEventListener('release', () => { verrouEcran = null; });
+    return true;
+  } catch (_) { verrouEcran = null; return false; }
+}
+export async function garderEcranAllume() { veutEcranAllume = true; return demanderVerrouEcran(); }
+export function libererEcran() {
+  veutEcranAllume = false;
+  if (verrouEcran) verrouEcran.release().catch(() => {});
+  verrouEcran = null;
+}
+export function ecranMaintenuAllume() { return !!verrouEcran; }
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (veutEcranAllume && document.visibilityState === 'visible' && !verrouEcran) demanderVerrouEcran();
+  });
+}
+
 // --- Source externe (antenne RTK Bluetooth/série, trames NMEA) -------------
 // Pas de transport Bluetooth/série branché ici (Web Bluetooth GATT ou plugin
 // natif Capacitor, à choisir selon le matériel réellement utilisé) : ce

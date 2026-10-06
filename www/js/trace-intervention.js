@@ -22,7 +22,7 @@
 // fois la même surface au sol quel que soit le nombre de passages qui s'y
 // superposent. Surface = nombre de cellules déjà vues × 0,25 m².
 import { getMap } from './map.js';
-import { ecouterPositionNative, arreterEcoutePositionNative } from './gps.js';
+import { ecouterPositionNative, arreterEcoutePositionNative, garderEcranAllume, libererEcran } from './gps.js';
 
 const TAILLE_CELLULE_M = 0.5;
 const AIRE_CELLULE_M2 = TAILLE_CELLULE_M * TAILLE_CELLULE_M;
@@ -153,6 +153,8 @@ export function demarrerTrace(largeurMetres) {
   cellulesCouvertes = new Set();
   dernierPointMercator = null;
   debutTraceMs = Date.now();
+  // Écran allumé tout le chantier : écran verrouillé = GPS coupé = trou dans le tracé.
+  garderEcranAllume().then(() => notifier());
   assurerLayers();
   watchHandle = ecouterPositionNative((fix) => {
     afficherCurseur(fix);
@@ -185,6 +187,7 @@ export function definirLargeur(largeurMetres) {
 }
 
 export function arreterTrace() {
+  libererEcran();
   arreterEcoutePositionNative(watchHandle);
   watchHandle = null;
   dernierPointMercator = null;

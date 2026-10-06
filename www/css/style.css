@@ -2112,3 +2112,6 @@ header .campagne-select { min-height: 32px; }
 .trp-clotures { margin-top: 12px; }
 .trp-clos { padding: 10px 14px; border-top: 1px solid #f1f5f9; }
 .trp-clos .stk-mvts { margin: 6px -14px 0; }
+.itv-trace { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 12px; }
+.itv-trace .btn-mini { align-self: flex-start; }
+.itv-trace[hidden] { display: none; }

@@ -100,8 +100,17 @@ function nettoyer(data) {
     // Un sous-objet plutôt qu'une douzaine de champs à plat : les clés
     // dépendent du type, et les étaler rendrait chaque document illisible.
     saisie: nettoyerSaisie(data.saisie),
+    // Résumé du tracé GPS du chantier (objet plat ; le tracé lui-même n'est
+    // pas stocké, trop lourd pour un document).
+    trace: nettoyerTrace(data.trace),
     notes: data.notes || ''
   };
+}
+
+function nettoyerTrace(t) {
+  if (!t || typeof t !== 'object') return null;
+  const n = (v) => (v == null || v === '' || !isFinite(Number(v)) ? null : Number(v));
+  return { surfaceHa: n(t.surfaceHa), distanceM: n(t.distanceM), dureeHeures: n(t.dureeHeures), largeurM: n(t.largeurM), source: String(t.source || 'GPS_TELEPHONE') };
 }
 
 // Firestore refuse `undefined` et les tableaux imbriqués : on ne garde que

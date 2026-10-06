@@ -3,6 +3,7 @@
 // jamais recouverte par la carte ou un calque en cours de tracé.
 import { demarrerTrace, arreterTrace, definirLargeur, getResultat } from './trace-intervention.js';
 import { getMateriels } from './materiel.js';
+import { ecranMaintenuAllume } from './gps.js';
 
 const toolbarEl = document.getElementById('trace-toolbar');
 const materielSelectEl = document.getElementById('trace-materiel-select');
@@ -63,5 +64,6 @@ export function initTraceUi() {
 /** Reflète l'état du tracé (appelé par trace-intervention.js à chaque fix GPS). */
 export function majEtatTrace({ distanceM, surfaceHa, dureeMin, modeFilaire }) {
   distanceEl.textContent = `${distanceM} m · ${dureeMin} min`;
-  surfaceEl.textContent = modeFilaire ? '(tracé filaire, pas de largeur)' : `${surfaceHa} ha couverts`;
+  surfaceEl.textContent = (modeFilaire ? '(tracé filaire, pas de largeur)' : `${Number(surfaceHa).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ha couverts`) +
+    (ecranMaintenuAllume() ? ' · 🔆 écran maintenu allumé' : ' · ⚠️ laisse l\'écran allumé');
 }

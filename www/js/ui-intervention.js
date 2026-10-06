@@ -74,6 +74,7 @@ const el = {};
   'semence','melange','melange-toggle','melange-rows','melange-add','melange-total',
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
   'g-surface','surface','surface-tout','surface-tracer','surface-aide',
+  'trace-commun','trace-lancer','trace-resume',
   'g-fourrage','coupe','fourrage','fourrages','fourrage-aide',
   'produit-recolte',
   'g-pressage','nb-bottes','poids-botte',
@@ -421,6 +422,9 @@ function appliquerType() {
   const montre = (champ) => typeAffiche(t, champ);
   el['champ-produit'].hidden = !montre('produit');
   el['champ-materiel'].hidden = !montre('materiel');
+  // Tracé GPS pour toute activité de parcelle (le bloc Surface travaillée
+  // garde son propre bouton, qui remplit aussi la surface).
+  el['trace-commun'].hidden = el['champ-materiel'].hidden || cible !== 'PARCELLE' || formulaireDe(t) === 'SURFACE';
   el['champ-duree'].hidden = !montre('duree');
   const meteoEtaitMasquee = el['champ-meteo'].hidden;
   el['champ-meteo'].hidden = !montre('meteo');
@@ -514,26 +518,53 @@ el['surface-tout'].addEventListener('click', () => {
 // manquant, cf. eclipserTunnel/rouvrirTunnel plus haut) et revient avec les
 // champs remplis — sans repasser par preparerFlux(), spécifique à l'étape 3
 // (flux de stock), jamais concernée ici.
-el['surface-tracer'].addEventListener('click', () => {
+el['surface-tracer'].addEventListener('click', () => lancerTrace((resultat) => {
+  if (resultat && resultat.surfaceHa != null) {
+    el.surface.value = resultat.surfaceHa;
+    majTotalGroupe();
+  }
+}));
+
+// Résumé du tracé GPS, enregistré avec l'activité (surface, distance, durée,
+// largeur) — le tracé lui-même n'est pas stocké : des milliers de points
+// dépasseraient vite la limite de 1 Mio d'un document Firestore.
+let traceResultat = null;
+function majResumeTrace() {
+  const r = traceResultat;
+  const fr = (v, d) => Number(v).toLocaleString('fr-FR', { maximumFractionDigits: d });
+  const duree = (h) => { const m = Math.round(Number(h) * 60); return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m} min`; };
+  el['trace-resume'].textContent = r
+    ? `Tracé : ${r.surfaceHa != null ? fr(r.surfaceHa, 2) + ' ha · ' : ''}${fr((r.distanceM || 0) / 1000, 2)} km` +
+      `${r.dureeHeures != null ? ' · ' + duree(r.dureeHeures) : ''}${r.largeurM ? ' · outil ' + fr(r.largeurM, 1) + ' m' : ' · sans largeur'} (GPS du téléphone, ±3 à 5 m)`
+    : '';
+}
+function lancerTrace(apres) {
   if (!demarreurTrace) { showError('Traçage en direct indisponible.'); return; }
   const materielId = el['materiel-id'].value;
   const materiel = materielId ? getMaterielById(materielId) : null;
+  const largeurM = materiel ? materiel.largeurTravailMetres : null;
   panel.hidden = true;
   demarreurTrace({
-    largeurM: materiel ? materiel.largeurTravailMetres : null,
+    largeurM,
     materielId,
     onTermine: (resultat) => {
       panel.hidden = false;
-      if (resultat && resultat.surfaceHa != null) {
-        el.surface.value = resultat.surfaceHa;
-        majTotalGroupe();
+      if (resultat) {
+        traceResultat = {
+          surfaceHa: resultat.modeFilaire ? null : resultat.surfaceHa,
+          distanceM: resultat.distanceM || 0,
+          dureeHeures: resultat.dureeHeures,
+          largeurM: Number(largeurM) > 0 ? Number(largeurM) : null,
+          source: 'GPS_TELEPHONE'
+        };
+        if (resultat.dureeHeures != null && !el['champ-duree'].hidden) el.duree.value = resultat.dureeHeures;
+        majResumeTrace();
       }
-      if (resultat && resultat.dureeHeures != null && !el['champ-duree'].hidden) {
-        el.duree.value = resultat.dureeHeures;
-      }
+      if (apres) apres(resultat);
     }
   });
-});
+}
+el['trace-lancer'].addEventListener('click', () => lancerTrace());
 
 // Total calculé, affiché en clair sous le bloc : c'est lui qui partira en
 // stock, il ne doit pas être une surprise découverte à l'étape 3.
@@ -1501,6 +1532,8 @@ export function setChauffeursConnus(interventions) {
 export function openCreateIntervention(opts = {}) {
   mode = 'create';
   editingId = null;
+  traceResultat = null;
+  majResumeTrace();
   panel.hidden = false;
   reinitialiser();
   log('tunnel activité ouvert (création)');
@@ -1527,6 +1560,8 @@ export function openCreateIntervention(opts = {}) {
 export function openEditIntervention(itv) {
   mode = 'edit';
   editingId = itv.id;
+  traceResultat = itv.trace || null;
+  majResumeTrace();
   panel.hidden = false;
   reinitialiser();
   log('tunnel activité ouvert (modification)');
@@ -1715,6 +1750,7 @@ form.addEventListener('submit', async (e) => {
       tracteurId: el['champ-materiel'].hidden ? null : (el['tracteur-id'].value || null),
       tracteurNom: el['champ-materiel'].hidden ? '' : nomMateriel(el['tracteur-id'].value),
       dureeHeures: el['champ-duree'].hidden ? null : el.duree.value,
+      trace: el['champ-materiel'].hidden ? null : traceResultat,
       meteo: el['champ-meteo'].hidden ? null : meteoCourante,
       photo: photoCourante,
       photoEtiquette: formulaire === 'SEMIS' ? etiquetteCourante : null,
