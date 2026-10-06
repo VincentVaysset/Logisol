@@ -62,8 +62,10 @@ export function initTraceUi() {
 }
 
 /** Reflète l'état du tracé (appelé par trace-intervention.js à chaque fix GPS). */
-export function majEtatTrace({ distanceM, surfaceHa, dureeMin, modeFilaire }) {
+export function majEtatTrace({ distanceM, surfaceHa, dureeMin, modeFilaire, mode, erreur }) {
   distanceEl.textContent = `${distanceM} m · ${dureeMin} min`;
   surfaceEl.textContent = (modeFilaire ? '(tracé filaire, pas de largeur)' : `${Number(surfaceHa).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} ha couverts`) +
-    (ecranMaintenuAllume() ? ' · 🔆 écran maintenu allumé' : ' · ⚠️ laisse l\'écran allumé');
+    (mode === 'arriere-plan' ? ' · 📍 suivi écran éteint (notification)'
+      : ecranMaintenuAllume() ? ' · 🔆 écran maintenu allumé' : ' · ⚠️ laisse l\'écran allumé') +
+    (erreur ? ` · ⚠️ ${erreur}` : '');
 }

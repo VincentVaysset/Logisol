@@ -17,12 +17,12 @@
 // dédiée, absente du projet (aucune dépendance de plus pour ça). On
 // rasterise à la place chaque quadrilatère sur une grille de cellules de
 // 0,5 m de côté, dans le plan Web Mercator (mètres, via L.CRS.EPSG3857,
-// négligeable comme déformation à l'échelle d'un chantier) : chaque cellule
+// CORRIGÉ de l'échelle Mercator, cf. echelleMercator plus bas) : chaque cellule
 // couverte est ajoutée à un Set commun, qui ne peut donc jamais compter deux
 // fois la même surface au sol quel que soit le nombre de passages qui s'y
 // superposent. Surface = nombre de cellules déjà vues × 0,25 m².
 import { getMap } from './map.js';
-import { ecouterPositionNative, arreterEcoutePositionNative, garderEcranAllume, libererEcran } from './gps.js';
+import { ecouterPositionChantier, arreterEcoutePositionChantier } from './gps.js';
 
 const TAILLE_CELLULE_M = 0.5;
 const AIRE_CELLULE_M2 = TAILLE_CELLULE_M * TAILLE_CELLULE_M;
@@ -62,6 +62,12 @@ function afficherCurseur(fix) {
   }
 }
 
+// Échelle de Web Mercator à la latitude du chantier : 1 m au sol vaut
+// 1/cos(latitude) « mètres » Mercator (×1,39 à 44° N). Sans cette correction,
+// distances et surfaces étaient surestimées d'environ 40 % chez nous. Fixée au
+// premier point du tracé : la latitude ne varie pas à l'échelle d'un champ.
+let echelleMercator = 1;
+
 // Point en mètres (projection Web Mercator, indépendante du zoom) -> {x,y}.
 function versMercator(lat, lon) {
   return L.CRS.EPSG3857.project(L.latLng(lat, lon));
@@ -78,8 +84,8 @@ function depuisMercator(pt) {
 function ajouterSegmentRuban(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;
   const segLen = Math.hypot(dx, dy);
-  if (segLen < DISTANCE_MIN_SEGMENT_M) return;
-  distanceTotaleM += segLen;
+  if (segLen / echelleMercator < DISTANCE_MIN_SEGMENT_M) return;
+  distanceTotaleM += segLen / echelleMercator;
 
   if (!largeurM) {
     filLayer.addLatLng(depuisMercator(b));
@@ -88,7 +94,7 @@ function ajouterSegmentRuban(a, b) {
 
   const ux = dx / segLen, uy = dy / segLen;   // vecteur unitaire le long du trajet
   const px = -uy, py = ux;                     // perpendiculaire (largeur du ruban)
-  const demi = largeurM / 2;
+  const demi = (largeurM * echelleMercator) / 2;   // demi-largeur au sol, en unités Mercator
 
   // Quadrilatère du ruban, pour l'affichage uniquement.
   const coin = (pt, signe) => depuisMercator({ x: pt.x + signe * px * demi, y: pt.y + signe * py * demi });
@@ -121,7 +127,8 @@ function ajouterSegmentRuban(a, b) {
 
 function surfaceHaCouverte() {
   if (!largeurM) return null;
-  return Math.round((cellulesCouvertes.size * AIRE_CELLULE_M2 / 10000) * 1000) / 1000;
+  // Cellules de 0,5 « m » Mercator : leur aire au sol est divisée par échelle².
+  return Math.round((cellulesCouvertes.size * AIRE_CELLULE_M2 / (echelleMercator * echelleMercator) / 10000) * 1000) / 1000;
 }
 
 function notifier() {
@@ -131,7 +138,9 @@ function notifier() {
       distanceM: Math.round(distanceTotaleM),
       surfaceHa: surfaceHaCouverte(),
       dureeMin: debutTraceMs != null ? Math.round((Date.now() - debutTraceMs) / 60000) : 0,
-      modeFilaire: !largeurM
+      modeFilaire: !largeurM,
+      mode: watchHandle ? watchHandle.mode : null,
+      erreur: derniereErreur
     });
   } catch (err) { /* jamais bloquant */ }
 }
@@ -153,13 +162,15 @@ export function demarrerTrace(largeurMetres) {
   cellulesCouvertes = new Set();
   dernierPointMercator = null;
   debutTraceMs = Date.now();
-  // Écran allumé tout le chantier : écran verrouillé = GPS coupé = trou dans le tracé.
-  garderEcranAllume().then(() => notifier());
   assurerLayers();
-  watchHandle = ecouterPositionNative((fix) => {
+  // Suivi écran éteint (service Android + notification) dans l'APK ; sinon
+  // GPS du navigateur, écran maintenu allumé (gps.js/ecouterPositionChantier).
+  watchHandle = ecouterPositionChantier((fix) => {
     afficherCurseur(fix);
     try { onCurseurChange(fix); } catch (err) { /* jamais bloquant */ }
     const pt = versMercator(fix.lat, fix.lon);
+    if (!dernierPointMercator && distanceTotaleM === 0) echelleMercator = 1 / Math.cos((fix.lat * Math.PI) / 180);
+    derniereErreur = '';   // une position reçue efface l'erreur précédente (délai GPS passager)
     if (dernierPointMercator) {
       ajouterSegmentRuban(dernierPointMercator, pt);
     } else {
@@ -171,10 +182,15 @@ export function demarrerTrace(largeurMetres) {
     dernierPointMercator = pt;
     notifier();
   }, {
-    onError: () => { /* le badge/bandeau restent la source d'info, pas d'alerte bloquante ici */ }
+    onError: (m) => { derniereErreur = m; notifier(); },
+    onMode: () => notifier()
   });
   notifier();
 }
+
+let derniereErreur = '';
+/** 'arriere-plan' (écran éteint possible) | 'ecran' (garder l'écran allumé) | null. */
+export function modeSuivi() { return watchHandle ? watchHandle.mode : null; }
 
 /**
  * Change la largeur en cours de route (matériel changé pendant le
@@ -187,8 +203,8 @@ export function definirLargeur(largeurMetres) {
 }
 
 export function arreterTrace() {
-  libererEcran();
-  arreterEcoutePositionNative(watchHandle);
+  arreterEcoutePositionChantier(watchHandle);
+  derniereErreur = '';
   watchHandle = null;
   dernierPointMercator = null;
   debutTraceMs = null;

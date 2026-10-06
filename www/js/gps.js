@@ -112,6 +112,76 @@ export function arreterEcoutePositionNative(handle) {
   if (handle != null && navigator.geolocation) navigator.geolocation.clearWatch(handle);
 }
 
+// --- Suivi d'un chantier, écran éteint compris -------------------------------
+// Dans l'APK, le module natif BackgroundGeolocation (service Android de
+// premier plan, avec une notification « tracé du chantier en cours ») continue
+// d'envoyer les positions écran éteint, téléphone dans la poche ou autre appli
+// ouverte. Pas d'autorisation « toujours » : la notification suffit à Android.
+// Hors APK (navigateur, tests) ou si le module manque : GPS du navigateur, avec
+// l'écran maintenu allumé (cf. plus bas) — mêmes « fix » dans les deux cas.
+function moduleArrierePlan() {
+  const C = typeof window !== 'undefined' ? window.Capacitor : null;
+  if (!C || typeof C.isNativePlatform !== 'function' || !C.isNativePlatform()) return null;
+  if (C.Plugins && C.Plugins.BackgroundGeolocation) return C.Plugins.BackgroundGeolocation;
+  return typeof C.registerPlugin === 'function' ? C.registerPlugin('BackgroundGeolocation') : null;
+}
+
+/**
+ * @returns {{mode:'arriere-plan'|'ecran', id?:string, natif?:number, arrete:boolean}}
+ *   mode 'arriere-plan' : suivi écran éteint ; 'ecran' : il faut garder l'écran allumé.
+ */
+export function ecouterPositionChantier(callback, opts = {}) {
+  const handle = { mode: 'arriere-plan', id: null, natif: null, arrete: false };
+  const replier = () => {
+    if (handle.arrete || handle.mode === 'ecran') return;
+    handle.mode = 'ecran';
+    handle.natif = ecouterPositionNative(callback, opts);
+    garderEcranAllume().then(() => { if (opts.onMode) opts.onMode(handle.mode); });
+    if (opts.onMode) opts.onMode(handle.mode);
+  };
+  const BG = moduleArrierePlan();
+  if (!BG) { replier(); return handle; }
+  try {
+    BG.addWatcher({
+      backgroundTitle: 'Logisol — tracé du chantier en cours',
+      backgroundMessage: 'Le GPS suit le chantier, écran éteint compris. Termine le tracé dans Logisol pour l\'arrêter.',
+      requestPermissions: true,
+      stale: false,
+      distanceFilter: 0
+    }, (loc, err) => {
+      if (err) {
+        if (err.code === 'NOT_AUTHORIZED') {
+          if (opts.onError) opts.onError('Localisation refusée : autorise-la pour Logisol dans les réglages du téléphone.');
+          if (window.confirm('Logisol a besoin de ta position pour tracer le chantier.\n\nOuvrir les réglages ?')) BG.openSettings();
+        } else if (opts.onError) opts.onError(err.message || 'Position indisponible.');
+        return;
+      }
+      if (!loc) return;
+      callback({
+        lat: loc.latitude, lon: loc.longitude, accuracy: loc.accuracy,
+        fixType: classifierFixType(loc.accuracy), source: 'NATIF',
+        horodatage: loc.time || Date.now()
+      });
+    }).then((id) => {
+      if (handle.arrete) BG.removeWatcher({ id }).catch(() => {});
+      else { handle.id = id; if (opts.onMode) opts.onMode(handle.mode); }
+    }).catch(replier);   // module absent de l'APK installé, refus... : repli écran allumé
+  } catch (_) { replier(); }
+  return handle;
+}
+
+export function arreterEcoutePositionChantier(handle) {
+  if (!handle) return;
+  handle.arrete = true;
+  if (handle.mode === 'ecran') {
+    arreterEcoutePositionNative(handle.natif);
+    libererEcran();
+    return;
+  }
+  const BG = moduleArrierePlan();
+  if (BG && handle.id != null) BG.removeWatcher({ id: handle.id }).catch(() => {});
+}
+
 // --- Écran maintenu allumé pendant un tracé ---------------------------------
 // Le GPS du navigateur s'arrête dès que l'écran se verrouille ou que l'appli
 // passe en arrière-plan : un tracé de chantier aurait alors des trous. On

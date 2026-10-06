@@ -8,6 +8,7 @@
     "open:android": "cap open android"
   },
   "dependencies": {
+    "@capacitor-community/background-geolocation": "^1.2.26",
     "@capacitor/android": "^6.1.2",
     "@capacitor/core": "^6.1.2",
     "@capacitor/filesystem": "^6.0.4",
