@@ -952,6 +952,7 @@ header button {
 .apercu-sous-titre { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); font-weight: 600; }
 .apercu-activites { margin-bottom: 16px; }
 .apercu-traces { margin: 6px 0 16px; }
+.stk-renommer { min-width: 40px; min-height: 40px; margin-left: 4px; padding: 0 8px; border: none; border-radius: 10px; background: #f1f5f9; font-size: 16px; vertical-align: middle; }
 .apercu-trace { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .apercu-trace-pastille { flex: 0 0 12px; height: 12px; border-radius: 50%; }
 .apercu-trace-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; }

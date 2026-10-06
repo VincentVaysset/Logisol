@@ -28,7 +28,7 @@ import { getCellules } from './cellules.js';
 import { getEmplacements } from './emplacements.js';
 import { previsualiserVidage, viderStockPaille } from './vider-paille.js';
 import { estAchete } from './groupes-stock.js';
-import { apercuRenommage, renommerAliment } from './renommer-aliment.js';
+import { demanderRenommage } from './renommer-aliment.js';
 
 const panel = document.getElementById('aliment-panel');
 const nomEl = document.getElementById('aliment-nom');
@@ -61,24 +61,8 @@ export function ouvrirFicheAliment(cle, label) {
 // annoncé avant d'être appliqué.
 renommerBtn.addEventListener('click', async () => {
   hideErreur();
-  const nom = prompt('Nouveau nom de l\'aliment :', nomEl.textContent.replace(/ · acheté$/, ''));
-  if (nom == null || !nom.trim()) return;
-  const a = apercuRenommage(cleCourante, nom);
-  if (!a) return;
-  if (a.conflit) { showErreur(`Un autre aliment acheté s'appelle déjà « ${a.nom} ».`); return; }
-  if (!confirm(`Renommer en « ${a.nom} » ? ${a.mouvements.length} mouvement(s), ${a.lots.length} lot(s) (rations) et ${a.clotures.length} clôture(s) seront mis à jour. Aucune quantité ne change.`)) return;
-  renommerBtn.disabled = true;
-  try {
-    await renommerAliment(cleCourante, nom);
-    cleCourante = a.cle;
-    nomEl.textContent = a.nom;
-    toastSucces('Aliment renommé.');
-    render();
-  } catch (err) {
-    showErreur('Renommage impossible : ' + ((err && err.message) || err));
-  } finally {
-    renommerBtn.disabled = false;
-  }
+  const a = await demanderRenommage(cleCourante, nomEl.textContent);
+  if (a) { cleCourante = a.cle; nomEl.textContent = a.nom; render(); }
 });
 
 // La paille n'a aucune sortie automatique (ni rations, ni bergerie) : c'est

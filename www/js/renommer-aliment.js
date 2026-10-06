@@ -10,6 +10,7 @@ import { getMouvements } from './mouvements.js';
 import { getLots } from './lots.js';
 import { getClotures, COL_CLOTURES } from './verrou-campagne.js';
 import { cleAchat, typeAchatDeCle } from './stocks.js';
+import { toastSucces, toastErreur } from './toast.js';
 
 const remplacer = (comps, ancienne, cle, nom) => comps.map((c) => (c.stockCle === ancienne ? { ...c, stockCle: cle, stockLabel: nom } : c));
 
@@ -49,4 +50,22 @@ export async function renommerAliment(ancienne, nouveauNom) {
     await ecrire(ops[i][0], batch.commit(), 'Renommage d\'aliment');
   }
   return a;
+}
+
+/** Demande le nouveau nom, annonce l'effet, renomme. Retourne la nouvelle clé ou null. */
+export async function demanderRenommage(cle, nomActuel) {
+  const nom = prompt('Nouveau nom de l\'aliment :', String(nomActuel || '').replace(/ · acheté$/, ''));
+  if (nom == null || !nom.trim()) return null;
+  const a = apercuRenommage(cle, nom);
+  if (!a) return null;
+  if (a.conflit) { toastErreur(`Un autre aliment acheté s'appelle déjà « ${a.nom} ».`); return null; }
+  if (!confirm(`Renommer en « ${a.nom} » ? ${a.mouvements.length} mouvement(s), ${a.lots.length} lot(s) (rations) et ${a.clotures.length} clôture(s) seront mis à jour. Aucune quantité ne change.`)) return null;
+  try {
+    await renommerAliment(cle, nom);
+    toastSucces('Aliment renommé.');
+    return a;
+  } catch (err) {
+    toastErreur('Renommage impossible : ' + ((err && err.message) || err));
+    return null;
+  }
 }

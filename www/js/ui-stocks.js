@@ -1,4 +1,5 @@
 // Vue Stocks : synthèse d'exploitation + saisie d'une récolte.
+import { demanderRenommage } from './renommer-aliment.js';
 import {
   CATEGORIES, CONSERVATIONS, COUPES, FOURRAGES,
   createStock, updateStock, deleteStock, calculerTonnes
@@ -8,7 +9,7 @@ import {
 } from './fourrages.js';
 import { getMouvements, deleteMouvement, typeMouvement } from './mouvements.js';
 import { consommationCampagneParStock, lotsConsommateurs } from './rations-calc.js';
-import { construireGroupes } from './groupes-stock.js';
+import { construireGroupes, estAchete } from './groupes-stock.js';
 import { getCampagneStockChoisie, bornesCampagneStock, dateReferenceCampagne, campagneStockSuivante } from './campagne-stock.js';
 import { getInterventions } from './interventions.js';
 import { openEditIntervention } from './ui-intervention.js';
@@ -436,7 +437,9 @@ function carteGroupe(g, d) {
   const lignes = g.lignes.map((l) => {
     const bottes = bottesDe(l);
     const bot = bottes ? `<span class="stk-sous-ligne">≈ ${bottes.nb} bottes · <input type="number" class="stk-poids" data-cle="${escapeAttr(l.cle)}" value="${bottes.poids}" min="0" step="1" inputmode="numeric"> kg/botte</span>` : '';
-    return `<div class="stk-detail-ligne"><span class="stk-detail-nom">${escapeHtml(l.libelle)}${bot}</span><strong>${formatTonnes(l.reste)} t</strong></div>`;
+    // Aliment acheté : renommable partout d'un coup (renommer-aliment.js).
+    const ren = l.cle && estAchete(l.cle) ? ` <button type="button" class="stk-renommer" data-renommer="${escapeAttr(l.cle)}" data-nom="${escapeAttr(l.libelle)}" aria-label="Renommer">✏️</button>` : '';
+    return `<div class="stk-detail-ligne"><span class="stk-detail-nom">${escapeHtml(l.libelle)}${ren}${bot}</span><strong>${formatTonnes(l.reste)} t</strong></div>`;
   }).join('');
   const mangee = g.id !== 'paille' && g.mangeePar.length
     ? `<button type="button" class="stk-lien-ligne" data-vers="troupeau"><span>Mangée par ${escapeHtml(g.mangeePar.join(', '))}</span><span class="stk-lien">Troupeau →</span></button>`
@@ -537,6 +540,10 @@ function cablerGroupes(racine, d) {
         achatType: g.id === 'paille' ? 'PAILLE' : g.famille === 'cereales' ? 'CONCENTRE' : 'FOIN' });
     }
     renderVue();
+  }));
+  racine.querySelectorAll('[data-renommer]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    demanderRenommage(b.dataset.renommer, b.dataset.nom);
   }));
   racine.querySelectorAll('[data-vers="troupeau"]').forEach((b) => b.addEventListener('click', () => {
     document.dispatchEvent(new CustomEvent('logisol:vue', { detail: 'troupeau' }));
