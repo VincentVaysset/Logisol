@@ -63,7 +63,19 @@ function coucheIgn(layerName, format, extra) {
 export function initMap(containerId, opts = {}) {
   log('initMap : L ' + (typeof L !== 'undefined' ? 'disponible' : 'MANQUANT — Leaflet non chargé'));
 
-  map = L.map(containerId, { zoomControl: true });
+  // rotate : vue GPS « cap en haut » (leaflet-rotate, vue-gps.js). La
+  // rotation n'est JAMAIS pilotée au doigt ni par la boussole : seulement par
+  // le cap GPS, en vue « Cap en haut ». Pas de bouton de rotation du plugin
+  // (vue-gps.js a le sien). Déplacement et zoom au doigt inchangés.
+  map = L.map(containerId, {
+    zoomControl: true,
+    rotate: true,
+    bearing: 0,
+    touchRotate: false,
+    shiftKeyRotate: false,
+    compassBearing: false,
+    rotateControl: false
+  });
 
   const vue = lireVueEnregistree();
   if (vue) {

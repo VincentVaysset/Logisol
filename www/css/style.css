@@ -578,6 +578,25 @@ header button {
   border-radius: 999px;
 }
 
+/* --- Vue GPS du tracé : Nord/Cap en haut, Recentrer (www/js/vue-gps.js) --- */
+.vue-gps-ctrl { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.vue-gps-ctrl[hidden] { display: none; }
+.vue-gps-btn {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid rgba(148,163,184,0.35);
+  border-radius: 999px;
+  background: rgba(15,23,42,0.92);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  cursor: pointer;
+}
+.vue-gps-recentrer { background: var(--success); border-color: transparent; }
+.vue-gps-btn[hidden] { display: none; }
+
 /* --- Barre du traçage GPS en direct (www/js/ui-trace-intervention.js) --- */
 .trace-materiel-select {
   flex: 1 1 auto;

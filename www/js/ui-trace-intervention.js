@@ -4,6 +4,7 @@
 import { demarrerTrace, arreterTrace, definirLargeur, getResultat } from './trace-intervention.js';
 import { getMateriels } from './materiel.js';
 import { ecranMaintenuAllume } from './gps.js';
+import { ouvrirVueGps, fermerVueGps } from './vue-gps.js';
 
 const toolbarEl = document.getElementById('trace-toolbar');
 const materielSelectEl = document.getElementById('trace-materiel-select');
@@ -45,12 +46,14 @@ export function ouvrirTrace({ largeurM, materielId, onTermine: cb }) {
   onTermine = cb || (() => {});
   peuplerMateriels(materielId);
   toolbarEl.hidden = false;
+  ouvrirVueGps();
   demarrerTrace(largeurM);
 }
 
 function fermer(resultat) {
   toolbarEl.hidden = true;
   arreterTrace();
+  fermerVueGps();
   onTermine(resultat);
 }
 

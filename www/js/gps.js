@@ -28,6 +28,8 @@ export function classifierFixType(accuracy) {
   return FIX_TYPES.SINGLE;
 }
 
+function nombreOuNull(v) { return v == null || !isFinite(v) ? null : Number(v); }
+
 function fixDepuisPosition(pos, source) {
   return {
     lat: pos.coords.latitude,
@@ -35,7 +37,11 @@ function fixDepuisPosition(pos, source) {
     accuracy: pos.coords.accuracy,
     fixType: classifierFixType(pos.coords.accuracy),
     source,
-    horodatage: pos.timestamp || Date.now()
+    horodatage: pos.timestamp || Date.now(),
+    // Cap (°) et vitesse (m/s) du GPS, null quand l'appareil ne les donne pas
+    // (cap NaN à l'arrêt) : vue « cap en haut », cf. cap-calc.js.
+    cap: nombreOuNull(pos.coords.heading),
+    vitesse: nombreOuNull(pos.coords.speed)
   };
 }
 
@@ -164,7 +170,8 @@ export function ecouterPositionChantier(callback, opts = {}) {
       callback({
         lat: loc.latitude, lon: loc.longitude, accuracy: loc.accuracy,
         fixType: classifierFixType(loc.accuracy), source: 'NATIF',
-        horodatage: loc.time || Date.now()
+        horodatage: loc.time || Date.now(),
+        cap: nombreOuNull(loc.bearing), vitesse: nombreOuNull(loc.speed)
       });
     })).then((id) => {
       if (handle.arrete) BG.removeWatcher({ id }).catch(() => {});

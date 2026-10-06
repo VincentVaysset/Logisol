@@ -48,6 +48,7 @@ import {
   setParcellesDisponibles, setChauffeursConnus, setCreateursDeContenant, setDemarreurTrace
 } from './ui-intervention.js';
 import { initTraceIntervention } from './trace-intervention.js';
+import { majVueGps } from './vue-gps.js';
 import { initTraceUi, ouvrirTrace, majEtatTrace as majEtatTraceToolbar } from './ui-trace-intervention.js';
 import { initAccueil, majEtat, renderFeed, ouvrirApercu, fermerApercu } from './accueil.js';
 import { watchStocks, onStocksChange, agregerParCategorie } from './stocks.js';
@@ -737,7 +738,7 @@ async function boot() {
 
     initTraceIntervention({
       onStateChange: majEtatTrace,
-      onCurseurChange: afficherBadgeGps
+      onCurseurChange: (fix) => { afficherBadgeGps(fix); majVueGps(fix); }
     });
     initTraceUi();
     setDemarreurTrace((opts) => {
