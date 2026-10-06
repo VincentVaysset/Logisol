@@ -42,12 +42,12 @@ function largeurDuMaterielChoisi() {
  * opts.onTermine(resultat) : rappelé à la fermeture, resultat = null si
  * annulé, sinon { surfaceHa, distanceM, modeFilaire } (trace-intervention.js).
  */
-export function ouvrirTrace({ largeurM, materielId, onTermine: cb }) {
+export function ouvrirTrace({ largeurM, materielId, onTermine: cb, sessionId, contexte, reprise }) {
   onTermine = cb || (() => {});
   peuplerMateriels(materielId);
   toolbarEl.hidden = false;
   ouvrirVueGps();
-  demarrerTrace(largeurM);
+  demarrerTrace(largeurM, { sessionId, contexte, reprise });
 }
 
 function fermer(resultat) {

@@ -6,6 +6,8 @@ import { openCreateIntervention, openEditIntervention } from './ui-intervention.
 import { estCorrigeableAvecPs, corrigerAvecPs } from './corriger-ps.js';
 import { estCorrigeableRemplissage, corrigerRemplissage } from './corriger-remplissage.js';
 import { toastSucces, toastErreur } from './toast.js';
+import { tracesDeParcelle } from './traces.js';
+import { afficherTrace, masquerTrace, estAffichee, definirModeLargeur, getModeLargeur, onTracesAfficheesChange } from './trace-affichage.js';
 
 // Id de l'activité dont le petit formulaire "Corriger avec PS" est déplié
 // dans le fil — une seule à la fois, jamais un état par carte (le fil est
@@ -36,6 +38,8 @@ export function initAccueil(opts = {}) {
     openCreateIntervention()
   );
   document.getElementById('apercu-fermer').addEventListener('click', fermerApercu);
+  document.getElementById('apercu-traces-largeur').addEventListener('change', (e) => definirModeLargeur(e.target.checked));
+  onTracesAfficheesChange(() => { if (parcelleAffichee) renderTraces(parcelleAffichee); });
   document.getElementById('apercu-note').addEventListener('click', () => {
     const id = parcelleAffichee && parcelleAffichee.id;
     fermerApercu();
@@ -266,10 +270,58 @@ export function ouvrirApercu(parcelle) {
         openEditIntervention(itv);
       });
     });
+    renderTraces(parcelle);
+    // Points conservés ou non (activités tracées avant l'historique) : lu
+    // dans les seules métadonnées de lgs_traces, sans charger de points.
+    tracesConservees = null;
+    tracesDeParcelle(parcelle.id).then((metas) => {
+      if (parcelleAffichee !== parcelle) return;
+      tracesConservees = new Set(metas.map((m) => m.id));
+      renderTraces(parcelle);
+    }).catch(() => { /* hors réseau sans cache : boutons laissés actifs */ });
   } catch (err) {
     apercuActivites.innerHTML =
       '<p class="list-empty">Détails indisponibles : ' + escapeHtml((err && err.message) || String(err)) + '</p>';
   }
+}
+
+// --- Tracés de la parcelle -----------------------------------------------
+// Liste par date et type d'activité ; chaque tracé s'affiche / se masque sur
+// la carte (couleur du type), option « Largeur de l'outil ».
+let tracesConservees = null;   // Set des activités dont les points sont dans lgs_traces
+function renderTraces(parcelle) {
+  const bloc = document.getElementById('apercu-traces-bloc');
+  const liste = document.getElementById('apercu-traces');
+  const avecTrace = etat.interventions.filter((i) => i.trace && (i.parcelleIds || []).includes(parcelle.id));
+  bloc.hidden = !avecTrace.length;
+  document.getElementById('apercu-traces-largeur').checked = getModeLargeur();
+  const fr = (v, d) => Number(v).toLocaleString('fr-FR', { maximumFractionDigits: d });
+  liste.innerHTML = avecTrace.map((i) => {
+    const conserve = !tracesConservees || tracesConservees.has(i.id);
+    const affiche = estAffichee(i.id);
+    const details = [i.trace.surfaceHa != null ? fr(i.trace.surfaceHa, 2) + ' ha' : '', i.trace.distanceM ? fr(i.trace.distanceM / 1000, 2) + ' km' : '',
+      i.trace.largeurM ? 'outil ' + fr(i.trace.largeurM, 1) + ' m' : ''].filter(Boolean).join(' · ');
+    return `<div class="apercu-trace">
+      <span class="apercu-trace-pastille" style="background:${escapeAttr(couleurType(i))}"></span>
+      <span class="apercu-trace-texte"><span class="apercu-trace-nom">${escapeHtml(libelleType(i))} · ${escapeHtml(dateLisible(i.date))}</span>
+        <span class="apercu-trace-details">${escapeHtml(conserve ? details : 'points non conservés (tracé avant l\'historique)')}</span></span>
+      <button type="button" class="apercu-trace-btn${affiche ? ' is-active' : ''}" data-trace="${escapeAttr(i.id)}" ${conserve ? '' : 'disabled'}>${affiche ? 'Masquer' : 'Afficher'}</button>
+    </div>`;
+  }).join('');
+  liste.querySelectorAll('[data-trace]').forEach((b) => b.addEventListener('click', async () => {
+    const itv = etat.interventions.find((x) => x.id === b.dataset.trace);
+    if (!itv) return;
+    if (estAffichee(itv.id)) { masquerTrace(itv.id); return; }
+    b.disabled = true;
+    b.textContent = '…';
+    try {
+      const ok = await afficherTrace(itv.id, { couleur: couleurType(itv), largeurM: itv.trace.largeurM, titre: `${libelleType(itv)} · ${dateLisible(itv.date)}` });
+      if (!ok) { toastErreur('Points de ce tracé non conservés.'); if (tracesConservees) tracesConservees.delete(itv.id); }
+    } catch (err) {
+      toastErreur('Tracé illisible : ' + ((err && err.message) || err));
+    }
+    renderTraces(parcelle);
+  }));
 }
 
 export function fermerApercu() {

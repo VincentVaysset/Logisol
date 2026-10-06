@@ -1118,11 +1118,30 @@
       </dl>
       <h3 class="apercu-sous-titre">Dernières activités sur cette parcelle</h3>
       <div id="apercu-activites" class="apercu-activites"></div>
+      <div id="apercu-traces-bloc" hidden>
+        <h3 class="apercu-sous-titre">Tracés</h3>
+        <label class="case-ligne"><input type="checkbox" id="apercu-traces-largeur"> Largeur de l'outil (surface couverte)</label>
+        <div id="apercu-traces" class="apercu-traces"></div>
+      </div>
       <div class="fiche-actions">
         <button type="button" id="apercu-note" class="btn btn-primary">📝 Ajouter une note</button>
         <button type="button" id="apercu-activite" class="btn btn-primary">➕ Nouvelle activité</button>
         <button type="button" id="apercu-modifier" class="btn btn-secondary">✏️ Modifier la parcelle</button>
         <button type="button" id="apercu-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tracé de chantier interrompu (appli fermée ou plantée pendant le
+       chantier) : retrouvé sur le téléphone au démarrage (trace-brouillon.js). -->
+  <div id="reprise-trace-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>📡 Tracé interrompu</h2>
+      <p id="reprise-trace-texte"></p>
+      <div class="fiche-actions">
+        <button type="button" id="reprise-trace-reprendre" class="btn btn-primary">📡 Reprendre le tracé</button>
+        <button type="button" id="reprise-trace-plus-tard" class="btn btn-secondary">Plus tard</button>
+        <button type="button" id="reprise-trace-abandonner" class="btn btn-danger">Abandonner ce tracé</button>
       </div>
     </div>
   </div>
@@ -1327,6 +1346,7 @@
               <button type="button" id="itv-trace-lancer" class="btn btn-secondary btn-mini">📡 Tracer le chantier en direct</button>
               <span id="itv-trace-resume" class="champ-aide champ-aide-gris"></span>
             </div>
+            <button type="button" id="itv-trace-voir" class="btn btn-secondary btn-mini" hidden>🗺️ Voir le tracé</button>
           </div>
 
           <label>Statut</label>

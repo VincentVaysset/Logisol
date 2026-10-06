@@ -23,6 +23,8 @@
 // superposent. Surface = nombre de cellules déjà vues × 0,25 m².
 import { getMap } from './map.js';
 import { ecouterPositionChantier, arreterEcoutePositionChantier } from './gps.js';
+import { creerFiltre } from './trace-points-calc.js';
+import { ouvrirBrouillon, ajouterPointsBrouillon } from './trace-brouillon.js';
 
 const TAILLE_CELLULE_M = 0.5;
 const AIRE_CELLULE_M2 = TAILLE_CELLULE_M * TAILLE_CELLULE_M;
@@ -36,6 +38,29 @@ let cellulesCouvertes = new Set();
 let debutTraceMs = null; // Date.now() au démarrage — sert à calculer la durée pour getResultat()
 let onStateChange = () => {};
 let onCurseurChange = () => {};
+
+// --- Points du tracé (historique, lgs_traces via traces.js) -----------------
+// Indépendants du calcul de surface ci-dessous, qui reste celui d'avant : on
+// garde un point tous les ~3 m ou ~3 s (trace-points-calc.js), sauvegardés au
+// fil de l'eau sur le téléphone (trace-brouillon.js) pour survivre à une
+// fermeture ou un plantage de l'appli.
+const FLUSH_MS = 5000;
+let pointsTrace = [];
+let coupuresTrace = [];      // indices des points qui ne se relient pas au précédent
+let filtrePoints = creerFiltre();
+let sessionId = null;
+let enAttente = [];          // points pas encore écrits dans le brouillon
+let coupureEnAttente = false;
+let minuteurFlush = null;
+let prochainEstCoupure = false;
+
+function flushBrouillon() {
+  if (!sessionId || !enAttente.length) return;
+  const lot = enAttente;
+  enAttente = [];
+  ajouterPointsBrouillon(sessionId, lot, { coupure: coupureEnAttente });
+  coupureEnAttente = false;
+}
 
 // --- Rendu carte -------------------------------------------------------------
 let rubanLayer = null;   // L.layerGroup des quadrilatères déjà tracés (mode largeur)
@@ -155,8 +180,15 @@ export function isActif() {
   return watchHandle != null;
 }
 
-/** largeurMetres : celle du matériel choisi, ou 0/null/undefined -> filaire. */
-export function demarrerTrace(largeurMetres) {
+/**
+ * largeurMetres : celle du matériel choisi, ou 0/null/undefined -> filaire.
+ * opts.sessionId / opts.contexte : brouillon local (trace-brouillon.js) et ce
+ * qu'il faut pour rouvrir l'activité après un plantage.
+ * opts.reprise : { points, coupures } d'un tracé interrompu — rejoué (ruban et
+ * surface recalculés à l'identique), puis le suivi continue SANS relier le
+ * dernier point d'avant l'interruption au premier d'après.
+ */
+export function demarrerTrace(largeurMetres, opts = {}) {
   if (watchHandle != null) return;
   largeurM = Number(largeurMetres) > 0 ? Number(largeurMetres) : 0;
   distanceTotaleM = 0;
@@ -164,12 +196,37 @@ export function demarrerTrace(largeurMetres) {
   dernierPointMercator = null;
   debutTraceMs = Date.now();
   assurerLayers();
+  pointsTrace = [];
+  coupuresTrace = [];
+  filtrePoints = creerFiltre();
+  enAttente = [];
+  coupureEnAttente = false;
+  prochainEstCoupure = false;
+  sessionId = opts.sessionId || null;
+  const reprise = opts.reprise && Array.isArray(opts.reprise.points) && opts.reprise.points.length ? opts.reprise : null;
+  if (reprise) {
+    rejouer(reprise.points, reprise.coupures || []);
+    debutTraceMs = reprise.points[0].t || debutTraceMs;
+    prochainEstCoupure = true;
+    coupureEnAttente = false;
+  } else if (sessionId) {
+    ouvrirBrouillon(sessionId, { debut: debutTraceMs, largeurM, contexte: opts.contexte });
+  }
+  clearInterval(minuteurFlush);
+  minuteurFlush = setInterval(flushBrouillon, FLUSH_MS);
   // Suivi écran éteint (service Android + notification) dans l'APK ; sinon
   // GPS du navigateur, écran maintenu allumé (gps.js/ecouterPositionChantier).
   watchHandle = ecouterPositionChantier((fix) => {
     afficherCurseur(fix);
     try { onCurseurChange(fix); } catch (err) { /* jamais bloquant */ }
     const pt = versMercator(fix.lat, fix.lon);
+    const point = { lat: fix.lat, lon: fix.lon, t: Number(fix.horodatage) || Date.now() };
+    if (filtrePoints.garder(point)) {
+      if (prochainEstCoupure) { if (pointsTrace.length) { coupuresTrace.push(pointsTrace.length); coupureEnAttente = true; } prochainEstCoupure = false; }
+      pointsTrace.push(point);
+      enAttente.push(point);
+      if (enAttente.length >= 20) flushBrouillon();
+    }
     if (!dernierPointMercator && distanceTotaleM === 0) echelleMercator = 1 / Math.cos((fix.lat * Math.PI) / 180);
     derniereErreur = '';   // une position reçue efface l'erreur précédente (délai GPS passager)
     if (dernierPointMercator) {
@@ -189,6 +246,23 @@ export function demarrerTrace(largeurMetres) {
   notifier();
 }
 
+// Rejoue des points enregistrés (reprise après interruption) : même ruban,
+// même surface que s'ils venaient du GPS, coupures respectées.
+function rejouer(points, coupures) {
+  const coupes = new Set(coupures);
+  points.forEach((p, i) => {
+    const pt = versMercator(p.lat, p.lon);
+    if (i === 0) echelleMercator = 1 / Math.cos((p.lat * Math.PI) / 180);
+    if (dernierPointMercator && !coupes.has(i)) ajouterSegmentRuban(dernierPointMercator, pt);
+    else filLayer.addLatLng([p.lat, p.lon]);
+    dernierPointMercator = pt;
+  });
+  pointsTrace = points.slice();
+  coupuresTrace = coupures.slice();
+  dernierPointMercator = null;
+  if (points.length) afficherCurseur(points[points.length - 1]);
+}
+
 let derniereErreur = '';
 /** 'arriere-plan' (écran éteint possible) | 'ecran' (garder l'écran allumé) | null. */
 export function modeSuivi() { return watchHandle ? watchHandle.mode : null; }
@@ -204,6 +278,10 @@ export function definirLargeur(largeurMetres) {
 }
 
 export function arreterTrace() {
+  flushBrouillon();
+  clearInterval(minuteurFlush);
+  minuteurFlush = null;
+  sessionId = null;
   arreterEcoutePositionChantier(watchHandle);
   derniereErreur = '';
   watchHandle = null;
@@ -232,6 +310,8 @@ export function getResultat() {
     surfaceHa: surfaceHaCouverte(),
     distanceM: Math.round(distanceTotaleM),
     dureeHeures,
-    modeFilaire: !largeurM
+    modeFilaire: !largeurM,
+    points: pointsTrace.slice(),
+    coupures: coupuresTrace.slice()
   };
 }

@@ -44,6 +44,10 @@ export function setCreateursDeContenant(c) { createurs = { ...createurs, ...c };
 // d'imports avec trace-intervention.js/map.js.
 let demarreurTrace = null;
 export function setDemarreurTrace(fn) { demarreurTrace = fn; }
+// Affichage d'un tracé enregistré sur la carte (main.js bascule sur la vue
+// Carte puis appelle trace-affichage.js/afficherTraceActivite).
+let voirTrace = null;
+export function setVoirTrace(fn) { voirTrace = fn; }
 import { getCellules, getCelluleById, contenuDe } from './cellules.js';
 import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getLots, getLotsActifs } from './lots.js';
@@ -56,6 +60,9 @@ import { COUPES, FOURRAGES, cleFoin, labelFoin, cleCereale, labelCereale, clePai
 import { conservationDuContenant } from './fourrages.js';
 import { prevision, culturePrev } from './assolement-previsionnel.js';
 import { toastSucces, toastErreur } from './toast.js';
+import { enregistrerTrace } from './traces.js';
+import { supprimerBrouillon, majContexteBrouillon, lireBrouillons } from './trace-brouillon.js';
+import { afficherTraceActivite } from './trace-affichage.js';
 
 const panel = document.getElementById('intervention-panel');
 const form = document.getElementById('itv-form');
@@ -74,7 +81,7 @@ const el = {};
   'semence','melange','melange-toggle','melange-rows','melange-add','melange-total',
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
   'g-surface','surface','surface-tout','surface-tracer','surface-aide',
-  'trace-commun','trace-lancer','trace-resume',
+  'trace-commun','trace-lancer','trace-resume','trace-voir',
   'g-fourrage','coupe','fourrage','fourrages','fourrage-aide',
   'produit-recolte',
   'g-pressage','nb-bottes','poids-botte',
@@ -536,30 +543,58 @@ el['surface-tracer'].addEventListener('click', () => lancerTrace((resultat) => {
 }));
 
 // Résumé du tracé GPS, enregistré avec l'activité (surface, distance, durée,
-// largeur) — le tracé lui-même n'est pas stocké : des milliers de points
-// dépasseraient vite la limite de 1 Mio d'un document Firestore.
+// largeur). Les points partent à part dans lgs_traces (traces.js) : des
+// milliers de points dépasseraient vite la limite de 1 Mio d'un document.
 let traceResultat = null;
+// Points du dernier tracé fait dans ce formulaire, pas encore enregistrés :
+// { sessionId, points, coupures } — partent dans lgs_traces (traces.js) à
+// l'enregistrement de l'activité, jamais dans son document.
+let tracePoints = null;
 function majResumeTrace() {
   const r = traceResultat;
   const fr = (v, d) => Number(v).toLocaleString('fr-FR', { maximumFractionDigits: d });
   const duree = (h) => { const m = Math.round(Number(h) * 60); return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m} min`; };
+  // « Voir le tracé » : celui qui vient d'être fait (en mémoire) ou celui
+  // enregistré avec l'activité rouverte (lgs_traces).
+  el['trace-voir'].hidden = !(r && (tracePoints ? tracePoints.points.length >= 2 : !!editingId));
   el['trace-resume'].textContent = r
     ? `Tracé : ${r.surfaceHa != null ? fr(r.surfaceHa, 2) + ' ha · ' : ''}${fr((r.distanceM || 0) / 1000, 2)} km` +
       `${r.dureeHeures != null ? ' · ' + duree(r.dureeHeures) : ''}${r.largeurM ? ' · outil ' + fr(r.largeurM, 1) + ' m' : ' · sans largeur'} (GPS du téléphone, ±3 à 5 m)`
     : '';
 }
-function lancerTrace(apres) {
+// Ce qu'il faut pour rouvrir le formulaire tel quel après un plantage.
+function contexteTrace() {
+  return {
+    mode, editingId, cible, typeId: typeChoisiId, parcelleIds: Array.from(selection),
+    materielId: el['materiel-id'].value || null, tracteurId: el['tracteur-id'].value || null,
+    date: el.date.value, typeNom: (typeCourant() || {}).nom || '',
+    parcellesNoms: Array.from(selection).map((id) => (parcelles.find((p) => p.id === id) || {}).nom || '').filter(Boolean)
+  };
+}
+
+function lancerTrace(apres, { reprise = null } = {}) {
   if (!demarreurTrace) { showError('Traçage en direct indisponible.'); return; }
   const materielId = el['materiel-id'].value;
   const materiel = materielId ? getMaterielById(materielId) : null;
-  const largeurM = materiel ? materiel.largeurTravailMetres : null;
+  const largeurM = materiel ? materiel.largeurTravailMetres : (reprise ? reprise.largeurM : null);
+  const sessionId = reprise ? reprise.id : 'tr-' + Date.now();
   panel.hidden = true;
   demarreurTrace({
     largeurM,
     materielId,
+    sessionId,
+    contexte: contexteTrace(),
+    reprise: reprise ? { points: reprise.points, coupures: reprise.coupures } : null,
     onTermine: (resultat) => {
       panel.hidden = false;
+      if (!resultat) {
+        // Tracé annulé : son brouillon part, sauf une reprise après plantage
+        // (les points d'avant restent jusqu'à l'enregistrement ou l'abandon).
+        if (!reprise) supprimerBrouillon(sessionId);
+      }
       if (resultat) {
+        if (tracePoints && tracePoints.sessionId !== sessionId) supprimerBrouillon(tracePoints.sessionId);
+        tracePoints = { sessionId, points: resultat.points || [], coupures: resultat.coupures || [] };
         traceResultat = {
           surfaceHa: resultat.modeFilaire ? null : resultat.surfaceHa,
           distanceM: resultat.distanceM || 0,
@@ -575,6 +610,106 @@ function lancerTrace(apres) {
   });
 }
 el['trace-lancer'].addEventListener('click', () => lancerTrace());
+
+// --- Reprise d'un tracé interrompu (trace-brouillon.js) -----------------
+const repriseUi = {
+  panel: document.getElementById('reprise-trace-panel'),
+  texte: document.getElementById('reprise-trace-texte'),
+  reprendre: document.getElementById('reprise-trace-reprendre'),
+  plusTard: document.getElementById('reprise-trace-plus-tard'),
+  abandonner: document.getElementById('reprise-trace-abandonner')
+};
+let brouillonPropose = null;
+
+function heureFr(ms) { const d = new Date(ms); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} à ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+
+/** Au démarrage : un tracé interrompu est-il resté sur le téléphone ? */
+export async function proposerRepriseTrace() {
+  if (!repriseUi.panel) return;
+  const brouillons = await lireBrouillons();
+  // Moins de 2 points : rien d'utile, effacé sans rien demander.
+  brouillons.filter((b) => b.points.length < 2).forEach((b) => supprimerBrouillon(b.id));
+  const b = brouillons.filter((x) => x.points.length >= 2).sort((x, y) => y.debut - x.debut)[0];
+  if (!b) return;
+  brouillonPropose = b;
+  const c = b.contexte || {};
+  const min = Math.round((b.points[b.points.length - 1].t - b.points[0].t) / 60000);
+  repriseUi.texte.textContent = c.interventionId
+    ? `Le tracé GPS de l'activité ${c.typeNom || ''} du ${heureFr(b.debut)} (${min} min) est resté sur le téléphone : il n'a pas pu être enregistré.`
+    : `Un tracé de chantier a été interrompu : ${c.typeNom || 'activité'}${c.parcellesNoms && c.parcellesNoms.length ? ' · ' + c.parcellesNoms.join(', ') : ''} · commencé le ${heureFr(b.debut)} · ${min} min (${b.points.length} points). Rien n'est perdu.`;
+  repriseUi.reprendre.textContent = c.interventionId ? '💾 Enregistrer le tracé' : '📡 Reprendre le tracé';
+  repriseUi.panel.hidden = false;
+}
+
+async function reprendreBrouillon() {
+  const b = brouillonPropose;
+  repriseUi.panel.hidden = true;
+  if (!b) return;
+  const c = b.contexte || {};
+  if (c.interventionId) {
+    const itv = getInterventions().find((i) => i.id === c.interventionId);
+    try {
+      await enregistrerTrace(c.interventionId, {
+        points: b.points, coupures: b.coupures, parcelleIds: itv ? itv.parcelleIds : c.parcelleIds, typeId: c.typeId, typeNom: c.typeNom,
+        date: itv ? itv.date : c.date, largeurM: b.largeurM, materielId: c.materielId,
+        distanceM: itv && itv.trace ? itv.trace.distanceM : null, surfaceHa: itv && itv.trace ? itv.trace.surfaceHa : null
+      });
+      supprimerBrouillon(b.id);
+      toastSucces('Tracé GPS enregistré.');
+    } catch (err) { toastErreur('Tracé toujours pas enregistré : ' + ((err && err.message) || err)); }
+    return;
+  }
+  // Formulaire rouvert tel qu'il était, puis le tracé reprend là où il
+  // s'était arrêté (ruban et surface rejoués, sans relier l'interruption).
+  const itv = c.mode === 'edit' && c.editingId ? getInterventions().find((i) => i.id === c.editingId) : null;
+  if (itv) openEditIntervention(itv);
+  else {
+    openCreateIntervention({ cible: c.cible || 'PARCELLE', parcelleIds: c.parcelleIds || [] });
+    if (c.typeId && getTypeById(c.typeId)) {
+      typeChoisiId = c.typeId;
+      appliquerType();
+      renderActivites();
+      renderSteps();
+      try { validerEtape(1); hideError(); allerA(2); } catch (_) { /* étape 1 incomplète */ }
+    }
+    if (c.date) el.date.value = c.date;
+  }
+  peuplerMateriels(c.materielId || el['materiel-id'].value);
+  peuplerTracteurs(c.tracteurId || el['tracteur-id'].value);
+  lancerTrace(null, { reprise: b });
+}
+
+if (repriseUi.panel) {
+  repriseUi.reprendre.addEventListener('click', reprendreBrouillon);
+  repriseUi.plusTard.addEventListener('click', () => { repriseUi.panel.hidden = true; });
+  repriseUi.abandonner.addEventListener('click', () => {
+    if (!brouillonPropose) return;
+    if (!confirm('Abandonner définitivement ce tracé ? Ses points seront effacés du téléphone.')) return;
+    supprimerBrouillon(brouillonPropose.id);
+    brouillonPropose = null;
+    repriseUi.panel.hidden = true;
+  });
+}
+
+el['trace-voir'].addEventListener('click', async () => {
+  if (!voirTrace) return;
+  const t = typeCourant();
+  panel.hidden = true;
+  try {
+    await voirTrace({
+      interventionId: tracePoints ? null : editingId,
+      points: tracePoints ? tracePoints.points : null,
+      coupures: tracePoints ? tracePoints.coupures : null,
+      couleur: t ? t.couleur : '',
+      largeurM: traceResultat ? traceResultat.largeurM : null,
+      titre: `${t ? t.nom : 'Activité'} du ${(el.date.value || '').split('-').reverse().join('/')}`,
+      onRetour: () => { panel.hidden = false; }
+    });
+  } catch (err) {
+    panel.hidden = false;
+    showError((err && err.message) || String(err));
+  }
+});
 
 // Total calculé, affiché en clair sous le bloc : c'est lui qui partira en
 // stock, il ne doit pas être une surprise découverte à l'étape 3.
@@ -1543,6 +1678,7 @@ export function openCreateIntervention(opts = {}) {
   mode = 'create';
   editingId = null;
   traceResultat = null;
+  tracePoints = null;
   majResumeTrace();
   panel.hidden = false;
   reinitialiser();
@@ -1571,6 +1707,7 @@ export function openEditIntervention(itv) {
   mode = 'edit';
   editingId = itv.id;
   traceResultat = itv.trace || null;
+  tracePoints = null;
   majResumeTrace();
   panel.hidden = false;
   reinitialiser();
@@ -1709,8 +1846,17 @@ async function defaireEffetCulture(trace) {
   }
 }
 
-function fermer() { panel.hidden = true; mode = null; editingId = null; }
-el.cancel.addEventListener('click', fermer);
+function fermer() { panel.hidden = true; mode = null; editingId = null; tracePoints = null; }
+el.cancel.addEventListener('click', () => {
+  // Un tracé fait dans ce formulaire et pas encore enregistré serait perdu :
+  // ça s'annonce.
+  if (tracePoints && tracePoints.points.length) {
+    const min = Math.round((tracePoints.points[tracePoints.points.length - 1].t - tracePoints.points[0].t) / 60000);
+    if (!confirm(`Abandonner aussi le tracé GPS du chantier (${min} min) ? Il ne sera pas conservé.`)) return;
+    supprimerBrouillon(tracePoints.sessionId);
+  }
+  fermer();
+});
 
 // --- Enregistrement -------------------------------------------------------
 const TIMEOUT_MS = 8000;
@@ -1826,8 +1972,27 @@ form.addEventListener('submit', async (e) => {
     // revenir en arrière si l'activité est supprimée.
     data.effetCulture = await appliquerEffetCulture(data, effetPrecedent);
 
-    if (mode === 'create') await createIntervention(data);
+    let idEnregistre = editingId;
+    if (mode === 'create') idEnregistre = (await createIntervention(data)).id;
     else if (editingId) await updateIntervention(editingId, data);
+
+    // Points du tracé : document à part (lgs_traces), jamais dans l'activité.
+    if (data.trace && tracePoints && tracePoints.points.length >= 2 && idEnregistre) {
+      const t = typeCourant();
+      try {
+        await enregistrerTrace(idEnregistre, {
+          points: tracePoints.points, coupures: tracePoints.coupures, parcelleIds: data.parcelleIds,
+          typeId: data.typeId, typeNom: data.typeNom, couleur: t ? t.couleur || '' : '', date: data.date,
+          largeurM: data.trace.largeurM, materielId: data.materielId, distanceM: data.trace.distanceM, surfaceHa: data.trace.surfaceHa
+        });
+        supprimerBrouillon(tracePoints.sessionId);
+      } catch (err) {
+        // L'activité est enregistrée ; le tracé reste sur le téléphone et sera
+        // reproposé au prochain démarrage.
+        majContexteBrouillon(tracePoints.sessionId, { interventionId: idEnregistre });
+        toastErreur('Tracé GPS gardé sur le téléphone, pas encore enregistré : ' + ((err && err.message) || err));
+      }
+    }
 
     // Le PS saisi devient la valeur par défaut de la prochaine moisson de la
     // même espèce (ticket PS, point 2 : "PS mémorisé par aliment, modifiable
@@ -1936,7 +2101,8 @@ function construireMouvement(data, f) {
 
 el.delete.addEventListener('click', async () => {
   if (!editingId) return;
-  if (!confirm('Supprimer cette activité ? Cette action est irréversible.')) return;
+  const itvSupprimee = getInterventions().find((i) => i.id === editingId);
+  if (!confirm('Supprimer cette activité ?' + (itvSupprimee && itvSupprimee.trace ? ' Son tracé GPS sera supprimé avec elle.' : '') + ' Cette action est irréversible.')) return;
   el.delete.disabled = true;
   try {
     // Le mouvement créé par l'activité part avec elle : le laisser

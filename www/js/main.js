@@ -45,10 +45,11 @@ import {
 import { initImport } from './import-geojson.js';
 import { openCreate, openEdit, setSecteursConnus, setDerobeesConnues, setOnDemanderModifContour } from './ui.js';
 import {
-  setParcellesDisponibles, setChauffeursConnus, setCreateursDeContenant, setDemarreurTrace
+  setParcellesDisponibles, setChauffeursConnus, setCreateursDeContenant, setDemarreurTrace, setVoirTrace, proposerRepriseTrace
 } from './ui-intervention.js';
 import { initTraceIntervention } from './trace-intervention.js';
 import { majVueGps } from './vue-gps.js';
+import { afficherTraceActivite } from './trace-affichage.js';
 import { initTraceUi, ouvrirTrace, majEtatTrace as majEtatTraceToolbar } from './ui-trace-intervention.js';
 import { initAccueil, majEtat, renderFeed, ouvrirApercu, fermerApercu } from './accueil.js';
 import { watchStocks, onStocksChange, agregerParCategorie } from './stocks.js';
@@ -745,6 +746,10 @@ async function boot() {
       setView('carte');
       ouvrirTrace(opts);
     });
+    setVoirTrace((opts) => {
+      setView('carte');
+      return afficherTraceActivite(opts);
+    });
 
     initImport({
       onImported: (count) => {
@@ -895,10 +900,14 @@ async function boot() {
     onTypesChange((types) => { latestTypes = types; recomputeAndRender(); });
     watchTypes();
 
+    let repriseProposee = false;
     watchInterventions((list) => {
       latestInterventions = list;
       setChauffeursConnus(list);
       recomputeAndRender();
+      // Tracé de chantier interrompu (appli fermée, plantage) : proposé une
+      // fois par démarrage, quand activités, types et matériel sont là.
+      if (!repriseProposee) { repriseProposee = true; setTimeout(proposerRepriseTrace, 1500); }
     });
     watchParcelles((list) => { latestParcelles = list; recomputeAndRender(); });
     onPrevisionsChange(() => {

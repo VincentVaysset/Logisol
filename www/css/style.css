@@ -597,6 +597,33 @@ header button {
 .vue-gps-recentrer { background: var(--success); border-color: transparent; }
 .vue-gps-btn[hidden] { display: none; }
 
+/* --- Tracés enregistrés affichés sur la carte (www/js/trace-affichage.js) --- */
+.traces-ctrl {
+  max-width: 230px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15,23,42,0.92);
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.traces-ctrl[hidden] { display: none; }
+.traces-ctrl-titre { font-weight: 700; margin-bottom: 6px; }
+.traces-ctrl-largeur { display: flex; align-items: center; gap: 8px; min-height: 36px; color: #fff; font-size: 13px; margin: 0; }
+.traces-ctrl-largeur input { width: 20px; height: 20px; margin: 0; }
+.traces-ctrl-actions { display: flex; gap: 8px; margin-top: 6px; }
+.traces-ctrl-btn {
+  flex: 1;
+  min-height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.16);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.traces-ctrl-retour { background: var(--success); }
+
 /* --- Barre du traçage GPS en direct (www/js/ui-trace-intervention.js) --- */
 .trace-materiel-select {
   flex: 1 1 auto;
@@ -924,6 +951,24 @@ header button {
 .apercu-infos dd { margin: 0; font-size: 15px; font-weight: 600; text-align: right; }
 .apercu-sous-titre { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); font-weight: 600; }
 .apercu-activites { margin-bottom: 16px; }
+.apercu-traces { margin: 6px 0 16px; }
+.apercu-trace { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.apercu-trace-pastille { flex: 0 0 12px; height: 12px; border-radius: 50%; }
+.apercu-trace-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.apercu-trace-nom { font-size: 14px; font-weight: 600; }
+.apercu-trace-details { font-size: 12px; color: var(--text-muted); }
+.apercu-trace-btn {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  font-size: 13px;
+  font-weight: 700;
+}
+.apercu-trace-btn.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.apercu-trace-btn:disabled { opacity: 0.45; }
 .apercu-activite {
   display: flex;
   align-items: center;

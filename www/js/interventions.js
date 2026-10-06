@@ -11,6 +11,7 @@ import {
   collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 import { ecrire } from './ecriture-locale.js';
+import { supprimerTrace } from './traces.js';
 
 const COL = collection(db, 'interventions');
 
@@ -104,8 +105,8 @@ function nettoyer(data) {
     // Un sous-objet plutôt qu'une douzaine de champs à plat : les clés
     // dépendent du type, et les étaler rendrait chaque document illisible.
     saisie: nettoyerSaisie(data.saisie),
-    // Résumé du tracé GPS du chantier (objet plat ; le tracé lui-même n'est
-    // pas stocké, trop lourd pour un document).
+    // Résumé du tracé GPS du chantier (objet plat). Les points sont à part,
+    // dans lgs_traces (traces.js) : trop lourds pour ce document.
     trace: nettoyerTrace(data.trace),
     notes: data.notes || ''
   };
@@ -223,6 +224,8 @@ export async function updateIntervention(id, data) {
 export async function deleteIntervention(id) {
   const ref = doc(db, 'interventions', id);
   await ecrire(ref, deleteDoc(ref), "Suppression d'activité", 'suppression');
+  // Son tracé GPS (lgs_traces) part avec elle.
+  await supprimerTrace(id);
 }
 
 // Écriture ciblée pour reprise-campagnes.js : seule campagneId (et, à
