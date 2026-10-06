@@ -80,6 +80,10 @@ function nettoyer(data) {
     materiel: data.materiel || '',
     materielId: data.materielId || null,
     materielNom: data.materielNom || '',
+    // Tracteur attelé à l'outil : absent d'ici jusqu'au 06/10/2026, il était
+    // retiré à chaque enregistrement (aucune activité n'en a en base).
+    tracteurId: data.tracteurId || null,
+    tracteurNom: data.tracteurNom || '',
     dureeHeures: data.dureeHeures === '' || data.dureeHeures == null ? null : Number(data.dureeHeures),
     meteo: data.meteo || null,                         // objet plat, cf. meteo.js
     photo: data.photo || null,                         // data URL JPEG compressée
@@ -105,6 +109,21 @@ function nettoyer(data) {
     trace: nettoyerTrace(data.trace),
     notes: data.notes || ''
   };
+}
+
+/**
+ * Tracteur le plus récemment attelé à cet outil (pré-remplissage), ou null.
+ * Activités terminées seulement, la plus récente par date puis par saisie.
+ */
+export function dernierTracteurPour(materielId, interventions = courantes) {
+  if (!materielId) return null;
+  let meilleure = null;
+  (interventions || []).forEach((i) => {
+    if (i.materielId !== materielId || !i.tracteurId || i.statut === 'A_FAIRE') return;
+    const ms = msDe(i.majLe || i.creeLe);
+    if (!meilleure || i.date > meilleure.date || (i.date === meilleure.date && ms > meilleure.ms)) meilleure = { date: i.date || '', ms, id: i.tracteurId };
+  });
+  return meilleure ? meilleure.id : null;
 }
 
 function nettoyerTrace(t) {

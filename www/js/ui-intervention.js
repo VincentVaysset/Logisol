@@ -19,7 +19,7 @@ import {
 import { getMaterielById, getMateriels, onMaterielsChange, materielsPourAction } from './materiel.js';
 import {
   createIntervention, updateIntervention, deleteIntervention, quantiteDeSaisie, getInterventions,
-  verifierTailleIntervention
+  verifierTailleIntervention, dernierTracteurPour
 } from './interventions.js';
 import { releverMeteo, resumeMeteo } from './meteo.js';
 import { compresserPhoto, tailleLisible } from './photo.js';
@@ -156,6 +156,16 @@ function peuplerTracteurs(valeur) {
   el['tracteur-id'].innerHTML = '<option value="">— Aucun —</option>' + tracteurs.map(opt).join('');
   if (valeur && tracteurs.some((m) => m.id === valeur)) el['tracteur-id'].value = valeur;
 }
+
+// Outil choisi, tracteur pas encore choisi : on propose celui attelé la
+// dernière fois à cet outil (toujours modifiable). Jamais d'écrasement d'un
+// tracteur déjà sélectionné.
+function preRemplirTracteur() {
+  if (el['tracteur-id'].value) return;
+  const id = dernierTracteurPour(el['materiel-id'].value, getInterventions());
+  if (id) peuplerTracteurs(id);
+}
+el['materiel-id'].addEventListener('change', preRemplirTracteur);
 
 // L'outil qui va avec l'action est remonté en tête : à l'ouverture d'un
 // fanage, la pirouette est le premier choix. Rien n'est filtré pour autant —

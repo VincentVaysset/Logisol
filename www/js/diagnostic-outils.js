@@ -12,13 +12,14 @@ import { lireJournal, viderJournal, ligneJournal } from './journal-ecritures.js'
 import { toastSucces, toastErreur } from './toast.js';
 import { rapportTransferts } from './diagnostic-transferts.js';
 import { rapportLots } from './diagnostic-lots.js';
+import { rapportTracteurs } from './diagnostic-tracteurs.js';
 
 const DELAI_SERVEUR_MS = 8000;
 const el = {};
 
 export function initOutilsDiagnostic() {
   ['panel', 'etat', 'parcelle', 'parcelles', 'date', 'chercher', 'resultat', 'journal', 'copier', 'vider', 'fermer',
-   'transferts', 'transferts-resultat', 'lots', 'lots-resultat']
+   'transferts', 'transferts-resultat', 'lots', 'lots-resultat', 'tracteurs', 'tracteurs-resultat']
     .forEach((k) => { el[k] = document.getElementById('diag-' + k); });
   const bouton = document.getElementById('debug-outils');
   if (!bouton || !el.panel) return;
@@ -34,6 +35,11 @@ export function initOutilsDiagnostic() {
     el['lots-resultat'].hidden = false;
     try { el['lots-resultat'].textContent = rapportLots(); }
     catch (err) { el['lots-resultat'].textContent = 'État impossible : ' + raison(err); }
+  });
+  el.tracteurs.addEventListener('click', () => {
+    el['tracteurs-resultat'].hidden = false;
+    try { el['tracteurs-resultat'].textContent = rapportTracteurs(); }
+    catch (err) { el['tracteurs-resultat'].textContent = 'Liste impossible : ' + raison(err); }
   });
   el.transferts.addEventListener('click', () => {
     el['transferts-resultat'].hidden = false;
@@ -246,6 +252,7 @@ async function copierTout() {
   const texte = [el.etat.textContent, el.resultat.hidden ? '' : el.resultat.textContent,
     el['transferts-resultat'].hidden ? '' : el['transferts-resultat'].textContent,
     el['lots-resultat'].hidden ? '' : el['lots-resultat'].textContent,
+    el['tracteurs-resultat'].hidden ? '' : el['tracteurs-resultat'].textContent,
     'JOURNAL DES ÉCRITURES (plus récent en premier)', el.journal.textContent].filter(Boolean).join('\n\n');
   try {
     await navigator.clipboard.writeText(texte);
