@@ -5,26 +5,26 @@
    teintes Tailwind « emerald » et « slate » utilisées dans ces fichiers —
    sans Tailwind lui-même : pas de CDN, l'appli doit démarrer hors ligne. */
 :root {
-  --primary: #059669;        /* emerald-600 */
-  --primary-light: #10b981;  /* emerald-500 */
-  --bg: #f1f5f9;              /* slate-100 */
+  --primary: #357f4b;        /* emerald-600 */
+  --primary-light: #4c9a63;  /* emerald-500 */
+  --bg: #f6f1e4;              /* slate-100 */
   --card: #ffffff;
-  --border: #e2e8f0;          /* slate-200 */
-  --text: #1e293b;            /* slate-800 */
-  --text-muted: #64748b;      /* slate-500 */
+  --border: #e6ddc9;          /* slate-200 */
+  --text: #2b261c;            /* slate-800 */
+  --text-muted: #5e5b47;      /* slate-500 */
   --accent: #e3812f;
-  --danger: #d1584f;
-  --success: #4f9c5f;
+  --danger: #a33a31;
+  --success: #357f4b;
   --warning: #e0a326;
   --radius: 16px;             /* rounded-2xl, l'échelle dominante des cartes */
   /* En-tête et barre de navigation basse : gabarit sombre commun aux cinq
      maquettes qui en partagent un (cf. header, .tabs). Ce sont les seules
      zones sombres d'un système par ailleurs clair — fond et cartes restent
      clairs partout ailleurs. */
-  --chrome-bg: #0f172a;        /* slate-900 */
-  --chrome-border: #1e293b;    /* slate-800 */
-  --chrome-text-muted: #94a3b8;/* slate-400 */
-  --chrome-active: #34d399;    /* emerald-400 */
+  --chrome-bg: #2b261c;        /* slate-900 */
+  --chrome-border: #2b261c;    /* slate-800 */
+  --chrome-text-muted: #8a8670;/* slate-400 */
+  --chrome-active: #7fc494;    /* emerald-400 */
   /* Hauteur de la barre de navigation basse, icône + libellé + confort
      tactile. Toute vue qui défile jusqu'à cette hauteur doit reprendre cette
      même variable dans son padding-bottom (cf. .tabs). */
@@ -163,8 +163,8 @@ header {
      filet slate-200 — sur toutes les vues, plus de bandeau sombre. */
   background: rgba(255, 255, 255, 0.92);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  color: #0f172a;
+  border-bottom: 1px solid rgba(230, 221, 201, 0.8);
+  color: #2b261c;
   padding: 10px 16px;
   display: flex;
   align-items: center;
@@ -182,9 +182,9 @@ header {
   padding: 3px;
   border-radius: 10px;
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e6ddc9;
   border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 1px 2px rgba(43, 38, 28, 0.05);
   object-fit: contain;
 }
 .header-titre { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
@@ -192,19 +192,19 @@ header {
    cf. html,body) est déjà la même famille que les Inter/Outfit visés —
    aucune police à charger depuis un CDN, ce qui casserait le démarrage hors
    ligne (cf. CLAUDE.md). Le rendu "moderne" vient du poids et de l'espacement. */
-.header-nom { font-weight: 700; font-size: 16px; color: #0f172a; line-height: 1; }
+.header-nom { font-weight: 700; font-size: 16px; color: #2b261c; line-height: 1; }
 /* Tagline du blason (auparavant "Gestion Parcellaire & Élevage" écrit sous le
    logo lui-même) : déplacée ici, dans le bandeau, à droite du blason —
    tronquée proprement plutôt que de casser la mise en page sur petit écran. */
 .header-sous-titre {
-  font-size: 11px; color: #64748b; font-weight: 500; margin-top: 2px;
+  font-size: 11px; color: #5e5b47; font-weight: 500; margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 44vw;
 }
 .header-compte { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
 header button {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  color: #334155;
+  background: #f6f1e4;
+  border: 1px solid #e6ddc9;
+  color: #4a4636;
   padding: 8px 12px;
   border-radius: 10px;
   font-size: 12px;
@@ -217,7 +217,7 @@ header button {
 .sync-status {
   font-size: 10px;
   font-weight: 600;
-  color: #64748b;
+  color: #5e5b47;
   white-space: nowrap;
 }
 
@@ -311,9 +311,9 @@ header button {
      clair). Purement informative ici : cliquer ne filtre rien — en faire un
      vrai filtre par famille de culture serait une fonctionnalité nouvelle,
      hors du cadre d'une passe de style. */
-  background: rgba(15,23,42,0.88);
-  color: #e2e8f0;
-  border: 1px solid rgba(148,163,184,0.3);
+  background: rgba(43,38,28,0.88);
+  color: #e6ddc9;
+  border: 1px solid rgba(138,134,112,0.3);
   backdrop-filter: blur(6px);
   border-radius: 12px;
   padding: 8px 10px;
@@ -334,8 +334,8 @@ header button {
 .leaflet-control-attribution {
   margin-bottom: calc(80px + var(--bottomnav-h) + env(safe-area-inset-bottom, 0px)) !important;
   font-size: 10px;
-  background: rgba(15,23,42,0.85);
-  color: #cbd5e1;
+  background: rgba(43,38,28,0.85);
+  color: #d9cfb8;
   border-radius: 8px;
   padding: 2px 6px;
 }
@@ -346,27 +346,27 @@ header button {
    d'empilement à revoir, ils restent au niveau que Leaflet leur donne déjà
    (cf. échelle en tête de fichier). */
 .leaflet-bar {
-  border: 1px solid rgba(148,163,184,0.35) !important;
+  border: 1px solid rgba(138,134,112,0.35) !important;
   border-radius: 12px !important;
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(0,0,0,0.35) !important;
 }
 .leaflet-bar a {
-  background: rgba(15,23,42,0.92) !important;
-  color: #e2e8f0 !important;
-  border-bottom-color: rgba(148,163,184,0.25) !important;
+  background: rgba(43,38,28,0.92) !important;
+  color: #e6ddc9 !important;
+  border-bottom-color: rgba(138,134,112,0.25) !important;
   backdrop-filter: blur(6px);
 }
-.leaflet-bar a:hover { background: rgba(30,41,59,0.95) !important; }
+.leaflet-bar a:hover { background: rgba(43,38,28,0.95) !important; }
 .leaflet-control-layers-toggle { filter: invert(1) brightness(1.6); }
 .leaflet-control-layers-expanded {
-  background: rgba(15,23,42,0.95) !important;
-  color: #e2e8f0 !important;
+  background: rgba(43,38,28,0.95) !important;
+  color: #e6ddc9 !important;
   border-radius: 12px !important;
-  border: 1px solid rgba(148,163,184,0.35);
+  border: 1px solid rgba(138,134,112,0.35);
   box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important;
 }
-.leaflet-control-layers-separator { border-color: rgba(148,163,184,0.3) !important; }
+.leaflet-control-layers-separator { border-color: rgba(138,134,112,0.3) !important; }
 .legend-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .legend-swatch {
   width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0;
@@ -418,7 +418,7 @@ header button {
   padding: 12px 14px;
   margin-bottom: 8px;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+  box-shadow: 0 1px 3px rgba(43,38,28,0.04);
 }
 .parcelle-card-numero {
   color: var(--text-muted);
@@ -452,14 +452,14 @@ header button {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  color: #e2e8f0;
-  background: rgba(15,23,42,0.92);
-  border: 1px solid rgba(148,163,184,0.35);
+  color: #e6ddc9;
+  background: rgba(43,38,28,0.92);
+  border: 1px solid rgba(138,134,112,0.35);
   backdrop-filter: blur(6px);
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 .gps-badge[hidden] { display: none; }
-.gps-badge-rtk { background: rgba(5,150,105,0.92); border-color: rgba(52,211,153,0.5); color: #fff; }
+.gps-badge-rtk { background: rgba(53,127,75,0.92); border-color: rgba(76,154,99,0.5); color: #fff; }
 .gps-badge-standard { color: var(--chrome-active); }
 .gps-badge-inconnu { color: var(--chrome-text-muted); }
 .btn-fab {
@@ -476,18 +476,18 @@ header button {
    mockups/maquette carte appli.html — seul « Dessiner » (.btn-fab, plus haut)
    reste plein vert, c'est l'action principale du mode Carte. */
 .btn-fab-secondary {
-  background: rgba(15,23,42,0.92);   /* --chrome-bg translucide */
-  color: #e2e8f0;
-  border: 1px solid rgba(148,163,184,0.35);
+  background: rgba(43,38,28,0.92);   /* --chrome-bg translucide */
+  color: #e6ddc9;
+  border: 1px solid rgba(138,134,112,0.35);
   backdrop-filter: blur(6px);
 }
 /* Boutons carrés 📍 / 🎯 : ils ne doivent pas manger la largeur des deux
    boutons d'action principaux. */
 .btn-fab-icon {
   flex: 0 0 52px;
-  background: rgba(15,23,42,0.92);
+  background: rgba(43,38,28,0.92);
   color: var(--chrome-active);
-  border: 1px solid rgba(148,163,184,0.35);
+  border: 1px solid rgba(138,134,112,0.35);
   backdrop-filter: blur(6px);
   font-size: 20px;
   padding: 12px 0;
@@ -504,7 +504,7 @@ header button {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  background: #2b2a22;
+  background: #2f6e44;
   color: white;
   z-index: 1100;
   overflow-x: auto;
@@ -584,9 +584,9 @@ header button {
 .vue-gps-btn {
   min-height: 44px;
   padding: 8px 12px;
-  border: 1px solid rgba(148,163,184,0.35);
+  border: 1px solid rgba(138,134,112,0.35);
   border-radius: 999px;
-  background: rgba(15,23,42,0.92);
+  background: rgba(43,38,28,0.92);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -602,7 +602,7 @@ header button {
   max-width: 230px;
   padding: 10px 12px;
   border-radius: 14px;
-  background: rgba(15,23,42,0.92);
+  background: rgba(43,38,28,0.92);
   color: #fff;
   font-size: 13px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
@@ -722,7 +722,7 @@ header button {
 .fiche-titre-ligne { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
 .fiche-titre-ligne h2 { margin: 0; }
 .fiche-badge {
-  background: rgba(5,150,105,0.12);
+  background: rgba(53,127,75,0.12);
   color: var(--primary);
   font-size: 11px;
   font-weight: 700;
@@ -813,8 +813,8 @@ header button {
   justify-content: space-around;
   background: rgba(255, 255, 255, 0.95);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  border-top: 1px solid #e2e8f0;
-  box-shadow: 0 -4px 12px -2px rgba(15, 23, 42, 0.08);
+  border-top: 1px solid #e6ddc9;
+  box-shadow: 0 -4px 12px -2px rgba(43, 38, 28, 0.08);
   z-index: 1100;
   /* Le contenu tient sur --bottomnav-h ; l'appareil peut ajouter en dessous
      sa propre zone de gestes (barre Android, encoche iOS) sans jamais
@@ -831,7 +831,7 @@ header button {
   gap: 3px;
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: #8a8670;
   cursor: pointer;
 }
 .tab-icone { font-size: 19px; line-height: 1; filter: grayscale(1); opacity: 0.6; }
@@ -842,7 +842,7 @@ header button {
   line-height: 1;
   white-space: nowrap;
 }
-.tab.is-active { color: #059669; }
+.tab.is-active { color: #357f4b; }
 .tab.is-active .tab-label { font-weight: 700; }
 /* Pendant un tracé, changer d'onglet annulerait le dessin en cours : on le
    signale visuellement plutôt que de désactiver les boutons, pour que sortir
@@ -952,7 +952,7 @@ header button {
 .apercu-sous-titre { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); font-weight: 600; }
 .apercu-activites { margin-bottom: 16px; }
 .apercu-traces { margin: 6px 0 16px; }
-.stk-renommer { min-width: 40px; min-height: 40px; margin-left: 4px; padding: 0 8px; border: none; border-radius: 10px; background: #f1f5f9; font-size: 16px; vertical-align: middle; }
+.stk-renommer { min-width: 40px; min-height: 40px; margin-left: 4px; padding: 0 8px; border: none; border-radius: 10px; background: #f6f1e4; font-size: 16px; vertical-align: middle; }
 .apercu-trace { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .apercu-trace-pastille { flex: 0 0 12px; height: 12px; border-radius: 50%; }
 .apercu-trace-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -1021,7 +1021,7 @@ header button {
   margin-bottom: 2px;
   cursor: pointer;
 }
-.parcelle-pick.is-picked { background: rgba(5,150,105,0.12); }
+.parcelle-pick.is-picked { background: rgba(53,127,75,0.12); }
 /* La case native est minuscule au doigt : on l'agrandit nettement. */
 .parcelle-pick input[type=checkbox] {
   width: 22px;
@@ -1157,7 +1157,7 @@ header button {
    (seule zone hors chrome à utiliser ce vert profond) et cartes claires
    pour le journal, cohérentes avec le reste de l'appli. */
 .campagne-banniere {
-  background: #064e3b;   /* emerald-900 */
+  background: #2f6e44;   /* emerald-900 */
   color: white;
   border-radius: var(--radius);
   padding: 16px;
@@ -1166,24 +1166,24 @@ header button {
 .campagne-entete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .campagne-label {
   display: block; font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.04em; color: #6ee7b7;   /* emerald-300 */
+  letter-spacing: 0.04em; color: #a8d9b5;   /* emerald-300 */
 }
 .campagne-total { display: block; font-size: 22px; font-weight: 800; margin-top: 2px; }
 .campagne-brebis {
-  background: rgba(6,78,59,0.6); color: #a7f3d0; font-size: 12px; font-weight: 600;
-  padding: 5px 10px; border-radius: 10px; border: 1px solid rgba(52,211,153,0.35);
+  background: rgba(47,110,68,0.6); color: #b9dfc3; font-size: 12px; font-weight: 600;
+  padding: 5px 10px; border-radius: 10px; border: 1px solid rgba(76,154,99,0.35);
   white-space: nowrap;
 }
-.campagne-detail { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(52,211,153,0.25); }
+.campagne-detail { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(76,154,99,0.25); }
 .campagne-source {
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 12px; color: #d1fae5; margin-top: 7px;
+  font-size: 12px; color: #dcefe2; margin-top: 7px;
 }
 .campagne-source:first-child { margin-top: 0; }
 .campagne-source-val { font-weight: 700; color: white; }
 .campagne-barre {
   width: 100%; height: 5px; border-radius: 3px; margin-top: 3px;
-  background: rgba(6,78,59,0.7); overflow: hidden;
+  background: rgba(47,110,68,0.7); overflow: hidden;
 }
 .campagne-barre-remplie { height: 100%; border-radius: 3px; background: var(--chrome-active); }
 
@@ -1198,7 +1198,7 @@ header button {
   padding: 2px 8px; border-radius: 6px; margin-bottom: 4px;
 }
 .periode-badge-encours {
-  background: rgba(5,150,105,0.12); color: var(--primary); border: 1px solid rgba(5,150,105,0.3);
+  background: rgba(53,127,75,0.12); color: var(--primary); border: 1px solid rgba(53,127,75,0.3);
 }
 .periode-titre { margin: 0; font-size: 14px; font-weight: 700; color: var(--text); }
 .periode-tonnage { font-size: 13px; font-weight: 800; color: var(--text); white-space: nowrap; }
@@ -1222,18 +1222,18 @@ header button {
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
-.tableau thead th { background: rgba(5,150,105,0.08); font-size: 12px; color: var(--text-muted); vertical-align: bottom; }
+.tableau thead th { background: rgba(53,127,75,0.08); font-size: 12px; color: var(--text-muted); vertical-align: bottom; }
 .tableau tbody th, .tableau tfoot th { text-align: left; font-weight: 600; }
 .tableau td.vide { color: var(--border); }
-.tableau .total { font-weight: 700; background: rgba(5,150,105,0.06); }
-.tableau tfoot td, .tableau tfoot th { background: rgba(5,150,105,0.06); font-weight: 700; }
+.tableau .total { font-weight: 700; background: rgba(53,127,75,0.06); }
+.tableau tfoot td, .tableau tfoot th { background: rgba(53,127,75,0.06); font-weight: 700; }
 .tableau .urgent { color: var(--danger); font-weight: 700; }
 
 /* --- Bilan par aliment (Troupeau / Historique & bilan) : vert couvert,
    orange marge juste, rouge achat à prévoir — cf. rations-calc.js/statut. --- */
 .bilan-ligne.bilan-vert td:first-child { border-left: 3px solid var(--success); }
 .bilan-ligne.bilan-orange td:first-child { border-left: 3px solid var(--warning); }
-.bilan-ligne.bilan-rouge td:first-child { border-left: 3px solid var(--danger); background: rgba(209,88,79,0.06); }
+.bilan-ligne.bilan-rouge td:first-child { border-left: 3px solid var(--danger); background: rgba(163,58,49,0.06); }
 .bilan-badge {
   font-size: 9px; font-weight: 700; text-transform: uppercase; color: #fff;
   background: var(--danger); border-radius: 5px; padding: 1px 5px; margin-left: 4px;
@@ -1278,8 +1278,8 @@ header button {
 }
 /* Fonds OPAQUES équivalents aux teintes translucides de l'en-tête et du pied :
    une cellule figée translucide laisserait voir défiler les colonnes dessous. */
-.tableau-prev thead .col-nom-parcelle { background: #eef3ef; z-index: 2; }
-.tableau-prev tfoot .col-nom-parcelle { background: #f2f6f3; }
+.tableau-prev thead .col-nom-parcelle { background: #f0ead8; z-index: 2; }
+.tableau-prev tfoot .col-nom-parcelle { background: #f6f1e4; }
 /* Un select/input doit toujours recevoir le clic/tap avant n'importe quelle
    cellule — sticky ou non. Sans z-index et pointer-events explicites, la
    colonne "Parcelle" figée (position:sticky + z-index) peut, selon le
@@ -1297,7 +1297,7 @@ header button {
   display: block; font-size: 10px; color: var(--text-muted); margin-top: 2px;
   white-space: normal; text-align: left; line-height: 1.2;
 }
-.tableau-prev .reel.ecart { color: #b5793a; font-weight: 700; }
+.tableau-prev .reel.ecart { color: #8a5413; font-weight: 700; }
 .tableau-prev .suggestion select { border-style: dashed; }
 
 /* Statut réel/prévu sous la case Culture : discret, jamais aussi voyant que
@@ -1313,7 +1313,7 @@ header button {
   white-space: normal; word-break: break-word;
 }
 .reel-statut.seme, .reel-statut.enplace {
-  color: var(--primary); background: rgba(5,150,105,0.12);
+  color: var(--primary); background: rgba(53,127,75,0.12);
 }
 .reel-statut.prevu {
   color: var(--text-muted); background: rgba(0,0,0,0.05);
@@ -1328,7 +1328,7 @@ header button {
 /* Implantation en cours (Luz 0) : même émeraude que .badge-semis0 — c'est le
    même signal ("jeune semis à surveiller"), pas une alerte ni une dérobée. */
 .reel-statut.implantation {
-  color: var(--primary); background: rgba(5,150,105,0.12); font-weight: 700;
+  color: var(--primary); background: rgba(53,127,75,0.12); font-weight: 700;
 }
 /* Interculture (chaumes) : gris neutre — ni l'alerte ambre d'un écart, ni
    l'émeraude d'une culture en place. Une parcelle entre deux cultures n'est
@@ -1337,7 +1337,7 @@ header button {
   color: var(--text-muted); background: rgba(100,116,139,0.14);
 }
 .tableau-prev td.saved { animation: cell-saved 1.1s ease-out; }
-@keyframes cell-saved { from { background: rgba(5,150,105,0.28); } to { background: transparent; } }
+@keyframes cell-saved { from { background: rgba(53,127,75,0.28); } to { background: transparent; } }
 
 /* Badge "semis de l'année" (indice 0, prairies/pluriannuelles uniquement) et
    filtre associé : masque les autres lignes SANS reconstruire le tableau,
@@ -1345,26 +1345,26 @@ header button {
 .badge-semis0 {
   display: block; width: fit-content; max-width: 100%; margin-top: 3px;
   font-size: 9px; font-weight: 700;
-  color: var(--primary); background: rgba(5,150,105,0.12);
+  color: var(--primary); background: rgba(53,127,75,0.12);
   border-radius: 5px; padding: 1px 5px;
 }
 #prev-filtre-semis0.is-active {
-  border-color: var(--primary); background: rgba(5,150,105,0.12); color: var(--primary);
+  border-color: var(--primary); background: rgba(53,127,75,0.12); color: var(--primary);
 }
 .prev-filtre-semis0-actif tbody tr:not([data-semis0]) { display: none; }
 
 .tableau-synthese { min-width: 360px; }
 .tableau-synthese thead th:first-child { text-align: left; }
-.tableau-synthese .famille th { background: rgba(5,150,105,0.10); text-transform: uppercase; font-size: 11px; letter-spacing: .04em; }
+.tableau-synthese .famille th { background: rgba(53,127,75,0.10); text-transform: uppercase; font-size: 11px; letter-spacing: .04em; }
 .tableau-synthese .detail th { padding-left: 22px; font-weight: 500; }
 .tableau-synthese .sous-total th, .tableau-synthese .sous-total td { font-weight: 700; }
 .tableau-synthese .zero { color: var(--border); }
-.tableau-synthese .non-renseigne th, .tableau-synthese .non-renseigne td { color: #b5793a; font-style: italic; }
+.tableau-synthese .non-renseigne th, .tableau-synthese .non-renseigne td { color: #8a5413; font-style: italic; }
 .tableau-synthese .detail-cliquable { cursor: pointer; }
-.tableau-synthese .detail-cliquable:active { background: rgba(5,150,105,0.08); }
+.tableau-synthese .detail-cliquable:active { background: rgba(53,127,75,0.08); }
 .tableau-synthese .detail-parcelles td {
   padding: 4px 10px 8px 22px; font-size: 11px; color: var(--text-muted);
-  white-space: normal; line-height: 1.5; background: rgba(5,150,105,0.04);
+  white-space: normal; line-height: 1.5; background: rgba(53,127,75,0.04);
 }
 .tableau-synthese .detail-parcelles[hidden] { display: none; }
 
@@ -1379,7 +1379,7 @@ header button {
 .tableau-croise tbody th { white-space: normal; }
 .stade-nom { display: block; font-size: 13px; }
 .stade-sub { display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; }
-.cell-active { background: rgba(5,150,105,0.14); font-weight: 700; text-align: center; }
+.cell-active { background: rgba(53,127,75,0.14); font-weight: 700; text-align: center; }
 .cell-active small { font-weight: 500; font-size: 10px; opacity: 0.75; }
 .ligne-inactive { opacity: 0.5; }
 .pastille { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; flex: 0 0 10px; }
@@ -1439,7 +1439,7 @@ header button {
   flex: 0 0 auto; background: none; border: none; color: var(--text-muted);
   font-size: 15px; line-height: 1; padding: 6px; cursor: pointer; border-radius: 6px;
 }
-.rc-suppr:active { background: rgba(209,88,79,0.12); color: var(--danger); }
+.rc-suppr:active { background: rgba(163,58,49,0.12); color: var(--danger); }
 .ration-ajouter { margin-top: 8px; }
 
 /* --- Composants d'une période (fiche lot) ---
@@ -1466,14 +1466,14 @@ header button {
   flex: 0 0 auto; background: none; border: none; color: var(--text-muted);
   font-size: 15px; line-height: 1; padding: 6px; cursor: pointer; border-radius: 6px;
 }
-.btn-icone-suppr:active { background: rgba(209,88,79,0.12); color: var(--danger); }
+.btn-icone-suppr:active { background: rgba(163,58,49,0.12); color: var(--danger); }
 
 /* --- Résultats calculés dans les formulaires --- */
 .tonnage-calcule, .besoin-calcule {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(5,150,105,0.10);
+  background: rgba(53,127,75,0.10);
   border-radius: var(--radius);
   padding: 12px 14px;
   margin-bottom: 14px;
@@ -1498,8 +1498,8 @@ header button {
   background: var(--card);
   box-shadow: 1px 0 0 var(--border);
 }
-.tableau-croise thead th.coin { background: #eef3ef; }
-.tableau-croise tfoot th { background: #eef3ef; }
+.tableau-croise thead th.coin { background: #f0ead8; }
+.tableau-croise tfoot th { background: #f0ead8; }
 .tableau-croise .ligne-inactive th { background: var(--card); }
 
 /* ========================================================================
@@ -1529,7 +1529,7 @@ header button {
   padding: 8px 4px; border-radius: 8px;
 }
 .contenant-ligne[data-contenant], .contenant-ligne[data-kind] { cursor: pointer; }
-.contenant-ligne[data-contenant]:active { background: rgba(5,150,105,0.08); }
+.contenant-ligne[data-contenant]:active { background: rgba(53,127,75,0.08); }
 .contenant-icone { font-size: 17px; flex: 0 0 22px; text-align: center; }
 .contenant-body { flex: 1; min-width: 0; }
 .contenant-nom { font-size: 14px; font-weight: 600; }
@@ -1539,10 +1539,10 @@ header button {
    dans une liste de contenants. */
 .contenant-taux {
   font-size: 12px; font-weight: 700; color: var(--primary); white-space: nowrap;
-  background: rgba(5,150,105,0.10); border: 1px solid rgba(5,150,105,0.25);
+  background: rgba(53,127,75,0.10); border: 1px solid rgba(53,127,75,0.25);
   padding: 2px 8px; border-radius: 999px;
 }
-.contenant-taux.urgent { color: var(--danger); background: rgba(209,88,79,0.10); border-color: rgba(209,88,79,0.3); }
+.contenant-taux.urgent { color: var(--danger); background: rgba(163,58,49,0.10); border-color: rgba(163,58,49,0.3); }
 
 /* Jauge de remplissage d'un silo : un chiffre seul se compare mal d'un coup
    d'œil, une barre se lit sans lire. */
@@ -1635,7 +1635,7 @@ header button {
   cursor: pointer; padding: 10px;
 }
 .choix-btn.is-active {
-  border-color: var(--primary); background: rgba(5,150,105,0.12); color: var(--primary);
+  border-color: var(--primary); background: rgba(53,127,75,0.12); color: var(--primary);
 }
 
 /* Filtre par secteur : chips défilables horizontalement, réutilisées
@@ -1704,15 +1704,15 @@ header button {
 .section-titre-inline { flex: 1; margin: 0; }
 
 .mat-categorie > summary { padding: 14px; }
-.mat-machine { border-top: 1px solid #f1f5f9; }
+.mat-machine { border-top: 1px solid #f6f1e4; }
 .mat-ligne {
   display: flex; align-items: center; gap: 10px;
   padding: 12px 14px; cursor: pointer; min-height: 44px;
 }
-.mat-ligne:active { background: #f8fafc; }
+.mat-ligne:active { background: #fdfaf3; }
 .mat-body { flex: 1; min-width: 0; }
-.mat-nom { font-size: 14px; font-weight: 600; color: #0f172a; }
-.mat-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+.mat-nom { font-size: 14px; font-weight: 600; color: #2b261c; }
+.mat-sub { font-size: 12px; color: #5e5b47; margin-top: 2px; }
 /* Zone de tap du « Graissé » : toute la colonne droite de la ligne, du haut
    en bas et jusqu'au bord (marges négatives = rembourrage de la ligne). Un
    bouton limité à son libellé laissait le pouce tomber sur la ligne : seul
@@ -1729,20 +1729,20 @@ header button {
 .mat-graisser-pastille {
   display: inline-flex; align-items: center; min-height: 34px;
   padding: 0 12px; border-radius: 12px;
-  background: #fff; border: 1px solid #cbd5e1;
-  font-size: 12px; font-weight: 600; color: #1e293b;
+  background: #fff; border: 1px solid #d9cfb8;
+  font-size: 12px; font-weight: 600; color: #2b261c;
   pointer-events: none;
 }
-.mat-graisser:active .mat-graisser-pastille { background: #f1f5f9; }
+.mat-graisser:active .mat-graisser-pastille { background: #f6f1e4; }
 .mat-graisser:disabled { opacity: .6; }
 .mat-cuma {
-  flex: 0 0 auto; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 600;
+  flex: 0 0 auto; background: #f6f1e4; color: #5e5b47; font-size: 11px; font-weight: 600;
   padding: 4px 8px; border-radius: 6px;
 }
-.mat-fiche { background: #f8fafc; border-top: 1px solid #f1f5f9; padding: 10px 14px 12px; font-size: 13px; color: #1e293b; }
-.mat-fiche-infos { margin: 0 0 8px; font-size: 12px; color: #64748b; }
-.mat-fiche-label { font-size: 12px; color: #64748b; margin: 10px 0 4px; }
-.mat-gris { color: #94a3b8; font-size: 12px; }
+.mat-fiche { background: #fdfaf3; border-top: 1px solid #f6f1e4; padding: 10px 14px 12px; font-size: 13px; color: #2b261c; }
+.mat-fiche-infos { margin: 0 0 8px; font-size: 12px; color: #5e5b47; }
+.mat-fiche-label { font-size: 12px; color: #5e5b47; margin: 10px 0 4px; }
+.mat-gris { color: #8a8670; font-size: 12px; }
 .mat-aucun { margin: 0; }
 .mat-compteur { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mat-compteur .mat-fiche-label { margin: 0; }
@@ -1751,31 +1751,31 @@ header button {
 .mat-compteur-saisie { display: flex; align-items: center; gap: 8px; }
 .mat-compteur-saisie input { width: 96px; min-height: 36px !important; padding: 4px 8px; margin: 0; }
 .mat-entretien { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; }
-.mat-entretien + .mat-entretien { border-top: 1px dashed #e2e8f0; }
-.mat-entretien-droite { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8; white-space: nowrap; }
+.mat-entretien + .mat-entretien { border-top: 1px dashed #e6ddc9; }
+.mat-entretien-droite { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #8a8670; white-space: nowrap; }
 .mat-suppr {
-  background: none; border: none; color: #94a3b8; font-size: 13px; cursor: pointer;
+  background: none; border: none; color: #8a8670; font-size: 13px; cursor: pointer;
   min-height: 0 !important; padding: 4px 6px;
 }
-.mat-form-entretien { margin-top: 8px; padding: 10px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; }
+.mat-form-entretien { margin-top: 8px; padding: 10px; background: #fff; border: 1px solid #e6ddc9; border-radius: 12px; }
 .mat-form-entretien label { margin: 6px 0 4px; font-size: 12px; }
 .mat-form-entretien input, .mat-form-entretien select { margin-bottom: 4px; }
 .mat-form-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .mat-form-actions { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
 .mat-photos { display: flex; flex-wrap: wrap; gap: 8px; }
-.mat-photo { padding: 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; width: 64px; height: 64px; background: #fff; min-height: 0 !important; cursor: pointer; }
+.mat-photo { padding: 0; border: 1px solid #e6ddc9; border-radius: 8px; overflow: hidden; width: 64px; height: 64px; background: #fff; min-height: 0 !important; cursor: pointer; }
 .mat-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .mat-photo-ajout {
   display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; margin: 0;
-  border: 1px dashed #cbd5e1; border-radius: 8px; font-size: 11px; color: #64748b; cursor: pointer; text-align: center;
+  border: 1px dashed #d9cfb8; border-radius: 8px; font-size: 11px; color: #5e5b47; cursor: pointer; text-align: center;
 }
 .mat-fiche-pied { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
 .mat-photo-plein {
-  position: fixed; inset: 0; z-index: 3000; background: rgba(15, 23, 42, 0.92);
+  position: fixed; inset: 0; z-index: 3000; background: rgba(43, 38, 28, 0.92);
   display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px;
 }
 .mat-photo-plein img { max-width: 100%; max-height: 80vh; border-radius: 8px; }
-.mat-photo-plein-pied { display: flex; align-items: center; gap: 16px; margin-top: 12px; color: #e2e8f0; font-size: 13px; }
+.mat-photo-plein-pied { display: flex; align-items: center; gap: 16px; margin-top: 12px; color: #e6ddc9; font-size: 13px; }
 .case-ligne { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text); margin: 8px 0 4px; }
 .case-ligne input { width: 20px; height: 20px; min-height: 0 !important; margin: 0; }
 #mat-actions { min-height: 130px; }
@@ -1785,7 +1785,7 @@ header button {
    ------------------------------------------------------------------------ */
 .groupe-saisie {
   border: 1px solid var(--border); border-radius: var(--radius);
-  background: rgba(5,150,105,0.05);
+  background: rgba(53,127,75,0.05);
   padding: 12px 13px 4px; margin: 4px 0 16px;
 }
 .groupe-saisie[hidden] { display: none; }
@@ -1829,7 +1829,7 @@ header button {
 
 .graissage-box {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  background: rgba(5,150,105,0.10); border-radius: var(--radius);
+  background: rgba(53,127,75,0.10); border-radius: var(--radius);
   padding: 10px 12px; margin: -4px 0 14px; font-size: 13px; flex-wrap: wrap;
 }
 
@@ -1944,8 +1944,8 @@ header button {
    compacte des maquettes : slate-100, bordure slate-200, arrondi 8px. */
 .campagne-select {
   width: auto; margin: 0; min-height: 32px;
-  font-size: 12px; font-weight: 600; color: #334155;
-  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px;
+  font-size: 12px; font-weight: 600; color: #4a4636;
+  background: #f6f1e4; border: 1px solid #e6ddc9; border-radius: 8px;
   padding: 4px 8px;
 }
 header .campagne-select { min-height: 32px; }
@@ -1954,101 +1954,101 @@ header .campagne-select { min-height: 32px; }
 /* ==========================================================================
    Onglets Stocks et Troupeau, style des maquettes v2 (Tailwind « slate »,
    reproduit à la main : hors-ligne, police système, emoji pour les icônes).
-   slate-50 #f8fafc · 100 #f1f5f9 · 200 #e2e8f0 · 400 #94a3b8 · 500 #64748b
-   700 #334155 · 800 #1e293b · 900 #0f172a · emerald-600 #059669 · 700 #047857
+   slate-50 #fdfaf3 · 100 #f6f1e4 · 200 #e6ddc9 · 400 #8a8670 · 500 #5e5b47
+   700 #4a4636 · 800 #2b261c · 900 #2b261c · emerald-600 #357f4b · 700 #2f6e44
    ========================================================================== */
-.vue-claire { background: #f8fafc; padding-left: 16px; padding-right: 16px; }
+.vue-claire { background: #fdfaf3; padding-left: 16px; padding-right: 16px; }
 .vue-claire > * { max-width: 512px; margin-left: auto; margin-right: auto; }
 .stk-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px auto 16px; }
-.stk-titre { margin: 0; font-size: 18px; font-weight: 700; color: #0f172a; }
-.stk-sous { margin: 2px 0 0; font-size: 12px; color: #64748b; }
+.stk-titre { margin: 0; font-size: 18px; font-weight: 700; color: #2b261c; }
+.stk-sous { margin: 2px 0 0; font-size: 12px; color: #5e5b47; }
 .stk-btn-sombre {
-  background: #0f172a; color: #fff; border: none; border-radius: 12px;
+  background: #2b261c; color: #fff; border: none; border-radius: 12px;
   font-size: 12px; font-weight: 600; padding: 8px 12px; cursor: pointer; white-space: nowrap;
 }
 .stk-carte, .stk-groupe {
-  background: #fff; border: 1px solid rgba(226, 232, 240, 0.8); border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); overflow: hidden;
+  background: #fff; border: 1px solid rgba(230, 221, 201, 0.8); border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(43, 38, 28, 0.05); overflow: hidden;
 }
 .stk-totaux { margin-bottom: 16px; }
 .stk-ligne-total {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 14px; font-size: 14px; font-weight: 600; color: #1e293b;
+  padding: 12px 14px; font-size: 14px; font-weight: 600; color: #2b261c;
 }
-.stk-ligne-total + .stk-ligne-total { border-top: 1px solid #f1f5f9; }
-.stk-ligne-total strong { font-weight: 800; color: #0f172a; font-size: 15px; }
+.stk-ligne-total + .stk-ligne-total { border-top: 1px solid #f6f1e4; }
+.stk-ligne-total strong { font-weight: 800; color: #2b261c; font-size: 15px; }
 .stk-ico { display: inline-block; width: 22px; }
 .stk-section {
   margin: 0 auto 10px; padding: 0 4px; font-size: 12px; font-weight: 700;
-  color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #8a8670; text-transform: uppercase; letter-spacing: 0.05em;
 }
 .stk-groupes { display: flex; flex-direction: column; gap: 10px; }
 .stk-groupe > summary { list-style: none; padding: 14px; cursor: pointer; }
 .stk-groupe > summary::-webkit-details-marker { display: none; }
 .stk-groupe-tete { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.stk-groupe-nom { font-weight: 700; font-size: 15px; color: #0f172a; }
-.stk-groupe-nom small { font-size: 12px; font-weight: 500; color: #94a3b8; }
-.stk-groupe-val { font-weight: 800; font-size: 18px; color: #0f172a; white-space: nowrap; }
-.stk-chev { display: inline-block; font-size: 10px; color: #94a3b8; transition: transform 0.15s; }
+.stk-groupe-nom { font-weight: 700; font-size: 15px; color: #2b261c; }
+.stk-groupe-nom small { font-size: 12px; font-weight: 500; color: #8a8670; }
+.stk-groupe-val { font-weight: 800; font-size: 18px; color: #2b261c; white-space: nowrap; }
+.stk-chev { display: inline-block; font-size: 10px; color: #8a8670; transition: transform 0.15s; }
 .stk-groupe[open] .stk-chev { transform: rotate(180deg); }
-.stk-groupe-sous { margin: 2px 0 0; font-size: 12px; color: #64748b; }
-.stk-jauge { height: 6px; background: #f1f5f9; border-radius: 999px; margin-top: 8px; overflow: hidden; }
-.stk-jauge > div { height: 100%; border-radius: 999px; background: #10b981; }
-.stk-jauge-prairie, .stk-jauge-enrubannage { background: #22c55e !important; }
-.stk-jauge-cereales { background: #f59e0b !important; }
-.stk-jauge-paille { background: #94a3b8 !important; }
+.stk-groupe-sous { margin: 2px 0 0; font-size: 12px; color: #5e5b47; }
+.stk-jauge { height: 6px; background: #f6f1e4; border-radius: 999px; margin-top: 8px; overflow: hidden; }
+.stk-jauge > div { height: 100%; border-radius: 999px; background: #4c9a63; }
+.stk-jauge-prairie, .stk-jauge-enrubannage { background: #4c9a63 !important; }
+.stk-jauge-cereales { background: #e0a326 !important; }
+.stk-jauge-paille { background: #8a8670 !important; }
 .stk-detail-ligne {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
-  padding: 10px 14px; border-top: 1px solid #f1f5f9; font-size: 14px;
+  padding: 10px 14px; border-top: 1px solid #f6f1e4; font-size: 14px;
 }
-.stk-detail-nom { color: #334155; }
-.stk-detail-ligne strong { font-weight: 700; color: #0f172a; white-space: nowrap; }
-.stk-sous-ligne { display: block; font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.stk-detail-nom { color: #4a4636; }
+.stk-detail-ligne strong { font-weight: 700; color: #2b261c; white-space: nowrap; }
+.stk-sous-ligne { display: block; font-size: 11px; color: #8a8670; margin-top: 2px; }
 .stk-poids {
   width: 64px; min-height: 0 !important; padding: 2px 6px; margin: 0 2px;
-  font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc;
+  font-size: 12px; border: 1px solid #e6ddc9; border-radius: 6px; background: #fdfaf3;
 }
 .stk-lien-ligne {
   display: flex; justify-content: space-between; width: 100%; gap: 10px;
-  padding: 10px 14px; border: none; border-top: 1px solid #f1f5f9; background: none;
-  font-size: 12px; color: #64748b; text-align: left; cursor: pointer;
+  padding: 10px 14px; border: none; border-top: 1px solid #f6f1e4; background: none;
+  font-size: 12px; color: #5e5b47; text-align: left; cursor: pointer;
 }
 .stk-actions {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 14px; border-top: 1px solid #f1f5f9;
+  padding: 10px 14px; border-top: 1px solid #f6f1e4;
 }
 .stk-lien, .stk-lien-gris, .stk-suppr, .stk-menu button {
   background: none; border: none; padding: 0; cursor: pointer; font-size: 12px; min-height: 0 !important;
 }
-.stk-lien { color: #047857; font-weight: 600; }
-.stk-lien-gris { color: #94a3b8; }
-.stk-suppr { color: #dc2626; font-weight: 600; }
+.stk-lien { color: #2f6e44; font-weight: 600; }
+.stk-lien-gris { color: #8a8670; }
+.stk-suppr { color: #a33a31; font-weight: 600; }
 .stk-menu { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 12px; }
 .stk-menu button {
-  border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px 10px; color: #1e293b; background: #f8fafc;
+  border: 1px solid #e6ddc9; border-radius: 10px; padding: 6px 10px; color: #2b261c; background: #fdfaf3;
 }
-.stk-mvts { border-top: 1px solid #f1f5f9; }
+.stk-mvts { border-top: 1px solid #f6f1e4; }
 .stk-mvt { display: flex; justify-content: space-between; gap: 10px; padding: 8px 14px; font-size: 12px; }
-.stk-mvt + .stk-mvt { border-top: 1px dashed #f1f5f9; }
-.stk-mvt-nom { color: #334155; font-weight: 600; }
+.stk-mvt + .stk-mvt { border-top: 1px dashed #f6f1e4; }
+.stk-mvt-nom { color: #4a4636; font-weight: 600; }
 .stk-mvt-droite { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
-.stk-vide { padding: 10px 14px; margin: 0; font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; }
-.stk-note { margin: 12px auto 0; padding: 0 4px; font-size: 11px; color: #94a3b8; }
+.stk-vide { padding: 10px 14px; margin: 0; font-size: 12px; color: #8a8670; border-top: 1px solid #f6f1e4; }
+.stk-note { margin: 12px auto 0; padding: 0 4px; font-size: 11px; color: #8a8670; }
 .stk-bandeau {
   margin: 0 auto 12px; padding: 10px 12px; border-radius: 12px; font-size: 12px;
-  background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+  background: #fbeed7; border: 1px solid #ecd9b0; color: #8a5413;
 }
 .stk-bandeau[hidden] { display: none; }
-.stk-ecart { font-size: 13px; font-weight: 700; color: #cbd5e1; margin: 4px 0 10px; }
-.stk-ecart-plus { color: #059669; }
-.stk-ecart-moins { color: #ef4444; }
+.stk-ecart { font-size: 13px; font-weight: 700; color: #d9cfb8; margin: 4px 0 10px; }
+.stk-ecart-plus { color: #357f4b; }
+.stk-ecart-moins { color: #a33a31; }
 
 /* Inventaire (maquette_inventaire.html) et état de clôture de Stocks. */
-.inv-panel { background: #f8fafc; }
+.inv-panel { background: #fdfaf3; }
 .inv-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .inv-retour {
   width: 32px; height: 32px; min-height: 0 !important; border-radius: 999px; border: none;
-  background: #f1f5f9; color: #475569; font-size: 14px; cursor: pointer; flex: 0 0 auto;
+  background: #f6f1e4; color: #5e5b47; font-size: 14px; cursor: pointer; flex: 0 0 auto;
 }
 .inv-bloc { padding: 12px 14px; margin-bottom: 16px; }
 .inv-bloc input { margin-bottom: 4px; }
@@ -2056,70 +2056,70 @@ header .campagne-select { min-height: 32px; }
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   padding: 12px 14px;
 }
-.inv-ligne + .inv-ligne { border-top: 1px solid #f1f5f9; }
-.inv-ligne-bloquante { background: #fef2f2; }
-.inv-nom { display: block; font-size: 14px; font-weight: 600; color: #1e293b; }
-.inv-theo { display: block; font-size: 11px; color: #94a3b8; }
-.inv-ecart { display: block; font-size: 11px; font-weight: 700; color: #cbd5e1; }
-.inv-ecart-plus { color: #059669; }
-.inv-ecart-moins { color: #ef4444; }
-.inv-bloquant { display: block; margin-top: 4px; font-size: 11px; color: #b91c1c; font-weight: 600; }
+.inv-ligne + .inv-ligne { border-top: 1px solid #f6f1e4; }
+.inv-ligne-bloquante { background: #fbe3e0; }
+.inv-nom { display: block; font-size: 14px; font-weight: 600; color: #2b261c; }
+.inv-theo { display: block; font-size: 11px; color: #8a8670; }
+.inv-ecart { display: block; font-size: 11px; font-weight: 700; color: #d9cfb8; }
+.inv-ecart-plus { color: #357f4b; }
+.inv-ecart-moins { color: #a33a31; }
+.inv-bloquant { display: block; margin-top: 4px; font-size: 11px; color: #a33a31; font-weight: 600; }
 .inv-bloquant input { width: auto; min-height: 0 !important; margin: 0 4px 0 0; vertical-align: middle; }
 .inv-saisie { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: 0 0 auto; }
-.inv-saisie > span:first-child { font-size: 12px; color: #94a3b8; white-space: nowrap; }
+.inv-saisie > span:first-child { font-size: 12px; color: #8a8670; white-space: nowrap; }
 .inv-saisie input {
   width: 80px; margin: 0; text-align: right; font-size: 14px; font-weight: 700;
-  border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; background: #f8fafc;
+  border: 1px solid #e6ddc9; border-radius: 8px; padding: 6px 8px; background: #fdfaf3;
 }
-.inv-saisie input:focus { outline: none; border-color: #10b981; }
-.inv-saisie-label { font-size: 10px; color: #94a3b8; }
+.inv-saisie input:focus { outline: none; border-color: #4c9a63; }
+.inv-saisie-label { font-size: 10px; color: #8a8670; }
 .inv-info {
   margin: 16px 0 12px; padding: 12px; border-radius: 12px; font-size: 12px;
-  background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+  background: #fbeed7; border: 1px solid #ecd9b0; color: #8a5413;
 }
 .inv-cloture { display: flex; gap: 10px; align-items: flex-start; padding: 14px; font-size: 14px; margin-bottom: 8px; cursor: pointer; }
-.inv-cloture input { width: 18px; height: 18px; min-height: 0 !important; margin: 2px 0 0; accent-color: #059669; flex: 0 0 auto; }
-.inv-cloture strong { display: block; color: #0f172a; }
+.inv-cloture input { width: 18px; height: 18px; min-height: 0 !important; margin: 2px 0 0; accent-color: #357f4b; flex: 0 0 auto; }
+.inv-cloture strong { display: block; color: #2b261c; }
 .inv-btn-valider {
   width: 100%; margin: 8px 0 24px; padding: 12px; border: none; border-radius: 12px;
-  background: #059669; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
-  box-shadow: 0 10px 15px -3px rgba(6, 78, 59, 0.2);
+  background: #357f4b; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(47, 110, 68, 0.2);
 }
 .inv-btn-valider:disabled { opacity: 0.6; }
 .inv-section-nettoyage { margin-top: 8px; }
 .stk-cloture {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  padding: 12px 14px; margin-bottom: 12px; font-size: 13px; color: #1e293b;
+  padding: 12px 14px; margin-bottom: 12px; font-size: 13px; color: #2b261c;
 }
 .stk-cloture[hidden] { display: none; }
 
 /* Troupeau (maquette troupeau v2). */
 .trp-onglets {
   display: flex; gap: 2px; padding: 4px; margin: 0 auto 14px;
-  background: rgba(226, 232, 240, 0.7); border-radius: 12px;
+  background: rgba(230, 221, 201, 0.7); border-radius: 12px;
 }
 .trp-onglets button {
   flex: 1; min-height: 0 !important; padding: 6px 4px; border: none; border-radius: 8px;
-  background: none; color: #64748b; font-size: 12px; font-weight: 700; cursor: pointer;
+  background: none; color: #5e5b47; font-size: 12px; font-weight: 700; cursor: pointer;
 }
-.trp-onglets button.is-active { background: #fff; color: #047857; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+.trp-onglets button.is-active { background: #fff; color: #2f6e44; box-shadow: 0 1px 2px rgba(43, 38, 28, 0.05); }
 .trp-lots { display: flex; flex-direction: column; gap: 12px; }
 .trp-lot-tete { padding: 14px; cursor: pointer; }
 .trp-badge {
   font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
-  background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; white-space: nowrap;
+  background: #e3f3e6; color: #2f6e44; border: 1px solid #b9dfc3; white-space: nowrap;
 }
-.trp-badge-sans { background: #fffbeb; color: #92400e; border-color: #fde68a; }
-.trp-total-lot span { color: #64748b; }
+.trp-badge-sans { background: #fbeed7; color: #8a5413; border-color: #ecd9b0; }
+.trp-total-lot span { color: #5e5b47; }
 .trp-total-lot strong { font-weight: 800; }
-.trp-epuise { color: #dc2626; font-weight: 600; }
+.trp-epuise { color: #a33a31; font-weight: 600; }
 .trp-totaux { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-.trp-total { background: #064e3b; color: #fff; border-radius: 16px; padding: 14px; }
-.trp-total span { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #6ee7b7; }
+.trp-total { background: #2f6e44; color: #fff; border-radius: 16px; padding: 14px; }
+.trp-total span { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #a8d9b5; }
 .trp-total strong { font-size: 20px; font-weight: 800; }
 .trp-bilan-carte { padding: 14px; margin-bottom: 12px; }
 .trp-bilan-ligne { margin-top: 10px; }
-.trp-bilan-tete { display: flex; justify-content: space-between; font-size: 14px; color: #1e293b; }
+.trp-bilan-tete { display: flex; justify-content: space-between; font-size: 14px; color: #2b261c; }
 .trp-bilan-tete strong { font-weight: 700; }
 .trp-bilan-ligne .stk-jauge { margin-top: 4px; }
 #troupeau-view .alerte, #troupeau-alerte { margin-bottom: 12px; }
@@ -2129,43 +2129,43 @@ header .campagne-select { min-height: 32px; }
 .lieu-tete-actions > span { display: flex; gap: 8px; }
 .lieu-tete-actions > span[hidden] { display: none; }
 .stk-btn-clair {
-  background: #fff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 12px;
+  background: #fff; color: #2b261c; border: 1px solid #d9cfb8; border-radius: 12px;
   font-size: 12px; font-weight: 600; padding: 8px 12px; cursor: pointer; white-space: nowrap;
 }
 .lieu-groupe { margin-bottom: 16px; }
-.lieu-ligne { padding: 10px 14px; border-top: 1px solid #f1f5f9; font-size: 14px; }
+.lieu-ligne { padding: 10px 14px; border-top: 1px solid #f6f1e4; font-size: 14px; }
 .lieu-ligne[data-cellule], .lieu-ligne[data-emplacement], .lieu-ligne[data-lot] { cursor: pointer; }
-.lieu-ligne[data-cellule]:active, .lieu-ligne[data-emplacement]:active, .lieu-ligne[data-lot]:active { background: #f8fafc; }
+.lieu-ligne[data-cellule]:active, .lieu-ligne[data-emplacement]:active, .lieu-ligne[data-lot]:active { background: #fdfaf3; }
 .lieu-ligne-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.lieu-ligne-tete strong { font-weight: 700; color: #0f172a; white-space: nowrap; }
-.lieu-ligne-tete strong.lieu-zero { font-size: 12px; font-weight: 500; color: #94a3b8; }
+.lieu-ligne-tete strong { font-weight: 700; color: #2b261c; white-space: nowrap; }
+.lieu-ligne-tete strong.lieu-zero { font-size: 12px; font-weight: 500; color: #8a8670; }
 .lieu-ligne .stk-jauge { margin-top: 6px; }
-.stk-jauge > div.lieu-jauge-depasse, .jauge-barre.jauge-depasse { background: #f59e0b; }
+.stk-jauge > div.lieu-jauge-depasse, .jauge-barre.jauge-depasse { background: #e0a326; }
 .lieu-pastille {
   display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 6px;
-  background: #fffbeb; color: #92400e; border: 1px solid #fde68a; font-size: 11px; font-weight: 600;
+  background: #fbeed7; color: #8a5413; border: 1px solid #ecd9b0; font-size: 11px; font-weight: 600;
 }
 .lieu-statique { display: flex; justify-content: space-between; align-items: center; padding: 14px; cursor: pointer; }
-.lieu-vide { font-size: 12px; color: #94a3b8; }
+.lieu-vide { font-size: 12px; color: #8a8670; }
 .lieu-actions-droite { display: flex; gap: 14px; }
-.champ-aide-gris { color: #64748b; font-weight: 500; margin-top: 6px; }
+.champ-aide-gris { color: #5e5b47; font-weight: 500; margin-top: 6px; }
 
 /* Troupeau : ration par animal (fourrages / concentrés) et détail par
    aliment du Bilan campagne. Gris neutre : information, pas d'alerte. */
-.trp-par-animal { padding: 0 14px 10px; font-size: 12px; color: #64748b; }
-.trp-bilan-aliments { margin-top: 10px; border-top: 1px solid #f1f5f9; }
-.trp-bilan-aliment { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 6px 0; font-size: 13px; color: #334155; }
-.trp-bilan-aliment + .trp-bilan-aliment { border-top: 1px dashed #f1f5f9; }
+.trp-par-animal { padding: 0 14px 10px; font-size: 12px; color: #5e5b47; }
+.trp-bilan-aliments { margin-top: 10px; border-top: 1px solid #f6f1e4; }
+.trp-bilan-aliment { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 6px 0; font-size: 13px; color: #4a4636; }
+.trp-bilan-aliment + .trp-bilan-aliment { border-top: 1px dashed #f6f1e4; }
 .trp-bilan-aliment-val { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; }
-.trp-bilan-aliment-val small { font-size: 11px; color: #94a3b8; }
-.stk-jauge-concentres { background: #d97706 !important; }
+.trp-bilan-aliment-val small { font-size: 11px; color: #8a8670; }
+.stk-jauge-concentres { background: #b5701c !important; }
 .trp-totaux-3 { grid-template-columns: 1fr 1fr 1fr; }
 
 /* Aliment épuisé (consommation plafonnée au stock) : orange, jamais rouge. */
-.trp-alerte { margin: 0 14px 10px; padding: 10px 12px; border-radius: 12px; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; font-size: 13px; }
+.trp-alerte { margin: 0 14px 10px; padding: 10px 12px; border-radius: 12px; background: #fbeed7; border: 1px solid #ecd9b0; color: #8a5413; font-size: 13px; }
 .trp-alerte-tete { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .trp-alerte-btn {
-  flex: 0 0 auto; background: #fff; border: 1px solid #f59e0b; color: #92400e; border-radius: 10px;
+  flex: 0 0 auto; background: #fff; border: 1px solid #e0a326; color: #8a5413; border-radius: 10px;
   padding: 6px 10px; font-size: 12px; font-weight: 700; cursor: pointer; min-height: 0 !important;
 }
 .trp-report { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
@@ -2173,18 +2173,67 @@ header .campagne-select { min-height: 32px; }
 .trp-report-kg { display: flex; align-items: center; gap: 6px; }
 .trp-report-kg input { width: 90px; margin: 0; }
 .trp-report-actions { display: flex; align-items: center; gap: 14px; }
-.trp-epuise { color: #b45309; font-weight: 600; }
+.trp-epuise { color: #8a5413; font-weight: 600; }
 .trp-histo-actions { display: flex; gap: 12px; }
 
 /* Cycle d'un lot : clôturer, renouveler, lots clôturés (repliés). */
 .trp-lot-cycle { border-top: none; padding-top: 0; }
-.trp-cycle { margin: 0 14px 12px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.trp-cycle { margin: 0 14px 12px; padding: 10px 12px; border: 1px solid #e6ddc9; border-radius: 12px; background: #fdfaf3; }
 .trp-cycle label { margin: 6px 0 4px; font-size: 12px; }
 .trp-cycle input, .trp-cycle select { margin-bottom: 4px; }
-.trp-cycle-aide { margin: 4px 0 8px; font-size: 12px; color: #64748b; }
+.trp-cycle-aide { margin: 4px 0 8px; font-size: 12px; color: #5e5b47; }
 .trp-clotures { margin-top: 12px; }
-.trp-clos { padding: 10px 14px; border-top: 1px solid #f1f5f9; }
+.trp-clos { padding: 10px 14px; border-top: 1px solid #f6f1e4; }
 .trp-clos .stk-mvts { margin: 6px -14px 0; }
 .itv-trace { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 12px; }
 .itv-trace .btn-mini { align-self: flex-start; }
 .itv-trace[hidden] { display: none; }
+
+/* ========================================================================
+   CHARTE VERTE LOGISOL (v3) — palette crème/vert Ovilog, surcharge finale.
+   Décision (15/10/2026) : la palette slate/emerald rendait l'appli froide
+   et sombre ; l'esprit vert d'Ovilog (appli sœur) est adopté — fond crème
+   #fbf8f1, cartes blanches, bord sable, vert #357f4b, bandeau vert. Ce
+   bloc écrase les variables d'origine (conservées plus haut pour mémoire)
+   et recolore l'en-tête : le retirer suffit pour revenir en arrière.
+   Aucun composant, gabarit ni comportement ne change.
+   ======================================================================== */
+:root {
+  --primary: #357f4b;
+  --primary-light: #4c9a63;
+  --bg: #fbf8f1;
+  --card: #ffffff;
+  --border: #e6ddc9;
+  --text: #2b261c;
+  --text-muted: #5e5b47;
+  --accent: #e3812f;
+  --danger: #a33a31;
+  --success: #357f4b;
+  --warning: #e0a326;
+  --chrome-bg: #2b261c;
+  --chrome-border: #4a4636;
+  --chrome-text-muted: #8a8670;
+  --chrome-active: #7fc494;
+}
+/* Bandeau vert à la Ovilog : logo et texte blancs sur vert plein. */
+header {
+  background: var(--primary);
+  border-bottom: none;
+  color: #fff;
+}
+.header-nom { color: #fff; }
+.header-sous-titre { color: rgba(255,255,255,0.92); }
+.header-logo { border-color: rgba(255,255,255,0.45); }
+.sync-status { color: rgba(255,255,255,0.92); }
+header button {
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.32);
+  color: #fff;
+}
+header .campagne-select {
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.32);
+  color: #fff;
+}
+/* Barre d'outils du mode dessin : vert plein, cohérente avec le bandeau. */
+.draw-toolbar { background: #2f6e44; }

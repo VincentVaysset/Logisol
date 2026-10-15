@@ -31,10 +31,10 @@ const COL = collection(db, 'lgs_batiments');
  */
 
 export const TYPES_BATIMENT = [
-  { value: 'BERGERIE',           label: 'Bergerie',            icone: '🐑', couleur: '#8a6d5c' },
-  { value: 'STOCKAGE_GRAIN',     label: 'Stockage grain',      icone: '🌾', couleur: '#c98a3e' },
-  { value: 'STOCKAGE_FOURRAGE',  label: 'Stockage fourrage',   icone: '🧻', couleur: '#5b8c5a' },
-  { value: 'MIXTE',              label: 'Mixte',               icone: '🏚️', couleur: '#79765f' }
+  { value: 'BERGERIE',           label: 'Bergerie',            icone: '🐑', couleur: '#efebf8' },
+  { value: 'STOCKAGE_GRAIN',     label: 'Stockage grain',      icone: '🌾', couleur: '#fbeed7' },
+  { value: 'STOCKAGE_FOURRAGE',  label: 'Stockage fourrage',   icone: '🧻', couleur: '#e3f3e6' },
+  { value: 'MIXTE',              label: 'Mixte',               icone: '🏚️', couleur: '#f6f1e4' }
 ];
 
 // Grains réellement rentrés en cellule sur l'exploitation. Le blé manquait,
