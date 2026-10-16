@@ -2237,3 +2237,21 @@ header .campagne-select {
 }
 /* Barre d'outils du mode dessin : vert plein, cohérente avec le bandeau. */
 .draw-toolbar { background: #2f6e44; }
+
+
+/* --- Pastilles de fonction des cellules (chantier lieux, 15/10/2026) ----
+   Séchage (ambre pastel), Stockage (vert pastel), Alimentation traite
+   (bleu pastel) : tons de la charte verte, texte foncé lisible sur pastel. */
+.fonction-pastille {
+  font-size: 10.5px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-left: 6px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.fp-SECHAGE  { background: #fbeed7; color: #8a5413; }
+.fp-STOCKAGE { background: #e3f3e6; color: #24613a; }
+.fp-TRAITE   { background: #e6f0fa; color: #1f5a8a; }
+#batiments-filtre-fonction { margin-bottom: 10px; }

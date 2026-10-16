@@ -8,7 +8,7 @@ import {
 import {
   getCellules, getCelluleById, cellulesDuBatiment, tauxRemplissage,
   createCellule, updateCellule, deleteCellule,
-  CONTENUS_CELLULE, contenuDe
+  CONTENUS_CELLULE, contenuDe, FONCTIONS_CELLULE, fonctionDe, fonctionCellule
 } from './cellules.js';
 import {
   getEmplacements, getEmplacementById, emplacementsDuBatiment, tonnes as tonnesFourrage,
@@ -137,7 +137,7 @@ function renderContenantsDuBatiment(b) {
     const n = contenuDuLieu('CELLULE', c.id, rep).tonnes;
     const fourrage = contenuDe(c) === 'FOURRAGE';
     const label = fourrage ? labelFourrage(c.typeGrainActuel) : labelGrain(c.typeGrainActuel);
-    blocs.push(ligneContenant(fourrage ? '🌿' : '🌾', c.nom, `${fmt1(n)} / ${fmt1(c.capaciteMaxTonnes)} t · ${label}`, 'cellule', c.id, tauxRemplissage(c, n),
+    blocs.push(ligneContenant(fourrage ? '🌿' : '🌾', c.nom, `${fmt1(n)} / ${fmt1(c.capaciteMaxTonnes)} t · ${label} · ${fonctionCellule(c).label}`, 'cellule', c.id, tauxRemplissage(c, n),
       detailReparti(contenuDuLieu('CELLULE', c.id, rep), 't')));
   });
   emps.forEach((e) => {
@@ -313,7 +313,7 @@ bat.delete.addEventListener('click', async () => {
 const cel = {
   panel: document.getElementById('cellule-panel'),
   form: document.getElementById('cel-form'),
-  ...panneau('cel', ['title', 'nom', 'capacite', 'contenu', 'grain', 'grain-label', 'etat', 'niveau', 'repartition',
+  ...panneau('cel', ['title', 'nom', 'capacite', 'contenu', 'fonction', 'grain', 'grain-label', 'etat', 'niveau', 'repartition',
                      'save', 'cancel', 'delete', 'error-banner', 'error-text', 'error-close'])
 };
 let celEditId = null;
@@ -321,6 +321,10 @@ let celBatimentId = null;
 
 cel.contenu.innerHTML = CONTENUS_CELLULE
   .map((c) => `<option value="${c.value}">${c.label}</option>`).join('');
+// Fonction de la cellule (séchage / stockage / traite) : information
+// d'affichage, proposée par défaut d'après le contenu choisi.
+cel.fonction.innerHTML = FONCTIONS_CELLULE
+  .map((f) => `<option value="${f.value}">${f.label}</option>`).join('');
 cel.contenu.addEventListener('change', () => majOptionsContenu(cel.grain.value));
 
 // Une cellule se compte en tonnes, qu'elle contienne du grain ou du foin
@@ -354,6 +358,8 @@ export function openCreateCellule(batimentId, opts = {}) {
   const b = getBatimentById(batimentId);
   cel.contenu.value = opts.contenu
     || (b && b.type === 'STOCKAGE_FOURRAGE' ? 'FOURRAGE' : 'GRAIN');
+  cel.fonction.value = opts.fonction
+    || (cel.contenu.value === 'FOURRAGE' ? 'SECHAGE' : 'STOCKAGE');
   majOptionsContenu('');
   cel.etat.hidden = true;
   cel.repartition.hidden = true;
@@ -369,6 +375,7 @@ export function openEditCellule(c) {
   cel.nom.value = c.nom || '';
   cel.capacite.value = c.capaciteMaxTonnes != null ? c.capaciteMaxTonnes : '';
   cel.contenu.value = contenuDe(c);
+  cel.fonction.value = fonctionDe(c);
   majOptionsContenu(c.typeGrainActuel || '');
   cel.niveau.textContent = fmt1(contenuDuLieu('CELLULE', c.id).tonnes) + ' t';
   cel.etat.hidden = false;
@@ -384,6 +391,7 @@ cel.form.addEventListener('submit', async (e) => {
       batimentId: celBatimentId, nom: cel.nom.value,
       capaciteMaxTonnes: cel.capacite.value,
       contenu: cel.contenu.value,
+      fonction: cel.fonction.value,
       typeGrainActuel: cel.grain.value || null
     };
     let nouveauId = celEditId;

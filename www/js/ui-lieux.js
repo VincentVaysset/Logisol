@@ -4,7 +4,7 @@
 // (cf. lieux.js), réparti par cellule. Les formulaires (bâtiment, cellule,
 // emplacement, mouvement, lot) restent ceux d'avant.
 import { getBatiments, getBatimentById } from './batiments.js';
-import { getCellules, getCelluleById, contenuDe } from './cellules.js';
+import { getCellules, getCelluleById, contenuDe, FONCTIONS_CELLULE, fonctionDe, fonctionCellule } from './cellules.js';
 import { getEmplacements, getEmplacementById } from './emplacements.js';
 import { getMouvements, typeMouvement } from './mouvements.js';
 import { getLots, getLotsActifs } from './lots.js';
@@ -27,6 +27,10 @@ const panneaux = { lieux: document.getElementById('batiments-lieux'), materiel: 
 const actions = { lieux: document.getElementById('bat-actions-lieux'), materiel: document.getElementById('bat-actions-materiel') };
 
 let sousVue = 'lieux';
+// Filtre par fonction (Tous / Séchage / Stockage / Traite / Bottes) :
+// voir d'un coup toutes les cellules d'une même fonction, tous bâtiments
+// confondus — les séchages d'abord, pour l'appenti accolé à la bergerie.
+let filtreFonction = 'toutes';
 const ouverts = new Set();
 const historiques = new Set();
 
@@ -40,6 +44,40 @@ export function initLieux() {
     sousVue = b.dataset.batvue;
     renderLieux();
   }));
+  document.querySelectorAll('#batiments-filtre-fonction [data-fonction]').forEach((b) => b.addEventListener('click', () => {
+    filtreFonction = b.dataset.fonction;
+    document.querySelectorAll('#batiments-filtre-fonction [data-fonction]').forEach((x) => x.classList.toggle('is-active', x === b));
+    renderLieux();
+  }));
+}
+
+// Vue filtrée : liste plate de toutes les cellules (ou emplacements de
+// bottes) d'une même fonction, quel que soit leur bâtiment — même info que
+// les groupes de bâtiments, lue par fonction cette fois.
+function listeFiltree(filtre, rep) {
+  const batNom = (id) => { const b = getBatimentById(id); return b ? (b.nom || 'Bâtiment') : '—'; };
+  if (filtre === 'BOTTES') {
+    return getEmplacements().map((e) => {
+      const v = rep.get('EMPLACEMENT_FOURRAGE|' + e.id) || { tonnes: 0, quantite: 0, lots: [] };
+      const vide = !v.lots.length;
+      return '<div class="lieu-ligne" data-emplacement="' + esc(e.id) + '" style="cursor:pointer">' +
+        '<div class="lieu-ligne-tete"><span class="stk-detail-nom">' + esc(e.nom || 'Emplacement') + (vide ? ' · vide' : '') + '</span>' +
+        '<strong class="' + (vide ? 'lieu-zero' : '') + '">' + pluriel(Math.round(v.quantite), 'botte') + (v.tonnes > 0.05 ? ' · ' + fmt1(v.tonnes) + ' t' : '') + '</strong></div>' +
+        '<span class="stk-sous-ligne">' + esc(batNom(e.batimentId)) + '</span></div>';
+    }).join('');
+  }
+  return getCellules().filter((c) => fonctionDe(c) === filtre).map((c) => {
+    const v = rep.get('CELLULE|' + c.id) || { tonnes: 0, lots: [] };
+    const cap = Number(c.capaciteMaxTonnes) || 0;
+    const vide = !v.lots.length;
+    return '<div class="lieu-ligne" data-cellule="' + esc(c.id) + '" style="cursor:pointer">' +
+      '<div class="lieu-ligne-tete"><span class="stk-detail-nom">' + esc(c.nom || 'Cellule') + (vide ? ' · vide' : '') +
+      ' <span class="fonction-pastille fp-' + fonctionDe(c) + '">' + esc(fonctionCellule(c).label) + '</span></span>' +
+      '<strong class="' + (vide ? 'lieu-zero' : '') + '">' + (cap ? fmt1(v.tonnes) + ' / ' + fmt1(cap) + ' t' : fmt1(v.tonnes) + ' t') + '</strong></div>' +
+      '<span class="stk-sous-ligne">' + esc(batNom(c.batimentId)) + '</span>' +
+      (vide ? '' : '<span class="stk-sous-ligne">' + v.lots.map((l) => esc(libelleLot(l)) + ' ' + fmt1(l.tonnes) + ' t').join(' · ') + '</span>') +
+      '</div>';
+  }).join('');
 }
 
 // « Luzerne 1ʳᵉ coupe », « Orge » : le vocabulaire de Stocks, sans le
@@ -68,7 +106,7 @@ function ligneCellule({ c, v, taux: t, depasse }, interactif) {
   const vide = !v.lots.length;
   const valeur = cap ? `${fmt1(v.tonnes)} / ${fmt1(cap)} t` : `${fmt1(v.tonnes)} t`;
   return `<div class="lieu-ligne"${interactif ? ` data-cellule="${esc(c.id)}"` : ''}>
-    <div class="lieu-ligne-tete"><span class="stk-detail-nom">${esc(c.nom || 'Cellule')}${vide ? ' · vide' : ''}</span>
+    <div class="lieu-ligne-tete"><span class="stk-detail-nom">${esc(c.nom || 'Cellule')}${vide ? ' · vide' : ''} <span class="fonction-pastille fp-${fonctionDe(c)}">${esc(fonctionCellule(c).label)}</span></span>
       <strong class="${vide ? 'lieu-zero' : ''}">${valeur}</strong></div>
     ${vide ? '' : `<span class="stk-sous-ligne">${v.lots.map((l) => `${esc(libelleLot(l))} ${fmt1(l.tonnes)} t`).join(' · ')}</span>`}
     ${t != null && !vide ? `<div class="stk-jauge"><div class="${depasse ? 'lieu-jauge-depasse' : contenuDe(c) === 'FOURRAGE' ? '' : 'stk-jauge-cereales'}" style="width:${Math.max(0, Math.min(100, t))}%"></div></div>` : ''}
@@ -203,6 +241,16 @@ export function renderLieux() {
     return;
   }
   const rep = contenuDesLieux();
+  if (filtreFonction !== 'toutes') {
+    const f = FONCTIONS_CELLULE.find((x) => x.value === filtreFonction);
+    sousTitreEl.textContent = filtreFonction === 'BOTTES'
+      ? 'Emplacements de bottes · tous bâtiments'
+      : (f ? f.label : '') + ' · toutes cellules, tous bâtiments';
+    const html = listeFiltree(filtreFonction, rep);
+    listeEl.innerHTML = html || '<p class="stk-note">Aucun contenant pour cette fonction.</p>';
+    cabler();
+    return;
+  }
   const parGroupe = new Map(GROUPES_BATIMENTS.map((g) => [g.id, []]));
   batiments.forEach((b) => {
     const cels = getCellules().filter((c) => c.batimentId === b.id);

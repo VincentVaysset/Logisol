@@ -535,6 +535,13 @@
       <button type="button" data-batvue="materiel">Matériel</button>
     </div>
     <div id="batiments-lieux">
+      <div class="trp-onglets" id="batiments-filtre-fonction">
+        <button type="button" data-fonction="toutes" class="is-active">Tous</button>
+        <button type="button" data-fonction="SECHAGE">Séchage</button>
+        <button type="button" data-fonction="STOCKAGE">Stockage</button>
+        <button type="button" data-fonction="TRAITE">Alimentation traite</button>
+        <button type="button" data-fonction="BOTTES">Bottes</button>
+      </div>
       <div id="batiments-liste"></div>
     </div>
     <div id="batiments-materiel" hidden>
@@ -768,6 +775,8 @@
         <input type="number" id="cel-capacite" step="0.1" min="0" inputmode="decimal" required>
         <label for="cel-contenu">Contenu</label>
         <select id="cel-contenu"></select>
+        <label for="cel-fonction">Fonction</label>
+        <select id="cel-fonction"></select>
         <label for="cel-grain" id="cel-grain-label">Grain actuellement stocké</label>
         <select id="cel-grain"></select>
         <p class="champ-aide">Le niveau se calcule depuis les mouvements : il ne se saisit pas ici.</p>

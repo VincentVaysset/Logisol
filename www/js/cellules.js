@@ -47,6 +47,29 @@ export function estCelluleFourrage(c) { return contenuDe(c) === 'FOURRAGE'; }
 export function motContenu(c) { return estCelluleFourrage(c) ? 'séchage' : 'grain'; }
 export function iconeContenu(c) { return estCelluleFourrage(c) ? '🌿' : '🌾'; }
 
+// Fonction de la cellule sur l'exploitation (15/10/2026) : séchage en grange
+// (le foin y rentre en vrac à la remorque), stockage (silo grain/aliment,
+// intérieur ou extérieur) ou alimentation de traite (grain et tourteaux à la
+// salle de traite). Les cellules créées avant ce champ n'en ont pas : la
+// fonction se déduit alors du contenu (fourrage = séchage, grain = stockage),
+// ce qui correspond aux usages déjà saisis — l'éleveur corrige ensuite dans
+// la fiche s'il faut. Ce champ ne change AUCUN calcul : il sert à afficher la
+// pastille et le filtre par fonction, rien d'autre.
+export const FONCTIONS_CELLULE = [
+  { value: 'SECHAGE',  label: 'Séchage' },
+  { value: 'STOCKAGE', label: 'Stockage' },
+  { value: 'TRAITE',   label: 'Alimentation traite' }
+];
+export function fonctionDe(c) {
+  const f = c && c.fonction;
+  if (f === 'SECHAGE' || f === 'STOCKAGE' || f === 'TRAITE') return f;
+  return contenuDe(c) === 'FOURRAGE' ? 'SECHAGE' : 'STOCKAGE';
+}
+export function fonctionCellule(c) {
+  const f = fonctionDe(c);
+  return FONCTIONS_CELLULE.find((x) => x.value === f) || FONCTIONS_CELLULE[1];
+}
+
 let courantes = [];
 const listeners = new Set();
 
@@ -79,13 +102,19 @@ export function tauxRemplissage(cellule, quantite) {
 
 function nettoyer(data) {
   const max = Number(data.capaciteMaxTonnes);
-  return {
+  const c = {
     batimentId: data.batimentId || null,
     nom: String(data.nom || '').trim(),
     capaciteMaxTonnes: isFinite(max) && max > 0 ? max : 0,
     contenu: data.contenu === 'FOURRAGE' ? 'FOURRAGE' : 'GRAIN',
     typeGrainActuel: data.typeGrainActuel || null
   };
+  // Champ optionnel : absent des cellules créées avant, jamais effacé par
+  // une mise à jour qui ne le porte pas (updateDoc ignore la clé absente ;
+  // une clé à undefined serait refusée par Firestore).
+  const f = data.fonction;
+  if (f === 'SECHAGE' || f === 'STOCKAGE' || f === 'TRAITE') c.fonction = f;
+  return c;
 }
 
 export async function createCellule(data) {
