@@ -300,3 +300,9 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 
 /* Ferme : puces de filtre du journal (défilement horizontal si nombreuses) */
 #ferme-filtres{overflow-x:auto;padding-bottom:2px}
+
+/* Parcelles : recherche (.field) et « + » flottant (.fab) */
+#parcelles-recherche-champ{margin:12px 16px 0}
+#parcelles-recherche-champ input{flex:1;min-width:0;height:100%;min-height:0;margin:0;padding:0;border:none;background:none;font:inherit;font-size:15px;color:var(--ch-texte);box-shadow:none}
+#parcelles-recherche-champ:focus-within{border-color:var(--ch-vert);box-shadow:0 0 0 3px var(--ch-vert-pastel)}
+#btn-parcelle-ajouter{bottom:calc(var(--bottomnav-h) + 18px + env(safe-area-inset-bottom,0px))}

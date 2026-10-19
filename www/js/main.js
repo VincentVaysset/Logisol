@@ -378,6 +378,8 @@ function renderListView(enriched) {
   // rafraichirAssolement et non renderAssolement : ce rendu est aussi déclenché
   // par chaque modification de parcelle, y compris celle qu'on vient de faire
   // dans le tableau — le reconstruire ferait perdre la case suivante.
+  document.getElementById('parcelles-recherche-champ').hidden = sousVueParcelles !== 'liste';
+  document.getElementById('btn-parcelle-ajouter').hidden = sousVueParcelles !== 'liste';
   if (sousVueParcelles === 'previsionnel') { rafraichirAssolement(); return; }
   if (!enriched.length) {
     parcellesListeEl.innerHTML = '<p class="list-empty">Aucune parcelle pour le moment.</p>';
@@ -399,6 +401,10 @@ function renderListView(enriched) {
   ];
   const haGroupe = new Map(GROUPES.map((g) => [g.id, 0]));
   let totalHa = 0;
+  // Recherche par nom (sans accents ni casse) : la liste seule est filtrée,
+  // les tuiles restent celles de toute l'exploitation.
+  const norm = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const q = norm(document.getElementById('parcelles-recherche').value.trim());
   const cartes = enriched.map((p) => {
     const ha = Number(p.surfaceHa) || 0;
     totalHa += ha;
@@ -413,6 +419,7 @@ function renderListView(enriched) {
     if (Number(prevN.fumierTHa) > 0) amend.push(`<span class="pas ambre">Fumier ${nbFr(Number(prevN.fumierTHa) * ha)} t</span>`);
     if (Number(prevN.chauxTHa) > 0) amend.push(`<span class="pas">Chaux ${nbFr(prevN.chauxTHa)} t/ha</span>`);
     const numero = p.numero ? `#${escapeHtml(String(p.numero).padStart(2, '0'))} ` : '';
+    if (q && !norm(p.nom).includes(q)) return '';
     return `
     <div class="parcelle-card cl" data-id="${escapeAttr(p.id)}">
       <div class="cl-l1">
@@ -429,7 +436,7 @@ function renderListView(enriched) {
   const tuiles = GROUPES.map((g) => `<div class="tuile ${g.cl}"><span class="l">${g.l}</span><span class="n">${haFr(haGroupe.get(g.id))} ha</span><span class="s">${g.s}</span></div>`).join('');
   parcellesListeEl.innerHTML = `<div class="tuiles ch-tuiles-parcelles">${tuiles}</div>
     <p class="sec">${haFr(totalHa)} ha · ${enriched.length} parcelle${enriched.length > 1 ? 's' : ''}</p>
-    <div class="liste">${cartes}</div>`;
+    <div class="liste">${cartes || '<p class="list-empty">Aucune parcelle ne correspond à cette recherche.</p>'}</div>`;
   parcellesListeEl.querySelectorAll('.parcelle-card').forEach((card) => {
     card.addEventListener('click', () => {
       const p = enrichedById.get(card.dataset.id);
@@ -839,6 +846,10 @@ async function boot() {
     tabsEl.querySelectorAll('.tab').forEach((b) => {
       b.addEventListener('click', () => setView(b.dataset.vue));
     });
+
+    document.getElementById('parcelles-recherche').addEventListener('input', () => renderListView(Array.from(enrichedById.values())));
+    // « + » de Parcelles : exactement le parcours de création existant.
+    document.getElementById('btn-parcelle-ajouter').addEventListener('click', () => document.getElementById('btn-draw').click());
 
     document.getElementById('btn-draw').addEventListener('click', () => {
       setView('carte');
