@@ -144,3 +144,24 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 #apercu-fermer{position:absolute;top:14px;right:16px;width:30px;height:30px;min-height:0 !important;padding:0;border-radius:50%;border:none;background:var(--ch-onglets);color:var(--ch-texte2);font-size:0}
 #apercu-fermer::before{content:'✕';font-size:15px}
 #apercu-fermer::after{content:'';position:absolute;inset:-7px}   /* cible 44 px */
+
+/* ==========================================================================
+   ÉCRAN PARCELLES — maquette-charte-parcelles.html (.tuiles 2 col., .cl en
+   colonne, .rot, .acts)
+   ========================================================================== */
+#list-view{background:var(--ch-fond)}
+#parcelles-sous-vues.tabs{margin:16px 16px 0}
+#parcelles-sous-vues .choix-btn{flex:1;min-height:0;border:none;background:none;padding:9px 6px;border-radius:999px;font-size:13px;font-weight:600;color:var(--ch-texte2)}
+#parcelles-sous-vues .choix-btn.is-active{background:var(--ch-carte);color:var(--ch-texte);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+#liste-secteur-filtre.chips{padding:12px 16px 0;overflow-x:auto}
+#parcelles-liste{padding:16px;display:flex;flex-direction:column;gap:12px}
+.ch-tuiles-parcelles{grid-template-columns:repeat(2,minmax(0,1fr))}
+.parcelle-card.cl{flex-direction:column;align-items:stretch;gap:10px;min-height:0;border-left-width:1px;cursor:pointer;margin:0}
+.cl-l1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.parcelle-card-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rot{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;background:var(--ch-onglets);border-radius:14px;padding:4px}
+.rot>div{background:var(--ch-carte);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.rot .k{font-size:11px;font-weight:500;letter-spacing:.4px;color:var(--ch-texte2);text-transform:uppercase}
+.rot .v{font-size:14px;font-weight:700}
+.acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border-top:1px solid var(--ch-separateur);padding-top:8px}
+.field{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;border:1px solid var(--ch-bord-champ);border-radius:18px;background:var(--ch-carte);color:var(--ch-icone);font-size:15px}

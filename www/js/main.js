@@ -75,7 +75,7 @@ import {
 } from './campagne-stock.js';
 import { rafraichirFicheAliment } from './ui-fiche-aliment.js';
 import { agregerMouvements, fusionnerCategories } from './fourrages.js';
-import { watchPrevisions, onPrevisionsChange, migrerRGT0 } from './assolement-previsionnel.js';
+import { watchPrevisions, onPrevisionsChange, migrerRGT0, prevision, culturePrev, campagneCourante } from './assolement-previsionnel.js';
 import {
   initAssolement, setParcellesAssolement, rafraichirAssolement
 } from './ui-assolement.js';
@@ -381,25 +381,53 @@ function renderListView(enriched) {
     parcellesListeEl.innerHTML = '<p class="list-empty">Aucune parcelle pour le moment.</p>';
     return;
   }
-  // Gabarit repris de mockups/maquette parcelles appli.html (carte blanche,
-  // numéro discret + nom en tête, liseré de couleur à gauche) : le numéro
-  // remplace ici le "#01" de la maquette quand il a été renseigné (depuis
-  // l'assolement prévisionnel), et le liseré reprend la couleur déjà
-  // attribuée à la parcelle plutôt que d'ajouter une pastille séparée.
-  parcellesListeEl.innerHTML = enriched
-    .map((p) => {
-      const impl = implantationsByParcelle.get(p.id);
-      const depuis = impl ? ` · depuis le ${impl.dateSemis}` : '';
-      const numero = p.numero ? `<span class="parcelle-card-numero">#${escapeHtml(p.numero)}</span>` : '';
-      return `
-    <div class="parcelle-card" data-id="${escapeAttr(p.id)}" style="border-left-color:${escapeAttr(p._couleur)}">
-      <div class="parcelle-card-info">
-        <div class="parcelle-card-nom">${numero}${escapeHtml(p.nom || 'Sans nom')}</div>
-        <div class="parcelle-card-sub">${escapeHtml(p._label)} · ${formatSurface(p.surfaceHa)} ha${escapeHtml(depuis)}</div>
+  // Gabarit de docs/maquettes/maquette-charte-parcelles.html : tuiles par
+  // famille, puis une .cl par parcelle (nom, surface, rotation N / N+1 de
+  // l'assolement prévisionnel, amendements). Affichage seul : les valeurs
+  // viennent des fiches et du prévisionnel déjà chargés.
+  const n = Number(campagneCourante());
+  const haFr = (v) => (Number(v) || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nbFr = (v) => (Number(v) || 0).toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+  const TEINTE = { LUZERNE: 'var(--ch-vert-texte)', SEMIS_PRAIRIE: 'var(--ch-vert-texte)', PRAIRIE_COURTE: 'var(--ch-bleu)', FETUQUE: 'var(--ch-bleu)', CEREALES: 'var(--ch-ambre-texte)' };
+  const GROUPES = [
+    { id: 'luz', l: 'Luzerne', s: 'Luz 1 à 5', cl: 'vert', f: ['LUZERNE', 'SEMIS_PRAIRIE'] },
+    { id: 'rga', l: 'Prairies RGA', s: 'RG trèfle 1 à 3', cl: 'bleu', f: ['PRAIRIE_COURTE', 'FETUQUE'] },
+    { id: 'cer', l: 'Céréales', s: 'Blé / Orge', cl: 'ambre', f: ['CEREALES'] },
+    { id: 'pn', l: 'Prairies nat.', s: 'PN', cl: '', f: ['PN'] }
+  ];
+  const haGroupe = new Map(GROUPES.map((g) => [g.id, 0]));
+  let totalHa = 0;
+  const cartes = enriched.map((p) => {
+    const ha = Number(p.surfaceHa) || 0;
+    totalHa += ha;
+    const prevN = prevision(p.id, String(n)) || {};
+    const prevN1 = prevision(p.id, String(n + 1)) || {};
+    const cN = prevN.cultureCode ? culturePrev(prevN.cultureCode) : null;
+    const cN1 = prevN1.cultureCode ? culturePrev(prevN1.cultureCode) : null;
+    const g = cN && GROUPES.find((x) => x.f.includes(cN.famille));
+    if (g) haGroupe.set(g.id, haGroupe.get(g.id) + ha);
+    const v = (c, repli) => `<span class="v" style="color:${c ? (TEINTE[c.famille] || 'var(--ch-texte2)') : 'var(--ch-texte2)'}">${escapeHtml(c ? c.label : repli)}</span>`;
+    const amend = [];
+    if (Number(prevN.fumierTHa) > 0) amend.push(`<span class="pas ambre">Fumier ${nbFr(Number(prevN.fumierTHa) * ha)} t</span>`);
+    if (Number(prevN.chauxTHa) > 0) amend.push(`<span class="pas">Chaux ${nbFr(prevN.chauxTHa)} t/ha</span>`);
+    const numero = p.numero ? `#${escapeHtml(String(p.numero).padStart(2, '0'))} ` : '';
+    return `
+    <div class="parcelle-card cl" data-id="${escapeAttr(p.id)}">
+      <div class="cl-l1">
+        <div class="parcelle-card-info"><span class="parcelle-card-nom cl-nm">${numero}${escapeHtml(p.nom || 'Sans nom')}</span><span class="parcelle-card-sub cl-l2">${haFr(p.surfaceHa)} ha</span></div>
+        <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
       </div>
+      <div class="rot">
+        <div><span class="k">${n} (N)</span>${v(cN, p._label || '—')}</div>
+        <div><span class="k">${n + 1} (N+1)</span>${v(cN1, '—')}</div>
+      </div>
+      <div class="acts"><span class="cl-l2">Amendements :</span>${amend.length ? amend.join('') : '<span class="pas">Aucun</span>'}</div>
     </div>`;
-    })
-    .join('');
+  }).join('');
+  const tuiles = GROUPES.map((g) => `<div class="tuile ${g.cl}"><span class="l">${g.l}</span><span class="n">${haFr(haGroupe.get(g.id))} ha</span><span class="s">${g.s}</span></div>`).join('');
+  parcellesListeEl.innerHTML = `<div class="tuiles ch-tuiles-parcelles">${tuiles}</div>
+    <p class="sec">${haFr(totalHa)} ha · ${enriched.length} parcelle${enriched.length > 1 ? 's' : ''}</p>
+    <div class="liste">${cartes}</div>`;
   parcellesListeEl.querySelectorAll('.parcelle-card').forEach((card) => {
     card.addEventListener('click', () => {
       const p = enrichedById.get(card.dataset.id);
