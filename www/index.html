@@ -1390,6 +1390,11 @@
               </div>
               <label for="itv-dose-semis">Dose (kg/ha)</label>
               <input type="number" id="itv-dose-semis" step="any" min="0" inputmode="decimal">
+              <!-- Surface semée : même comportement que la surface récoltée
+                   (tracé GPS, sinon parcelles choisies ; modifiable). -->
+              <label for="itv-surface-semee">Surface semée (ha)</label>
+              <input type="number" id="itv-surface-semee" step="any" min="0" inputmode="decimal">
+              <p id="itv-surface-semee-aide" class="champ-aide" hidden></p>
               <label>Étiquette de semence</label>
               <p class="champ-aide">Conservée comme pièce justificative en cas de contrôle.</p>
               <div class="photo-box">

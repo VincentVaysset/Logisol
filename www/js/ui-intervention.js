@@ -82,7 +82,7 @@ const el = {};
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
   'g-surface','surface','surface-tout','surface-tracer','surface-aide',
   'trace-commun','trace-lancer','trace-resume','trace-voir',
-  'g-fourrage','coupe','fourrage','fourrages','fourrage-aide','surface-recolte','surface-recolte-aide',
+  'g-fourrage','coupe','fourrage','fourrages','fourrage-aide','surface-recolte','surface-recolte-aide','surface-semee','surface-semee-aide',
   'produit-recolte',
   'g-pressage','nb-bottes','poids-botte',
   'g-sechage','nb-remorques','t-remorque',
@@ -383,7 +383,7 @@ function renderCibles() {
   el.parcelles.querySelectorAll('input[type=checkbox]').forEach((cb) => {
     cb.addEventListener('change', () => {
       if (cb.checked) selection.add(cb.dataset.id); else selection.delete(cb.dataset.id);
-      if (!el['g-fourrage'].hidden) majSurfaceRecolte();
+      majSurfaceRecolte();
       cb.closest('.parcelle-pick').classList.toggle('is-picked', cb.checked);
       majCompteur();
       if (groupeCourant()) appliquerGroupe();
@@ -500,6 +500,7 @@ function appliquerGroupe() {
   if (!g) { el['groupe-total'].hidden = true; return; }
   el[g.bloc].hidden = false;
   el['groupe-titre'].textContent = g.titre;
+  if (f === 'SEMIS') majSurface('surface-semee');
   if (f === 'SURFACE') majAideSurface();
   if (f === 'MOISSON') { injecterPsDefaut(); majCalculMoisson(); }
   majTotalGroupe();
@@ -605,7 +606,7 @@ function lancerTrace(apres, { reprise = null } = {}) {
         };
         if (resultat.dureeHeures != null && !el['champ-duree'].hidden) el.duree.value = resultat.dureeHeures;
         majResumeTrace();
-        if (!el['g-fourrage'].hidden) majSurfaceRecolte();
+        majSurfaceRecolte();
       }
       if (apres) apres(resultat);
     }
@@ -759,7 +760,8 @@ function lireSaisie() {
   const n = (k) => (el[k].value === '' ? null : Number(el[k].value));
   if (f === 'SEMIS') {
     return { semence: el.semence.value.trim(), melange: lireMelange(),
-             doseKgHa: n('dose-semis'), cultureId: el.culture.value || null };
+             doseKgHa: n('dose-semis'), cultureId: el.culture.value || null,
+             surfaceHa: n('surface-semee'), surfaceEstimee: surfaceEstimee && n('surface-semee') != null };
   }
   // Coupe et type de fourrage accompagnent les deux récoltes de fourrage :
   // ce sont eux qui suivent le fourrage jusqu'à la ration. La paille n'en a
@@ -802,29 +804,38 @@ function lireSaisie() {
   return null;
 }
 
-// --- Surface récoltée (Pressage / Séchage de fourrage) ---------------------
+// --- Surface récoltée (Pressage / Séchage) et surface semée (Semis) -------
 // Préremplie avec la surface du tracé GPS, sinon celle des parcelles
 // choisies, tant que l'exploitant n'y a pas touché. surfaceEstimee : récolte
-// saisie avant ce champ, surface déduite des parcelles — le drapeau tombe dès
-// que la valeur est corrigée à la main.
+// ou semis saisi avant ce champ, surface déduite des parcelles — le drapeau
+// tombe dès que la valeur est corrigée à la main.
 let surfaceEstimee = false;
-function majSurfaceRecolte() {
-  const champ = el['surface-recolte'];
+const CHAMPS_SURFACE = ['surface-recolte', 'surface-semee'];
+const MOT_SURFACE = { 'surface-recolte': 'la récolte', 'surface-semee': 'le semis' };
+function majSurface(k) {
+  const champ = el[k];
   if (champ.dataset.saisi) return;
   const gps = traceResultat && traceResultat.surfaceHa != null ? Number(traceResultat.surfaceHa) : null;
   const ha = gps != null && !surfaceEstimee ? gps : (surfaceSelectionnee() || null);
   champ.value = ha == null ? '' : ha;
 }
-function majAideSurfaceRecolte() {
-  const aide = el['surface-recolte-aide'];
-  aide.hidden = !surfaceEstimee;
-  aide.textContent = '* surface déduite des parcelles, non saisie. Corrige-la si la récolte ne couvrait pas toute la parcelle.';
+// Le champ du bloc affiché (Semis ou récolte de fourrage).
+function majSurfaceRecolte() {
+  if (!el['g-semis'].hidden) majSurface('surface-semee');
+  if (!el['g-fourrage'].hidden) majSurface('surface-recolte');
 }
-el['surface-recolte'].addEventListener('input', () => {
-  el['surface-recolte'].dataset.saisi = '1';
+function majAideSurfaceRecolte() {
+  CHAMPS_SURFACE.forEach((k) => {
+    const aide = el[k + '-aide'];
+    aide.hidden = !surfaceEstimee;
+    aide.textContent = `* surface déduite des parcelles, non saisie. Corrige-la si ${MOT_SURFACE[k]} ne couvrait pas toute la parcelle.`;
+  });
+}
+CHAMPS_SURFACE.forEach((k) => el[k].addEventListener('input', () => {
+  el[k].dataset.saisi = '1';
   surfaceEstimee = false;
   majAideSurfaceRecolte();
-});
+}));
 
 function ecrireSaisie(s) {
   s = s || {};
@@ -865,11 +876,14 @@ function ecrireSaisie(s) {
   // Surface récoltée : valeur enregistrée (saisie, ou estimée et pas encore
   // corrigée). Récolte antérieure au champ : surface des parcelles choisies,
   // marquée estimée (préremplie plus bas, cf. majSurfaceRecolte).
-  v('surface-recolte', s.surfaceHa);
-  delete el['surface-recolte'].dataset.saisi;
-  if (s.surfaceHa != null) el['surface-recolte'].dataset.saisi = '1';
+  CHAMPS_SURFACE.forEach((k) => {
+    v(k, s.surfaceHa);
+    delete el[k].dataset.saisi;
+    if (s.surfaceHa != null) el[k].dataset.saisi = '1';
+  });
   surfaceEstimee = s.surfaceHa != null ? !!s.surfaceEstimee
-    : !!(s.numeroCoupe != null || s.typeFourrage || s.nbRemorques != null || (s.nbBottes != null && s.produitRecolte !== 'PAILLE'));
+    : !!(s.numeroCoupe != null || s.typeFourrage || s.nbRemorques != null || (s.nbBottes != null && s.produitRecolte !== 'PAILLE')
+      || s.cultureId || s.semence || s.doseKgHa != null);
   majAideSurfaceRecolte();
   el.fourrage.value = s.typeFourrage || '';
   delete el.fourrage.dataset.saisi;
