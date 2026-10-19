@@ -12,6 +12,8 @@ import { consommationCampagneParStock, lotsConsommateurs } from './rations-calc.
 import { construireGroupes, estAchete } from './groupes-stock.js';
 import { getCampagneStockChoisie, bornesCampagneStock, dateReferenceCampagne, campagneStockSuivante } from './campagne-stock.js';
 import { getInterventions } from './interventions.js';
+import { getTypeById, formulaireDe } from './interventions-types.js';
+import { surfacesParCoupe } from './surfaces-coupe.js';
 import { openEditIntervention } from './ui-intervention.js';
 import { openCreateMouvement, openEditMouvement } from './ui-mouvements.js';
 import { ouvrirAjustement } from './ui-ajustement.js';
@@ -390,6 +392,8 @@ export function renderVue() {
     ['bleu', 'RGA / trèfle', resteDe('prairie')]
   ].map(([cl, nom, t]) => `<div class="tuile ${cl}"><span class="l">${nom}</span><span class="n">${formatTonnes(t)} t</span></div>`).join('');
 
+  renderCoupes(d);
+
   groupesEl.innerHTML = d.groupes.length
     ? d.groupes.map((g) => carteGroupe(g, d)).join('')
     : '<p class="list-empty">Aucun stock sur cette campagne. Une récolte saisie dans une activité (pressage, séchage en grange, moisson) apparaît ici automatiquement.</p>';
@@ -420,6 +424,57 @@ function renderCloture(campagne) {
     try { await reouvrirCampagne(campagne); toastSucces(`Campagne ${campagne} réouverte.`); }
     catch (err) { toastErreur('Réouverture impossible : ' + ((err && err.message) || err)); }
   });
+}
+
+// --- Surfaces fauchées par coupe (maquette-charte-stocks.html) -------------
+// Récoltes de fourrage (Pressage hors paille, Séchage) de la campagne
+// choisie ; calcul dans surfaces-coupe.js. Tonnage : le mouvement de stock de
+// l'activité s'il existe (même chiffre que Stocks), sinon sa saisie.
+const ORDINAL = (n) => (n === 1 ? '1ʳᵉ coupe' : `${n}ᵉ coupe`);
+const fr = (v, d = 1) => Number(v).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+function tonnesRecolte(itv, f) {
+  const m = itv.mouvementId ? getMouvements().find((x) => x.id === itv.mouvementId) : null;
+  if (m) return tonnesDuMouvement(m) || 0;
+  const s = itv.saisie || {};
+  if (f === 'SECHAGE') return (Number(s.nbRemorques) || 0) * (Number(s.tonnesParRemorque) || 0);
+  return ((Number(s.nbBottes) || 0) * (Number(s.poidsBotteKg) || 0)) / 1000;
+}
+export function recoltesParCoupe(b) {
+  const recoltes = getInterventions().filter((i) => i.statut !== 'A_FAIRE' && i.date >= b.debut && i.date <= b.fin).map((i) => {
+    const f = formulaireDe(getTypeById(i.typeId));
+    const s = i.saisie || {};
+    if (!(f === 'SECHAGE' || (f === 'PRESSAGE' && s.produitRecolte !== 'PAILLE'))) return null;
+    return { id: i.id, parcelleIds: i.parcelleIds, culture: s.typeFourrage, coupe: s.numeroCoupe, tonnes: tonnesRecolte(i, f),
+      surfaceHa: s.surfaceHa != null ? s.surfaceHa : null, surfaceEstimee: !!s.surfaceEstimee };
+  }).filter(Boolean);
+  return surfacesParCoupe(recoltes, new Map((parcelles || []).map((p) => [p.id, p])));
+}
+function teinteCulture(nom) {
+  const n = String(nom).toLowerCase();
+  if (/luzerne/.test(n)) return 'vert';
+  if (/\brg\b|ray|trèfle|trefle|fétuque|fetuque|prairie/.test(n)) return 'bleu';
+  return '';
+}
+function renderCoupes(d) {
+  const el = document.getElementById('stocks-coupes');
+  if (!el) return;
+  const cultures = recoltesParCoupe(d.b);
+  document.getElementById('stocks-coupes-titre').hidden = !cultures.length;
+  if (!cultures.length) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  const etoile = (x) => (x ? '*' : '');
+  const conflits = [];
+  el.innerHTML = cultures.map((c, i) => {
+    const t = teinteCulture(c.culture);
+    c.coupes.forEach((cp) => cp.conflits.forEach((k) => conflits.push(`${k.nom} (${ORDINAL(cp.numero)} ${c.culture.toLowerCase()}) : ${k.valeurs.map((v) => fr(v, 2)).join(' / ')} ha, ${fr(k.valeurs[0], 2)} ha retenus`)));
+    const cups = c.coupes.map((cp) => `<div class="cup"><span class="k">${ORDINAL(cp.numero)}</span><span class="v">${fr(cp.surfaceHa)} ha${etoile(cp.estimee)}</span><span class="s">${formatTonnes(cp.tonnes)} t · ${cp.tHa == null ? '—' : fr(cp.tHa)} t/ha${etoile(cp.estimee)}</span></div>`).join('')
+      + `<div class="cup vide"><span class="k">${ORDINAL(c.prochaine)}</span><span class="v">0 ha</span><span class="s">À venir</span></div>`;
+    return `${i ? '<div class="sep"></div>' : ''}
+      <div class="cup-h"><span class="cup-nm"><span class="sw ${t}"></span>${escapeHtml(c.culture)} · ${fr(c.surfaceHa, 2)} ha${etoile(c.estimee)}</span><span class="pas ${t}">${formatTonnes(c.tonnes)} t récoltées</span></div>
+      <div class="cups" style="grid-template-columns:repeat(${Math.min(c.coupes.length + 1, 3)},minmax(0,1fr))">${cups}</div>`;
+  }).join('')
+    + (cultures.some((c) => c.estimee) ? '<p class="stk-note ch-note">* surface déduite des parcelles, non saisie.</p>' : '')
+    + (conflits.length ? `<p class="stk-note ch-note ch-note-ecart">Surfaces différentes déclarées pour une même coupe (la plus grande est retenue) : ${escapeHtml(conflits.join(' · '))}.</p>` : '');
 }
 
 function sousTitreGroupe(g) {
