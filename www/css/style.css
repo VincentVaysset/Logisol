@@ -1593,10 +1593,8 @@ header .campagne-select option { color: var(--ch-texte); }
    rétrécissant le libellé plutôt qu'en défilant — une barre de navigation
    qu'il faut faire glisser pour atteindre une destination est le contraire
    du geste rapide qu'on cherche. */
-@media (max-width: 420px) {
-  .tab-icone { font-size: 18px; }
-  .tab-label { font-size: 9px; }
-}
+/* Charte : 11 px même sur téléphone (« Parcelles » et « Bâtiments » tiennent
+   dans 1/6 de 360 px). */
 
 /* ========================================================================
    Tunnel de saisie d'activité
@@ -2323,4 +2321,44 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--ch-vert); box-
 /* Titres de section */
 .section-titre, .section-sous-titre, .apercu-sous-titre, .groupe-titre, .stk-section {
   font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ch-texte2);
+}
+
+/* ==========================================================================
+   CHARTE OVILOG — GRILLE « SAISIR UNE ACTIVITÉ » (étape 5). Emoji gardés,
+   dans un rond pastel de 44 px dont la teinte dépend de la FAMILLE (jamais
+   de la couleur du type, qui reste une donnée en base).
+   ========================================================================== */
+.activite-groupe-titre {
+  font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--ch-texte2); margin-bottom: 8px;
+}
+.activite-grille { gap: 10px; }
+.activite-btn {
+  min-height: 96px; padding: 10px 6px; gap: 6px;
+  background: var(--ch-carte); border: 1px solid var(--ch-bord); border-radius: var(--ch-rayon);
+  box-shadow: none;
+}
+.activite-btn.is-active { background: var(--ch-vert-pastel); border: 2px solid var(--ch-vert); padding: 9px 5px; }
+.activite-icone {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; background: var(--ch-onglets);
+}
+/* Fourrages et semis : vert ; moisson et épandage : ambre ; travail du sol
+   (et divers) : gris ; troupeau : bleu. */
+.activite-groupe[data-famille="SEMIS"] .activite-icone,
+.activite-groupe[data-famille="FOURRAGES"] .activite-icone,
+.activite-groupe[data-famille="RECOLTE_FOURRAGE"] .activite-icone { background: var(--ch-vert-pastel); }
+.activite-groupe[data-famille="MOISSON"] .activite-icone,
+.activite-groupe[data-famille="EPANDAGE"] .activite-icone { background: var(--ch-ambre-pastel); }
+.activite-groupe[data-famille="SOL"] .activite-icone,
+.activite-groupe[data-famille="AUTRE"] .activite-icone { background: var(--ch-onglets); }
+.activite-groupe[data-famille="TROUPEAU"] .activite-icone { background: var(--ch-bleu-pastel); }
+.activite-btn.is-active .activite-icone { background: var(--ch-carte); }
+.activite-nom { font-size: 13px; font-weight: 500; color: var(--ch-texte); }
+.activite-flux {
+  top: 6px; right: 6px;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase;
+  background: var(--ch-ambre-pastel); color: var(--ch-ambre-texte);
+  border-radius: 999px; padding: 2px 8px;
 }

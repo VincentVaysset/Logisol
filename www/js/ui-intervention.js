@@ -409,8 +409,8 @@ function renderActivites() {
     .map((c) => ({ ...c, types: dispo.filter((t) => categorieDe(t) === c.value) }))
     .filter((g) => g.types.length);
   el.activites.innerHTML = groupes.map((g) => `
-    <div class="activite-groupe">
-      <div class="activite-groupe-titre">${g.icone} ${escapeHtml(g.label)}</div>
+    <div class="activite-groupe" data-famille="${escapeAttr(g.value)}">
+      <div class="activite-groupe-titre">${escapeHtml(g.label)}</div>
       <div class="activite-grille">
         ${g.types.map((t) => `
           <button type="button" class="activite-btn${t.id === typeChoisiId ? ' is-active' : ''}"
