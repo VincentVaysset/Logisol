@@ -12,6 +12,11 @@
    Polices : locales (css/fonts.css), pas Google Fonts.
    ========================================================================== */
 
+/* L'attribut hidden l'emporte TOUJOURS : les display:flex/grid des
+   composants (.btn, .cl, .chip, .tuiles...) ne doivent jamais réafficher un
+   élément que le JS masque. */
+[hidden]{display:none !important}
+
 /* --- En-tête (.hd) --- */
 .hd{background:var(--ch-vert);color:var(--ch-carte);padding:12px 16px 10px;display:flex;flex-direction:column;gap:6px;z-index:1100}
 .hd-top{display:flex;align-items:center;gap:8px}
