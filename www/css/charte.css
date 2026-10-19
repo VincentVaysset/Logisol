@@ -84,3 +84,19 @@
 /* Carte de lien (bouton) au gabarit .cl : texte à gauche, pleine largeur. */
 button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:pointer}
 .ch-cl-t{font-size:15px;font-weight:700}
+
+/* ==========================================================================
+   ÉCRAN FERME — maquette-charte-ferme.html (.main, .btn-primary, .cl, .sec)
+   ========================================================================== */
+#feed{background:var(--ch-fond);padding:16px 16px calc(16px + var(--bottomnav-h) + env(safe-area-inset-bottom,0px))}
+#feed .feed-head{display:flex;flex-direction:column;align-items:stretch;gap:12px;margin:0 0 12px;padding:0;border:none;background:none}
+#feed .sec{margin:4px 2px 0}
+#feed #btn-new-intervention{width:100%}
+.feed-item.cl{margin:0;box-shadow:none;align-items:flex-start}
+.feed-item .ic{flex:0 0 44px;width:44px;height:44px;border-radius:50%;font-size:20px;line-height:1}
+.feed-item .feed-type{font-size:15px;font-weight:700;color:var(--ch-texte)}
+.feed-item .feed-notes{font-size:13px;color:var(--ch-texte2);font-style:italic}
+.feed-item .feed-photo{width:56px;height:56px;border-radius:14px;object-fit:cover;flex:none}
+/* Carte réduite de l'écran Ferme : la carte « Parcellaire du domaine » de la
+   maquette (bloc de 150 px, bord --ch-bord, rayon 18). */
+#map.map-reduite{flex:0 0 150px;height:150px;min-height:0;margin:16px 16px 0;border:1px solid var(--ch-bord);border-radius:18px;overflow:hidden}

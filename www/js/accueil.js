@@ -166,18 +166,14 @@ function carteIntervention(itv) {
   const corrigeableRemplissage = estCorrigeableRemplissage(itv);
 
   return `
-  <article class="feed-item" data-id="${escapeAttr(itv.id)}">
-    <div class="feed-icon" style="background:${escapeAttr(couleurType(itv))}">${escapeHtml(iconeType(itv))}</div>
-    <div class="feed-body">
-      <div class="feed-line1">
-        <span class="feed-type">${escapeHtml(libelleType(itv))}</span>
-        ${itv.statut === 'A_FAIRE' ? '<span class="badge-afaire">à faire</span>' : ''}
-        <span class="feed-date">${escapeHtml(dateLisible(itv.date))}</span>
-      </div>
-      <div class="feed-parcelles">${
+  <article class="feed-item cl" data-id="${escapeAttr(itv.id)}">
+    <span class="feed-icon ic ${familleIc(itv)}">${escapeHtml(iconeType(itv))}</span>
+    <div class="feed-body cl-c">
+      <span class="feed-type">${escapeHtml(libelleType(itv))}</span>
+      <div class="feed-parcelles cl-l2">${
         nomsParcelles.length ? escapeHtml(nomsParcelles.join(' · ')) : '<em>parcelle supprimée</em>'
       }</div>
-      ${details.length ? `<div class="feed-details">${details.join(' · ')}</div>` : ''}
+      ${details.length ? `<div class="feed-details cl-l2">${details.join(' · ')}</div>` : ''}
       ${itv.notes ? `<div class="feed-notes">${escapeHtml(itv.notes)}</div>` : ''}
       ${corrigeable ? `<div class="feed-ps-correction">${psOuvert ? `
         <input type="number" step="0.01" class="feed-ps-input" data-ps-input="${escapeAttr(itv.id)}" placeholder="PS (t/m³ ou kg/hL)">
@@ -189,6 +185,7 @@ function carteIntervention(itv) {
       </div>` : ''}
     </div>
     ${itv.photo ? `<img class="feed-photo" src="${escapeAttr(itv.photo)}" alt="">` : ''}
+    <div class="cl-d"><span class="feed-date cl-l2">${escapeHtml(dateLisible(itv.date))}</span>${itv.statut === 'A_FAIRE' ? '<span class="pas">Prévu</span>' : '<span class="pas vert">Validé</span>'}</div>
   </article>`;
 }
 
@@ -202,6 +199,14 @@ function libelleType(itv) {
 
 function typeDe(itv) {
   return etat.typesIntervention ? etat.typesIntervention.find((t) => t.id === itv.typeId) : null;
+}
+// Rond .ic de la maquette : teinte par famille d'activité (jamais la couleur
+// du type, donnée en base) — fourrages et semis vert, moisson et épandage
+// ambre, troupeau bleu, sol et divers gris.
+const IC_FAMILLE = { SEMIS: 'vert', FOURRAGES: 'vert', RECOLTE_FOURRAGE: 'vert', MOISSON: 'ambre', EPANDAGE: 'ambre', TROUPEAU: 'bleu' };
+function familleIc(itv) {
+  const t = typeDe(itv);
+  return IC_FAMILLE[t && t.categorie] || 'gris';
 }
 function iconeType(itv) {
   const t = typeDe(itv);

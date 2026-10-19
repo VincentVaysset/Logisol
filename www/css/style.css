@@ -2240,16 +2240,6 @@ body { background: var(--ch-fond); color: var(--ch-texte); }
 .toast-erreur { background: var(--ch-rouge-pastel); color: var(--ch-rouge); }
 .fiche-error-banner, .login-error { background: var(--ch-rouge-pastel); color: var(--ch-rouge); border-color: var(--ch-rouge); }
 
-/* Bouton flottant « + » (nouvelle activité, vue Ferme) */
-#btn-new-intervention.btn-feed-add {
-  position: fixed; right: 16px; bottom: calc(var(--bottomnav-h) + 16px + env(safe-area-inset-bottom, 0px));
-  width: 56px; height: 56px; min-height: 56px; padding: 0; border-radius: 50%;
-  font-size: 0; z-index: 1200;
-  background: var(--ch-vert); color: var(--ch-carte);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-}
-#btn-new-intervention.btn-feed-add::after { content: '+'; font-size: 32px; font-weight: 400; line-height: 56px; }
-#feed[hidden] #btn-new-intervention { display: none; }
 
 /* Champs */
 input, select, textarea {
