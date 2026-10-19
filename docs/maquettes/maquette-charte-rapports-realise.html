@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logisol — Rapports — réalisé</title>
+<!-- Maquette de référence. Visuel uniquement. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&amp;family=Roboto:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#357f4b}a:hover{color:#24613a}
+.app{--ch-fond:#fbf8f1;--ch-carte:#ffffff;--ch-bord:#e6ddc9;--ch-bord-champ:#d9cfb8;--ch-separateur:#efe9da;--ch-texte:#2b261c;--ch-texte2:#5e5b47;--ch-icone:#8a8670;--ch-vert:#357f4b;--ch-vert-fonce:#2f6e44;--ch-vert-pastel:#e3f3e6;--ch-vert-texte:#24613a;--ch-bleu:#1f5a8a;--ch-bleu-pastel:#e6f0fa;--ch-ambre:#b5701c;--ch-ambre-pastel:#fbeed7;--ch-ambre-texte:#8a5413;--ch-onglets:#efe9da;--ch-ligne-alt:#f6f1e4;font-family:Roboto,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--ch-fond);color:var(--ch-texte);display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;position:relative}
+.app *{box-sizing:border-box}
+.hd{background:var(--ch-vert);color:#fff;padding:12px 16px 10px;display:flex;flex-direction:column;gap:6px}
+.hd-top{display:flex;align-items:center;gap:8px}
+.icon-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-decoration:none}
+.brand{flex:1;display:flex;align-items:center;justify-content:center;gap:8px}
+.brand img{width:30px;height:30px;border-radius:50%;background:#fff;display:block}
+.brand-name{font-family:Fredoka,sans-serif;font-size:19px;font-weight:700;letter-spacing:.5px}
+.pill-hd{display:flex;align-items:center;gap:6px;background:var(--ch-ambre-pastel);color:var(--ch-ambre-texte);border:none;border-radius:999px;padding:0 12px;height:36px;font:inherit;font-size:13px;font-weight:500}
+.pill-hd .dot{width:8px;height:8px;border-radius:50%;background:var(--ch-vert)}
+.farm-row{display:flex;justify-content:space-between;font-size:12px;opacity:.85;padding:0 2px}
+.hd h1{font-size:16px;font-weight:600;margin:2px 2px 0}
+.main{flex:1;overflow:visible;padding:16px;display:flex;flex-direction:column;gap:14px}
+.camp{display:flex;align-items:center;gap:8px}
+.camp-btn{width:44px;height:44px;border-radius:999px;border:1px solid var(--ch-bord);background:var(--ch-carte);color:var(--ch-texte);display:flex;align-items:center;justify-content:center;flex:none}
+.camp-nm{flex:1;text-align:center;font-size:17px;font-weight:700}
+.tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;background:var(--ch-onglets);padding:4px;border-radius:999px}
+.tab{border:none;background:none;min-height:40px;border-radius:999px;font:inherit;font-size:14px;font-weight:600;color:var(--ch-texte2);cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center}
+.tab.on{background:var(--ch-carte);color:var(--ch-texte);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;width:100%;background:var(--ch-vert);color:#fff;border:none;border-radius:18px;font:inherit;font-size:15px;font-weight:600}
+.doc{background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;padding:18px 16px;display:flex;flex-direction:column;gap:18px}
+.doc-hd{display:flex;flex-direction:column;gap:4px;padding-bottom:14px;border-bottom:2px solid var(--ch-vert)}
+.doc-t{font-size:18px;font-weight:700;margin:0}
+.doc-m{font-size:13px;color:var(--ch-texte2);display:flex;justify-content:space-between;gap:8px}
+.s{display:flex;flex-direction:column;gap:10px}
+.s-t{display:flex;align-items:baseline;gap:8px;margin:0;font-size:15px;font-weight:700}
+.s-t .num{color:var(--ch-vert);font-variant-numeric:tabular-nums}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kpis.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.kpi{display:flex;flex-direction:column;gap:2px;min-width:0;padding:10px 12px;border-left:5px solid var(--ch-icone);border-radius:14px;background:var(--ch-onglets)}
+.kpi .n{font-size:20px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ch-texte2)}
+.kpi .n small{font-size:13px;font-weight:500}
+.kpi .l{font-size:12px;color:var(--ch-texte2)}
+.kpi.vert{background:var(--ch-vert-pastel);border-color:var(--ch-vert-fonce)}.kpi.vert .n{color:var(--ch-vert-fonce)}
+.kpi.bleu{background:var(--ch-bleu-pastel);border-color:var(--ch-bleu)}.kpi.bleu .n{color:var(--ch-bleu)}
+.kpi.ambre{background:var(--ch-ambre-pastel);border-color:var(--ch-ambre-texte)}.kpi.ambre .n{color:var(--ch-ambre-texte)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+caption{text-align:left;font-size:13px;font-weight:700;padding:0 0 6px;color:var(--ch-texte)}
+th{font-size:12px;font-weight:500;color:var(--ch-texte2);background:var(--ch-onglets);text-align:right;padding:7px 8px;white-space:nowrap}
+th:first-child{text-align:left;border-radius:10px 0 0 10px}
+th:last-child{border-radius:0 10px 10px 0}
+td{padding:8px;border-bottom:1px solid var(--ch-separateur);text-align:right;white-space:nowrap;vertical-align:top}
+td:first-child{text-align:left;white-space:normal}
+td small{display:block;font-size:12px;color:var(--ch-texte2);font-weight:400}
+td.na{color:var(--ch-icone)}
+.ec-p{color:var(--ch-vert-texte);font-weight:600}
+.ec-m{color:var(--ch-ambre-texte);font-weight:600}
+tr.grp td{font-size:12px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ch-texte2);padding-top:12px;border-bottom:none}
+tr.tot td{background:var(--ch-ligne-alt);font-weight:700;border-bottom:none}
+tr.tot td:first-child{border-radius:10px 0 0 10px}
+tr.tot td:last-child{border-radius:0 10px 10px 0}
+.note{font-size:12px;color:var(--ch-texte2);margin:0}
+.foot{font-size:12px;color:var(--ch-icone);text-align:center;border-top:1px solid var(--ch-separateur);padding-top:10px}
+.nav{position:sticky;bottom:0;z-index:5;display:flex;justify-content:space-around;align-items:center;background:var(--ch-carte);border-top:1px solid var(--ch-bord);padding:6px 4px 10px}
+.nav a{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:var(--ch-icone);font-size:11px;font-weight:500;min-width:52px}
+.nav a .pi{width:52px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center}
+.nav a.on{color:var(--ch-vert-texte);font-weight:700}
+.nav a.on .pi{background:var(--ch-vert-pastel)}
+</style>
+</head>
+<body style="background:#efe9da">
+<div class="app" style="width:100%;max-width:430px;min-height:100vh;margin:0 auto">
+<header class="hd">
+<div class="hd-top">
+<a href="maquette-charte-ferme.html" class="icon-btn" aria-label="Retour"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a>
+<div class="brand"><img src="img/logo-mark.png" alt=""><span class="brand-name">LOGISOL</span></div>
+<button class="pill-hd"><span class="dot"></span>En ligne</button>
+</div>
+<div class="farm-row"><span>Exploitation ovine Bio</span><span>Campagne 2026</span></div>
+<h1>Rapports &amp; synthèses</h1>
+</header>
+<main class="main">
+<div class="camp">
+<button class="camp-btn" aria-label="Campagne précédente"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+<span class="camp-nm">Campagne 2027</span>
+<button class="camp-btn" aria-label="Campagne suivante"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+</div>
+<div class="tabs"><a href="maquette-charte-rapports.html" class="tab">Prévisionnel</a><a href="maquette-charte-rapports-realise.html" class="tab on">Réalisé</a></div>
+<button class="btn-primary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"></path><path d="M4 20h16"></path></svg>Télécharger / partager le PDF</button>
+
+<article class="doc">
+<div class="doc-hd">
+<h2 class="doc-t">Bilan réalisé — campagne 2027</h2>
+<div class="doc-m"><span>Exploitation ovine Bio</span><span>Arrêté au 19/10/2026</span></div>
+<p class="note">Source : activités enregistrées et mouvements de stock. Comparé au prévisionnel de la campagne.</p>
+</div>
+
+<section class="s">
+<h3 class="s-t"><span class="num">1.</span>Semis réalisés</h3>
+<div class="kpis">
+<div class="kpi vert"><span class="n">12,44 <small>/ 35,35 ha</small></span><span class="l">Surface semée</span></div>
+<div class="kpi"><span class="n">22,91 ha</span><span class="l">Reste à semer</span></div>
+</div>
+<table>
+<thead><tr><th>Culture</th><th>ha</th><th>kg/ha</th><th>kg</th></tr></thead>
+<tbody>
+<tr><td>Orge 1<small>[VARIÉTÉ] · 08/10</small></td><td>6,68</td><td>[dose]</td><td>[kg]</td></tr>
+<tr><td>Blé 2<small>[VARIÉTÉ] · 12/10</small></td><td>5,76</td><td>[dose]</td><td>[kg]</td></tr>
+<tr><td>Orge 2<small>prévu 5,53 ha</small></td><td class="na">—</td><td class="na">—</td><td class="na">À semer</td></tr>
+<tr><td>Blé 1<small>prévu 3,59 ha</small></td><td class="na">—</td><td class="na">—</td><td class="na">À semer</td></tr>
+<tr><td>RG trèfle 1<small>prévu 8,42 ha</small></td><td class="na">—</td><td class="na">—</td><td class="na">À semer</td></tr>
+<tr><td>Luz 0<small>prévu 5,37 ha · printemps</small></td><td class="na">—</td><td class="na">—</td><td class="na">À semer</td></tr>
+<tr class="tot"><td>Total semé</td><td>12,44</td><td></td><td>[kg]</td></tr>
+</tbody>
+</table>
+</section>
+
+<section class="s">
+<h3 class="s-t"><span class="num">2.</span>Fertilisation réalisée</h3>
+<div class="kpis c3">
+<div class="kpi ambre"><span class="n">198 t</span><span class="l">Fumier épandu</span></div>
+<div class="kpi"><span class="n">530 t</span><span class="l">Prévu</span></div>
+<div class="kpi"><span class="n">37 %</span><span class="l">Réalisé</span></div>
+</div>
+<table>
+<caption>Fumier · prévu 15 t/ha</caption>
+<thead><tr><th>Parcelle</th><th>Prévu</th><th>Réalisé</th><th>Écart</th></tr></thead>
+<tbody>
+<tr><td>Causse du lac<small>5,37 ha · 03/10 · 14,5 t/ha</small></td><td>80,55</td><td>78,00</td><td class="ec-m">−2,55</td></tr>
+<tr><td>Celies<small>4,03 ha · 04/10 · 15,6 t/ha</small></td><td>60,45</td><td>63,00</td><td class="ec-p">+2,55</td></tr>
+<tr><td>La bessière<small>3,72 ha · 05/10 · 15,3 t/ha</small></td><td>55,80</td><td>57,00</td><td class="ec-p">+1,20</td></tr>
+<tr><td>Bouat combette<small>2,29 ha</small></td><td>34,35</td><td class="na">—</td><td class="na">À faire</td></tr>
+<tr><td>… 10 autres parcelles<small>à faire</small></td><td>299,10</td><td class="na">—</td><td class="na">À faire</td></tr>
+<tr class="tot"><td>Total</td><td>530,25</td><td>198,00</td><td>−332,25</td></tr>
+</tbody>
+</table>
+<p class="note">Chaux : rien de prévu, rien d'épandu.</p>
+</section>
+
+<section class="s">
+<h3 class="s-t"><span class="num">3.</span>Bilan stocks</h3>
+<div class="kpis c3">
+<div class="kpi vert"><span class="n">146,2 t</span><span class="l">Entrées</span></div>
+<div class="kpi ambre"><span class="n">42,8 t</span><span class="l">Consommé</span></div>
+<div class="kpi bleu"><span class="n">103,4 t</span><span class="l">En stock</span></div>
+</div>
+<table>
+<thead><tr><th>Catégorie</th><th>Entrées</th><th>Sorties</th><th>Stock</th></tr></thead>
+<tbody>
+<tr><td>Luzerne séchée<small>récolte</small></td><td>68,0</td><td>24,5</td><td>43,5</td></tr>
+<tr><td>Foin RGA / trèfle<small>récolte</small></td><td>54,0</td><td>12,1</td><td>41,9</td></tr>
+<tr><td>Orge / concentrés<small>récolte + achats</small></td><td>24,2</td><td>6,2</td><td>18,0</td></tr>
+<tr class="tot"><td>Total (t)</td><td>146,2</td><td>42,8</td><td>103,4</td></tr>
+</tbody>
+</table>
+<table>
+<caption>Récoltes fourragères par coupe</caption>
+<thead><tr><th>Coupe</th><th>ha</th><th>t/ha</th><th>t</th></tr></thead>
+<tbody>
+<tr class="grp"><td colspan="4">Luzerne</td></tr>
+<tr><td>1ʳᵉ coupe</td><td>32,5</td><td>1,2</td><td>40,0</td></tr>
+<tr><td>2ᵉ coupe</td><td>24,0</td><td>1,1</td><td>28,0</td></tr>
+<tr class="grp"><td colspan="4">Prairies RGA / trèfle</td></tr>
+<tr><td>1ʳᵉ coupe</td><td>28,1</td><td>1,9</td><td>54,0</td></tr>
+<tr class="tot"><td>Total récolté</td><td></td><td></td><td>122,0</td></tr>
+</tbody>
+</table>
+</section>
+
+<p class="note" style="font-style: italic">Maquette : chiffres du réalisé fictifs, pour juger la mise en page.</p>
+<div class="foot">Logisol · Réalisé 2027 · page 1/1</div>
+</article>
+</main>
+<nav class="nav">
+<a href="maquette-charte-ferme.html" class="on"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path><path d="M10 20v-6h4v6"></path></svg></span>Ferme</a>
+<a href="maquette-charte-carte.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"></path><path d="M9 4v14M15 6v14"></path></svg></span>Carte</a>
+<a href="maquette-charte-parcelles.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V8"></path><path d="M12 8c-3 0-4-2-4-5 3 0 4 2 4 5zM12 8c3 0 4-2 4-5-3 0-4 2-4 5z"></path><path d="M12 14c-3 0-4-2-4-4 3 0 4 1.5 4 4zM12 14c3 0 4-2 4-4-3 0-4 1.5-4 4z"></path></svg></span>Parcelles</a>
+<a href="maquette-charte-stocks.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="13" width="8" height="8" rx="1.5"></rect><rect x="13" y="13" width="8" height="8" rx="1.5"></rect><rect x="8" y="3" width="8" height="8" rx="1.5"></rect></svg></span>Stocks</a>
+<a href="maquette-charte-troupeau.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="11" cy="13" rx="7" ry="5"></ellipse><circle cx="19" cy="10" r="2.5"></circle><path d="M7 18v3M14 18v3"></path></svg></span>Troupeau</a>
+<a href="maquette-charte-batiments.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V9l9-5 9 5v12"></path><path d="M7 21v-8h10v8"></path><path d="M7 17h10"></path></svg></span>Bâtiments</a>
+</nav>
+</div>
+</body>
+</html>

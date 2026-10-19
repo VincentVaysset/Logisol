@@ -71,3 +71,17 @@ non-régression existante avant de pousser.
 - Commits explicites : le message raconte le pourquoi, pas seulement le quoi.
 - Ne jamais déployer les règles Firestore automatiquement (voir plus haut).
 - Réponses ultra-concises : aucun résumé, aucune justification, pas de bavardage. Applique le code et fais le commit directement.
+
+## Maquettes de référence (cible exacte, pas une inspiration)
+
+`docs/maquettes/` : lire leur `<style>` avant de toucher un écran.
+- `maquette-charte-{ferme,carte,parcelles,stocks,troupeau,batiments}.html` :
+  écrans de l'appli. Leur style est repris tel quel dans `www/css/charte.css`
+  (mêmes classes `.hd .nav .card .tuile .cl .pas .chip .tabs .btn-*`…).
+- `maquette-charte-syntheses.html` : style de l'écran Rapports & Synthèses
+  existant (pas un nouvel écran).
+- `maquette-charte-rapports.html` (onglets Prévisionnel / Réalisé) et
+  `maquette-charte-rapports-realise.html` : vue « Réalisé » des Rapports.
+- `exemple-pdf-realise-2027.pdf` : charte des PDF de rapports (palette
+  PDF_CHARTE identique à Ovilog, A4, Helvetica).
+Polices locales (`www/fonts/`), jamais le lien Google Fonts des maquettes.
