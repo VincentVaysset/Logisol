@@ -106,7 +106,7 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
    ========================================================================== */
 #carte-secteur-filtre.chips{padding:12px 12px 0;gap:8px;overflow-x:auto;background:var(--ch-fond)}
 .map-btn,.btn-fab.map-btn{flex:0 0 44px;width:44px;height:44px;min-height:44px;padding:0;border-radius:14px;background:var(--ch-carte);border:1px solid var(--ch-bord);color:var(--ch-texte2);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.12);font-size:18px}
-.fab-row .btn-fab:not(.map-btn){flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;min-height:44px;padding:0 14px;border-radius:18px;font-size:14px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.fab-row .btn-fab:not(.map-btn){flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;min-height:44px;padding:0 8px;border-radius:18px;font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .fab-row #btn-draw{background:var(--ch-vert);color:var(--ch-carte);border:none}
 .fab-row .btn-fab-secondary{background:var(--ch-carte);color:var(--ch-texte);border:1px solid var(--ch-bord)}
 /* Contrôles Leaflet (zoom, calques) au gabarit .map-btn */
