@@ -49,6 +49,8 @@ import {
 } from './ui-intervention.js';
 import { initTraceIntervention } from './trace-intervention.js';
 import { majVueGps } from './vue-gps.js';
+import { watchExploitation, onNomExploitationChange, setNomExploitation } from './exploitation.js';
+import { toastSucces, toastErreur } from './toast.js';
 import { afficherTraceActivite } from './trace-affichage.js';
 import { initTraceUi, ouvrirTrace, majEtatTrace as majEtatTraceToolbar } from './ui-trace-intervention.js';
 import { initAccueil, majEtat, renderFeed, ouvrirApercu, fermerApercu } from './accueil.js';
@@ -685,6 +687,22 @@ function terminerModifContour(valider) {
 // --- Panneau Paramètres (compte + version) --------------------------------
 // Le header ne garde que la marque et les indicateurs ; email et
 // déconnexion vivent ici, à un tap de distance via la roue crantée.
+// Nom de l'exploitation : champ de Réglages -> lgs_exploitation, affiché
+// dans l'en-tête (.farm-row). Enregistré à la sortie du champ.
+function initExploitation() {
+  const champ = document.getElementById('parametres-exploitation');
+  const affiche = document.getElementById('ch-exploitation');
+  onNomExploitationChange((nom) => {
+    affiche.textContent = nom;
+    if (document.activeElement !== champ) champ.value = nom;
+  });
+  champ.addEventListener('change', async () => {
+    try { await setNomExploitation(champ.value); toastSucces('Nom de l\'exploitation enregistré.'); }
+    catch (err) { toastErreur('Nom non enregistré : ' + ((err && err.message) || err)); }
+  });
+  watchExploitation();
+}
+
 function initParametres() {
   const panel = document.getElementById('parametres-panel');
   const v = window.__LOGISOL_VERSION || {};
@@ -800,6 +818,7 @@ async function boot() {
     initModifContour();
     initRapports();
     initParametres();
+    initExploitation();
     initMajApk();
     initSyncStatus();
     const syncStatusEl = document.getElementById('sync-status');

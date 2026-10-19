@@ -172,7 +172,7 @@
       <span id="sync-status" class="pill-hd" title="État de la synchronisation"><span class="dot"></span><span class="pill-txt">Hors-ligne</span></span>
     </div>
     <div class="farm-row">
-      <span class="ch-exploitation">Exploitation ovine Bio</span>
+      <span class="ch-exploitation" id="ch-exploitation"></span>
       <span class="ch-campagne"><span id="ch-campagne-texte"></span>
         <!-- Campagne Stocks / Troupeau (01/09 → 31/08, cf. campagne-stock.js) :
              visible seulement sur ces deux onglets. -->
@@ -190,6 +190,11 @@
       <div class="parametres-bloc">
         <div class="parametres-label">Connecté en tant que</div>
         <div id="user-email" class="parametres-valeur"></div>
+      </div>
+      <div class="parametres-bloc">
+        <label class="parametres-label" for="parametres-exploitation">Nom de l'exploitation</label>
+        <input type="text" id="parametres-exploitation" maxlength="60" placeholder="ex. GAEC de la Ferme" autocomplete="organization">
+        <p class="champ-aide">Affiché en haut de chaque écran. Laisse vide pour ne rien afficher.</p>
       </div>
       <div class="parametres-bloc">
         <div class="parametres-label">Version installée</div>
