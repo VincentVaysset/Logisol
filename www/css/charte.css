@@ -1,0 +1,86 @@
+/* ==========================================================================
+   CHARTE LOGISOL — styles des maquettes validées (docs/maquettes/
+   maquette-charte-*.html), repris de leur <style> : mêmes classes, mêmes
+   valeurs. Chargé APRÈS style.css, il prime sur lui.
+   Adaptations à l'appli, et seulement elles :
+   - variables --ch-* : celles de :root (style.css), identiques à .app ;
+   - #fff → var(--ch-carte) et rgba(255,255,255,.15) → var(--ch-blanc-voile) ;
+   - la barre du bas reste #tabs (classes .tabs/.tab lues par le JS) : la
+     .nav de la maquette s'y applique via la classe .nav ajoutée, et les
+     onglets segmentés .tabs de la maquette sont donc .tabs:not(#tabs) ;
+   - l'état actif de l'appli est .is-active (la maquette dit .on) : les deux.
+   Polices : locales (css/fonts.css), pas Google Fonts.
+   ========================================================================== */
+
+/* --- En-tête (.hd) --- */
+.hd{background:var(--ch-vert);color:var(--ch-carte);padding:12px 16px 10px;display:flex;flex-direction:column;gap:6px;z-index:1100}
+.hd-top{display:flex;align-items:center;gap:8px}
+.icon-btn{background:var(--ch-blanc-voile);border:none;color:var(--ch-carte);width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;padding:0;min-height:0 !important;cursor:pointer}
+.icon-btn::after{content:'';position:absolute;inset:-4px}   /* cible tactile 44 px, visuel 36 */
+.brand{flex:1;display:flex;align-items:center;justify-content:center;gap:8px}
+.brand img{width:30px;height:30px;border-radius:50%;background:var(--ch-carte);display:block}
+.brand-name{font-family:Fredoka,sans-serif;font-size:19px;font-weight:700;letter-spacing:.5px}
+.pill-hd{display:flex;align-items:center;gap:6px;background:var(--ch-ambre-pastel);color:var(--ch-ambre-texte);border:none;border-radius:999px;padding:0 12px;height:36px;font:inherit;font-size:13px;font-weight:500;white-space:nowrap}
+.pill-hd .dot{width:8px;height:8px;border-radius:50%;background:var(--ch-vert)}
+.pill-hd.hors-ligne .dot{background:var(--ch-ambre)}
+.farm-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;opacity:.85;padding:0 2px;gap:8px}
+.hd h1{font-size:16px;font-weight:600;margin:2px 2px 0;color:inherit}
+.hd h1:empty{display:none}
+.ch-exploitation{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hd .campagne-select{width:auto;margin:0;min-height:0;height:24px;padding:0 8px;font:inherit;font-size:12px;color:var(--ch-carte);background:var(--ch-blanc-voile);border:none;border-radius:999px}
+.hd .campagne-select option{color:var(--ch-texte)}
+
+/* --- Barre du bas (.nav) --- */
+.nav{display:flex;justify-content:space-around;align-items:center;background:var(--ch-carte);border-top:1px solid var(--ch-bord);padding:6px 4px calc(10px + env(safe-area-inset-bottom,0px));box-shadow:none}
+.nav .tab{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:var(--ch-icone);font-size:11px;font-weight:500;min-width:52px;min-height:48px;justify-content:center;flex:1;padding:0;background:none;border:none}
+.nav .tab .tab-label{font-size:11px;font-weight:inherit;line-height:1.2}
+.nav .tab .pi{width:52px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:none}
+.nav .tab.is-active{color:var(--ch-vert-texte);font-weight:700}
+.nav .tab.is-active .pi{background:var(--ch-vert-pastel)}
+
+/* --- Contenu --- */
+.card{background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;padding:16px}
+.card-t{font-size:15px;font-weight:700;margin:0}
+.card-s{font-size:13px;color:var(--ch-texte2)}
+.sec{font-size:12px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--ch-texte2);margin:4px 2px 0}
+.tuiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tuiles.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tuile{display:flex;flex-direction:column;gap:2px;min-width:0;padding:10px 12px;border-left:5px solid var(--ch-icone);border-radius:14px;background:var(--ch-onglets)}
+.tuile .l{font-size:13px;color:var(--ch-texte2)}
+.tuile .n{font-size:24px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;color:var(--ch-texte2)}
+.tuile .s{font-size:12px;color:var(--ch-texte2)}
+.tuile.vert{background:var(--ch-vert-pastel);border-color:var(--ch-vert-fonce)}.tuile.vert .n{color:var(--ch-vert-fonce)}
+.tuile.bleu{background:var(--ch-bleu-pastel);border-color:var(--ch-bleu)}.tuile.bleu .n{color:var(--ch-bleu)}
+.tuile.ambre{background:var(--ch-ambre-pastel);border-color:var(--ch-ambre-texte)}.tuile.ambre .n{color:var(--ch-ambre-texte)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;font:inherit;font-size:15px;font-weight:600;border:none;border-radius:18px;cursor:pointer}
+.btn-primary{background:var(--ch-vert);color:var(--ch-carte)}
+.btn-secondary{background:var(--ch-carte);border:1px solid var(--ch-bord);color:var(--ch-texte)}
+.btn-mini:not(.btn-primary):not(.btn-danger){height:40px;min-height:40px;border-radius:999px;border:1px solid var(--ch-vert);background:var(--ch-carte);color:var(--ch-vert);padding:0 14px;font:inherit;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}
+.tabs:not(#tabs){display:flex;gap:4px;background:var(--ch-onglets);padding:4px;border-radius:999px}
+.tabs:not(#tabs) .tab,.tabs:not(#tabs) button{flex:1;border:none;background:none;padding:9px 6px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;color:var(--ch-texte2);min-height:0 !important}
+.tabs:not(#tabs) .on,.tabs:not(#tabs) .is-active{background:var(--ch-carte);color:var(--ch-texte);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chips{display:flex;gap:8px;overflow:hidden}
+.chip{flex:none;min-height:36px;padding:0 14px;border:1px solid var(--ch-bord-champ);border-radius:999px;background:var(--ch-carte);font:inherit;font-size:13px;font-weight:500;color:var(--ch-texte);display:flex;align-items:center;gap:6px}
+.chip.on,.chip.is-active{background:var(--ch-vert-pastel);border:2px solid var(--ch-vert);color:var(--ch-vert-texte);font-weight:700}
+.chip .sw{width:10px;height:10px;border-radius:3px}
+.liste{display:flex;flex-direction:column;gap:10px}
+.cl{min-height:56px;background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.cl-c{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.cl-nm{font-size:16px;font-weight:700;color:var(--ch-vert-fonce)}
+.cl-l2{font-size:13px;color:var(--ch-texte2)}
+.cl-d{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none}
+.chev{color:var(--ch-icone);flex:none}
+.pas{font-size:12px;font-weight:500;border-radius:999px;padding:3px 10px;white-space:nowrap;background:var(--ch-onglets);color:var(--ch-texte2)}
+.pas.vert{background:var(--ch-vert-pastel);color:var(--ch-vert-texte)}.pas.bleu{background:var(--ch-bleu-pastel);color:var(--ch-bleu)}.pas.ambre{background:var(--ch-ambre-pastel);color:var(--ch-ambre-texte)}
+.ic{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0;width:44px;height:44px}
+.ic.sm{width:36px;height:36px}
+.ic.vert{background:var(--ch-vert-pastel);color:var(--ch-vert-texte)}.ic.bleu{background:var(--ch-bleu-pastel);color:var(--ch-bleu)}.ic.ambre{background:var(--ch-ambre-pastel);color:var(--ch-ambre-texte)}.ic.gris{background:var(--ch-onglets);color:var(--ch-texte2)}
+.card .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed var(--ch-bord);font-size:13.5px}
+.card .row:first-child{border-top:none}
+.bar{height:10px;border-radius:999px;background:var(--ch-onglets);overflow:hidden}
+.bar>div{height:100%;border-radius:999px;background:var(--ch-vert)}
+.fab{position:fixed;right:20px;bottom:88px;width:56px;height:56px;border-radius:50%;background:var(--ch-vert);color:var(--ch-carte);border:none;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;padding:0;min-height:0 !important;z-index:1200}
+
+/* Carte de lien (bouton) au gabarit .cl : texte à gauche, pleine largeur. */
+button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:pointer}
+.ch-cl-t{font-size:15px;font-weight:700}

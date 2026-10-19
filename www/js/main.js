@@ -767,7 +767,9 @@ async function boot() {
     initSyncStatus();
     const syncStatusEl = document.getElementById('sync-status');
     onSyncStatusChange((etat) => {
-      syncStatusEl.textContent = etat === 'synced' ? '🟢 Synchro à jour' : '🟠 Hors-ligne';
+      // Pastille de la maquette : point (vert en ligne, ambre sinon) + libellé.
+      syncStatusEl.querySelector('.pill-txt').textContent = etat === 'synced' ? 'En ligne' : 'Hors-ligne';
+      syncStatusEl.classList.toggle('hors-ligne', etat !== 'synced');
       syncStatusEl.title = etat === 'synced'
         ? 'Dernières données confirmées par le serveur.'
         : 'Pas de confirmation serveur récente — les données affichées peuvent dater du dernier passage en ligne.';

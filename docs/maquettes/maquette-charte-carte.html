@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logisol — Carte</title>
+<!-- Maquette de référence : charte Ovilog appliquée à Logisol. Visuel uniquement. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&amp;family=Roboto:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#357f4b}a:hover{color:#24613a}
+.app{--ch-fond:#fbf8f1;--ch-carte:#ffffff;--ch-bord:#e6ddc9;--ch-bord-champ:#d9cfb8;--ch-separateur:#efe9da;--ch-texte:#2b261c;--ch-texte2:#5e5b47;--ch-icone:#8a8670;--ch-vert:#357f4b;--ch-vert-fonce:#2f6e44;--ch-vert-pastel:#e3f3e6;--ch-vert-texte:#24613a;--ch-bleu:#1f5a8a;--ch-bleu-pastel:#e6f0fa;--ch-ambre:#b5701c;--ch-ambre-pastel:#fbeed7;--ch-ambre-texte:#8a5413;--ch-rouge:#a33a31;--ch-rouge-pastel:#fbe3e0;--ch-onglets:#efe9da;font-family:Roboto,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--ch-fond);color:var(--ch-texte);display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;position:relative}
+.app *{box-sizing:border-box}
+.hd{background:var(--ch-vert);color:#fff;padding:12px 16px 10px;display:flex;flex-direction:column;gap:6px}
+.hd-top{display:flex;align-items:center;gap:8px}
+.icon-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.brand{flex:1;display:flex;align-items:center;justify-content:center;gap:8px}
+.brand img{width:30px;height:30px;border-radius:50%;background:#fff;display:block}
+.brand-name{font-family:Fredoka,sans-serif;font-size:19px;font-weight:700;letter-spacing:.5px}
+.pill-hd{display:flex;align-items:center;gap:6px;background:var(--ch-ambre-pastel);color:var(--ch-ambre-texte);border:none;border-radius:999px;padding:0 12px;height:36px;font:inherit;font-size:13px;font-weight:500}
+.pill-hd .dot{width:8px;height:8px;border-radius:50%;background:var(--ch-vert)}
+.farm-row{display:flex;justify-content:space-between;font-size:12px;opacity:.85;padding:0 2px}
+.hd h1{font-size:16px;font-weight:600;margin:2px 2px 0}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;font:inherit;font-size:14px;font-weight:600;border:none;border-radius:18px;cursor:pointer}
+.btn-primary{background:var(--ch-vert);color:#fff;width:100%}
+.btn-secondary{background:#fff;border:1px solid var(--ch-bord);color:var(--ch-texte);width:100%}
+.chip{flex:none;min-height:36px;padding:0 14px;border:1px solid var(--ch-bord-champ);border-radius:999px;background:var(--ch-carte);font:inherit;font-size:13px;font-weight:500;color:var(--ch-texte);display:flex;align-items:center;gap:6px}
+.chip.on{background:var(--ch-vert-pastel);border:2px solid var(--ch-vert);color:var(--ch-vert-texte);font-weight:700}
+.chip .sw{width:10px;height:10px;border-radius:3px}
+.map-btn{width:44px;height:44px;border-radius:14px;background:var(--ch-carte);border:1px solid var(--ch-bord);color:var(--ch-texte2);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.pas{font-size:12px;font-weight:500;border-radius:999px;padding:3px 10px;white-space:nowrap;background:var(--ch-onglets);color:var(--ch-texte2)}
+.pas.vert{background:var(--ch-vert-pastel);color:var(--ch-vert-texte)}
+.sheet{background:var(--ch-carte);border-radius:18px 18px 0 0;padding:10px 16px 16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -12px 30px rgba(0,0,0,.18);position:relative;z-index:2}
+.nav{position:sticky;bottom:0;z-index:5;display:flex;justify-content:space-around;align-items:center;background:var(--ch-carte);border-top:1px solid var(--ch-bord);padding:6px 4px 10px;position:relative;z-index:2}
+.nav a{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:var(--ch-icone);font-size:11px;font-weight:500;min-width:52px}
+.nav a .pi{width:52px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center}
+.nav a.on{color:var(--ch-vert-texte);font-weight:700}
+.nav a.on .pi{background:var(--ch-vert-pastel)}
+</style>
+</head>
+<body style="background:#efe9da">
+<div class="app" style="width:100%;max-width:430px;min-height:100vh;margin:0 auto">
+<header class="hd">
+<div class="hd-top">
+<button class="icon-btn" aria-label="Couches"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg></button>
+<div class="brand"><img src="img/logo-mark.png" alt=""><span class="brand-name">LOGISOL</span></div>
+<button class="pill-hd"><span class="dot"></span>En ligne</button>
+</div>
+<div class="farm-row"><span>GAEC de la Ferme</span><span>Campagne 2026</span></div>
+<h1>Carte SIG / RPG</h1>
+</header>
+<div style="flex: 1; position: relative; background: #7f9f6c; overflow: hidden">
+<div style="position: absolute; left: -40px; top: 40px; width: 230px; height: 190px; background: #9bb57f; transform: rotate(-12deg)"></div>
+<div style="position: absolute; left: 190px; top: -20px; width: 260px; height: 210px; background: #c4b27a; transform: rotate(8deg)"></div>
+<div style="position: absolute; left: 60px; top: 250px; width: 300px; height: 160px; background: #6d9160; transform: rotate(-4deg)"></div>
+<div style="position: absolute; left: 120px; top: 120px; width: 150px; height: 140px; background: rgba(53,127,75,.45); border: 3px solid #e3f3e6; clip-path: polygon(0 100%, 50% 0, 100% 100%)"></div>
+<div style="position: absolute; left: 112px; top: 200px; display: flex; align-items: center; gap: 6px; background: var(--ch-carte); border-radius: 999px; padding: 4px 10px 4px 4px; box-shadow: 0 2px 8px rgba(0,0,0,.25)">
+<span style="width: 22px; height: 22px; border-radius: 50%; background: var(--ch-vert); color: #fff; display: flex; align-items: center; justify-content: center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 22V8M12 8c-3 0-4-2-4-5 3 0 4 2 4 5zM12 8c3 0 4-2 4-5-3 0-4 2-4 5z"></path></svg></span>
+<span style="font-size: 12px; font-weight: 700; color: var(--ch-vert-texte)">Grand Triangle · 8,5 ha</span>
+</div>
+<div style="position: absolute; top: 12px; left: 12px; right: 12px; display: flex; gap: 8px; overflow: hidden">
+<button class="chip on">Toutes (3)</button>
+<button class="chip"><span class="sw" style="background: #357f4b"></span>Luzerne</button>
+<button class="chip"><span class="sw" style="background: #b5701c"></span>Céréales</button>
+<button class="chip"><span class="sw" style="background: #1f5a8a"></span>Prairies</button>
+</div>
+<div style="position: absolute; right: 12px; top: 64px; display: flex; flex-direction: column; gap: 8px">
+<button class="map-btn" aria-label="Fond IGN satellite"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"></path></svg></button>
+<button class="map-btn" aria-label="Me localiser"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#357f4b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8z"></path></svg></button>
+</div>
+</div>
+<div class="sheet">
+<div style="width: 40px; height: 4px; border-radius: 999px; background: var(--ch-bord-champ); margin: 0 auto"></div>
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 13px; font-weight: 700; color: var(--ch-icone)">#01</span><span style="font-size: 17px; font-weight: 700">Grand Triangle</span><span class="pas vert">8,50 ha</span></div>
+<span style="font-size: 13px; color: var(--ch-texte2)">Culture 2026 : <strong style="color: var(--ch-vert-texte)">Luzerne 2 (Luz 2)</strong></span>
+</div>
+<button style="width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--ch-onglets); color: var(--ch-texte2); font-size: 15px" aria-label="Fermer">✕</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button class="btn btn-primary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Saisir une activité</button>
+<button class="btn btn-secondary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></svg>Historique coupes</button>
+</div>
+</div>
+<nav class="nav">
+<a href="maquette-charte-ferme.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path><path d="M10 20v-6h4v6"></path></svg></span>Ferme</a>
+<a href="maquette-charte-carte.html" class="on"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"></path><path d="M9 4v14M15 6v14"></path></svg></span>Carte</a>
+<a href="maquette-charte-parcelles.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V8"></path><path d="M12 8c-3 0-4-2-4-5 3 0 4 2 4 5zM12 8c3 0 4-2 4-5-3 0-4 2-4 5z"></path><path d="M12 14c-3 0-4-2-4-4 3 0 4 1.5 4 4zM12 14c3 0 4-2 4-4-3 0-4 1.5-4 4z"></path></svg></span>Parcelles</a>
+<a href="maquette-charte-stocks.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="13" width="8" height="8" rx="1.5"></rect><rect x="13" y="13" width="8" height="8" rx="1.5"></rect><rect x="8" y="3" width="8" height="8" rx="1.5"></rect></svg></span>Stocks</a>
+<a href="maquette-charte-troupeau.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="11" cy="13" rx="7" ry="5"></ellipse><circle cx="19" cy="10" r="2.5"></circle><path d="M7 18v3M14 18v3"></path></svg></span>Troupeau</a>
+<a href="maquette-charte-batiments.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V9l9-5 9 5v12"></path><path d="M7 21v-8h10v8"></path><path d="M7 17h10"></path></svg></span>Bâtiments</a>
+</nav>
+</div>
+</body>
+</html>

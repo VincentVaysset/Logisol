@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="vendor/leaflet-draw/leaflet.draw.css" />
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/charte.css">
 </head>
 <body>
 
@@ -162,35 +163,22 @@
 
 <!-- Écran principal -->
 <section id="screen-app" class="screen-app" hidden>
-  <header class="ch-entete">
-    <!-- En-tête charte Ovilog : 3 lignes sur bandeau vert. Ids inchangés
-         (btn-parametres, btn-rapports, sync-status, campagne-stock-select). -->
-    <div class="ch-entete-l1">
-      <div class="ch-entete-gauche">
-      <button id="btn-parametres" type="button" class="header-icon-btn ch-rond" aria-label="Paramètres et compte">
-        <svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-      </button>
-      <button id="btn-rapports" type="button" class="header-icon-btn ch-rond" aria-label="Rapports et synthèses PDF">
-          <svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
-        </button>
-      </div>
-      <div class="header-brand">
-        <!-- Emblème (www/img/logo-mark.png) dans une pastille blanche ronde
-             de 36 px, pour qu'il ressorte sur le bandeau vert. -->
-        <span class="ch-logo"><img class="header-logo" src="img/logo-mark.png" alt="" aria-hidden="true"></span>
-        <span class="header-nom">LOGISOL</span>
-      </div>
-      <div class="header-compte">
-        <span id="sync-status" class="sync-status" title="État de la synchronisation">🟠 Hors-ligne</span>
-      </div>
+  <header class="hd">
+    <!-- En-tête : maquette docs/maquettes/maquette-charte-*.html (.hd). Ids
+         inchangés : btn-parametres, sync-status, campagne-stock-select. -->
+    <div class="hd-top">
+      <button id="btn-parametres" type="button" class="icon-btn" aria-label="Réglages"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg></button>
+      <div class="brand"><img src="img/logo-mark.png" alt=""><span class="brand-name">LOGISOL</span></div>
+      <span id="sync-status" class="pill-hd" title="État de la synchronisation"><span class="dot"></span><span class="pill-txt">Hors-ligne</span></span>
     </div>
-    <div class="ch-entete-l2">
+    <div class="farm-row">
       <span class="ch-exploitation">Exploitation ovine Bio</span>
-      <!-- Campagne Stocks / Troupeau (01/09 → 31/08, cf. campagne-stock.js) :
-           visible seulement sur ces deux onglets. -->
-      <select id="campagne-stock-select" class="campagne-select" aria-label="Campagne Stocks et Troupeau" hidden></select>
+      <span class="ch-campagne"><span id="ch-campagne-texte"></span>
+        <!-- Campagne Stocks / Troupeau (01/09 → 31/08, cf. campagne-stock.js) :
+             visible seulement sur ces deux onglets. -->
+        <select id="campagne-stock-select" class="campagne-select" aria-label="Campagne Stocks et Troupeau" hidden></select></span>
     </div>
-    <div class="ch-entete-l3" id="ch-titre-ecran" aria-live="polite"></div>
+    <h1 id="ch-titre-ecran"></h1>
   </header>
 
   <!-- Panneau Paramètres : compte (email, déconnexion) et identité de version
@@ -340,24 +328,24 @@
        elle-même l'espace de la hauteur de la barre en bas
        (padding-bottom : var(--bottomnav-h)) pour que son dernier élément ne
        se retrouve jamais caché dessous. -->
-  <nav class="tabs" id="tabs">
+  <nav class="tabs nav" id="tabs">
     <button type="button" class="tab" data-vue="ferme">
-      <span class="tab-icone"><svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></span><span class="tab-label">Ferme</span>
+      <span class="tab-icone pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path><path d="M10 20v-6h4v6"></path></svg></span><span class="tab-label">Ferme</span>
     </button>
     <button type="button" class="tab" data-vue="carte">
-      <span class="tab-icone"><svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span><span class="tab-label">Carte</span>
+      <span class="tab-icone pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"></path><path d="M9 4v14M15 6v14"></path></svg></span><span class="tab-label">Carte</span>
     </button>
     <button type="button" class="tab" data-vue="liste">
-      <span class="tab-icone"><svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/></svg></span><span class="tab-label">Parcelles</span>
+      <span class="tab-icone pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V8"></path><path d="M12 8c-3 0-4-2-4-5 3 0 4 2 4 5zM12 8c3 0 4-2 4-5-3 0-4 2-4 5z"></path><path d="M12 14c-3 0-4-2-4-4 3 0 4 1.5 4 4zM12 14c3 0 4-2 4-4-3 0-4 1.5-4 4z"></path></svg></span><span class="tab-label">Parcelles</span>
     </button>
     <button type="button" class="tab" data-vue="stocks">
-      <span class="tab-icone"><svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V8"/><path d="M12 8c-3 0-4-2-4-5 3 0 4 2 4 5zM12 8c3 0 4-2 4-5-3 0-4 2-4 5z"/><path d="M12 14c-3 0-4-2-4-4 3 0 4 1 4 4zM12 14c3 0 4-2 4-4-3 0-4 1-4 4z"/></svg></span><span class="tab-label">Stocks</span>
+      <span class="tab-icone pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="13" width="8" height="8" rx="1.5"></rect><rect x="13" y="13" width="8" height="8" rx="1.5"></rect><rect x="8" y="3" width="8" height="8" rx="1.5"></rect></svg></span><span class="tab-label">Stocks</span>
     </button>
     <button type="button" class="tab" data-vue="troupeau">
-      <span class="tab-icone"><svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 15a3 3 0 0 1-1-5.8A3 3 0 0 1 11 6a3 3 0 0 1 5 1 3 3 0 0 1 2 5.5A3 3 0 0 1 15 16H8"/><path d="M9 16v4M15 16v4"/><circle cx="19.5" cy="9.5" r="1.5"/></svg></span><span class="tab-label">Troupeau</span>
+      <span class="tab-icone pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="11" cy="13" rx="7" ry="5"></ellipse><circle cx="19" cy="10" r="2.5"></circle><path d="M7 18v3M14 18v3"></path></svg></span><span class="tab-label">Troupeau</span>
     </button>
     <button type="button" class="tab" data-vue="batiments">
-      <span class="tab-icone"><svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10l9-6 9 6"/><path d="M5 9v11h14V9"/><path d="M9 20v-6h6v6M9 14l6 6M15 14l-6 6"/></svg></span><span class="tab-label">Bâtiments</span>
+      <span class="tab-icone pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V9l9-5 9 5v12"></path><path d="M7 21v-8h10v8"></path><path d="M7 17h10"></path></svg></span><span class="tab-label">Bâtiments</span>
     </button>
   </nav>
 
@@ -449,6 +437,8 @@
     <div class="feed-head">
       <h2>Dernières activités</h2>
       <button type="button" id="btn-new-intervention" class="btn btn-primary btn-feed-add">➕ Intervention</button>
+      <!-- Rapports & Synthèses : ouverts depuis cette carte (maquette Ferme). -->
+      <button type="button" id="btn-rapports" class="cl ch-cl-lien" aria-label="Rapports et synthèses PDF"><span class="ic gris"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg></span><span class="cl-c"><span class="ch-cl-t">Synthèses de campagne</span><span class="cl-l2">Assolement, semis, fertilisation, PDF</span></span><svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
     </div>
     <div id="feed-list"></div>
   </div>

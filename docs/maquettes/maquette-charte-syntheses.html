@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logisol — Synthèses</title>
+<!-- Maquette de référence : charte Ovilog appliquée à Logisol. Visuel uniquement. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&amp;family=Roboto:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#357f4b}a:hover{color:#24613a}
+.app{--ch-fond:#fbf8f1;--ch-carte:#ffffff;--ch-bord:#e6ddc9;--ch-bord-champ:#d9cfb8;--ch-separateur:#efe9da;--ch-texte:#2b261c;--ch-texte2:#5e5b47;--ch-icone:#8a8670;--ch-vert:#357f4b;--ch-vert-fonce:#2f6e44;--ch-vert-pastel:#e3f3e6;--ch-vert-texte:#24613a;--ch-bleu:#1f5a8a;--ch-bleu-pastel:#e6f0fa;--ch-ambre:#b5701c;--ch-ambre-pastel:#fbeed7;--ch-ambre-texte:#8a5413;--ch-rouge:#a33a31;--ch-rouge-pastel:#fbe3e0;--ch-onglets:#efe9da;--ch-ligne-alt:#f6f1e4;font-family:Roboto,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--ch-fond);color:var(--ch-texte);display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;position:relative}
+.app *{box-sizing:border-box}
+.hd{background:var(--ch-vert);color:#fff;padding:12px 16px 10px;display:flex;flex-direction:column;gap:6px}
+.hd-top{display:flex;align-items:center;gap:8px}
+.icon-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-decoration:none}
+.brand{flex:1;display:flex;align-items:center;justify-content:center;gap:8px}
+.brand img{width:30px;height:30px;border-radius:50%;background:#fff;display:block}
+.brand-name{font-family:Fredoka,sans-serif;font-size:19px;font-weight:700;letter-spacing:.5px}
+.pill-hd{display:flex;align-items:center;gap:6px;background:var(--ch-ambre-pastel);color:var(--ch-ambre-texte);border:none;border-radius:999px;padding:0 12px;height:36px;font:inherit;font-size:13px;font-weight:500}
+.pill-hd .dot{width:8px;height:8px;border-radius:50%;background:var(--ch-vert)}
+.farm-row{display:flex;justify-content:space-between;font-size:12px;opacity:.85;padding:0 2px}
+.hd h1{font-size:16px;font-weight:600;margin:2px 2px 0}
+.main{flex:1;overflow:visible;padding:16px;display:flex;flex-direction:column;gap:12px}
+.sec{font-size:12px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--ch-texte2);margin:4px 2px 0}
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;background:var(--ch-onglets);padding:4px;border-radius:999px}
+.tab{border:none;background:none;min-height:36px;padding:0 4px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;color:var(--ch-texte2);cursor:pointer}
+.tab.on{background:var(--ch-carte);color:var(--ch-texte);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tuiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tuile{display:flex;flex-direction:column;gap:2px;min-width:0;padding:10px 12px;border-left:5px solid var(--ch-icone);border-radius:14px;background:var(--ch-onglets)}
+.tuile .l{font-size:12px;color:var(--ch-texte2)}
+.tuile .n{font-size:20px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;color:var(--ch-texte2)}
+.tuile.vert{background:var(--ch-vert-pastel);border-color:var(--ch-vert-fonce)}.tuile.vert .n{color:var(--ch-vert-fonce)}
+.tuile.bleu{background:var(--ch-bleu-pastel);border-color:var(--ch-bleu)}.tuile.bleu .n{color:var(--ch-bleu)}
+.tuile.ambre{background:var(--ch-ambre-pastel);border-color:var(--ch-ambre-texte)}.tuile.ambre .n{color:var(--ch-ambre-texte)}
+.tbl{background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;overflow:hidden}
+.tbl-cap{padding:12px 14px 8px;font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
+.tbl-cap span{font-size:13px;font-weight:500;color:var(--ch-texte2)}
+.tr{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,.9fr);gap:6px;padding:10px 14px;font-size:13.5px;align-items:center;font-variant-numeric:tabular-nums;border-top:1px solid var(--ch-separateur)}
+.tr.th{font-size:12px;font-weight:500;color:var(--ch-texte2);background:var(--ch-onglets);border-top:none;padding:8px 14px}
+.tr>span:not(:first-child){text-align:right}
+.tr .p{display:flex;flex-direction:column;gap:1px;min-width:0}
+.tr .p b{font-weight:700}
+.tr .p small{font-size:12px;color:var(--ch-texte2)}
+.tr .tot{font-weight:700}
+.tr.sum{background:var(--ch-ligne-alt);font-weight:700}
+.vide{color:var(--ch-icone)}
+.btn-sec{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;width:100%;background:#fff;border:1px solid var(--ch-bord);border-radius:18px;font:inherit;font-size:15px;font-weight:600;color:var(--ch-texte)}
+.nav{position:sticky;bottom:0;z-index:5;display:flex;justify-content:space-around;align-items:center;background:var(--ch-carte);border-top:1px solid var(--ch-bord);padding:6px 4px 10px}
+.nav a{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:var(--ch-icone);font-size:11px;font-weight:500;min-width:52px}
+.nav a .pi{width:52px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center}
+.nav a.on{color:var(--ch-vert-texte);font-weight:700}
+.nav a.on .pi{background:var(--ch-vert-pastel)}
+</style>
+</head>
+<body style="background:#efe9da">
+<div class="app" style="width:100%;max-width:430px;min-height:100vh;margin:0 auto">
+<header class="hd">
+<div class="hd-top">
+<a href="maquette-charte-ferme.html" class="icon-btn" aria-label="Retour"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></a>
+<div class="brand"><img src="img/logo-mark.png" alt=""><span class="brand-name">LOGISOL</span></div>
+<button class="pill-hd"><span class="dot"></span>En ligne</button>
+</div>
+<div class="farm-row"><span>GAEC de la Ferme</span><span>Campagne 2026</span></div>
+<h1>Synthèses</h1>
+</header>
+<main class="main">
+<div class="tabs">
+<button class="tab on">Semis</button>
+<button class="tab">Épandages</button>
+<button class="tab">Fourrages</button>
+<button class="tab">Travaux</button>
+</div>
+
+<!-- onglet -->
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div class="tuiles" style="grid-template-columns: repeat(2, minmax(0, 1fr))">
+<div class="tuile ambre"><span class="l">Surface</span><span class="n">12,30 ha</span></div>
+<div class="tuile"><span class="l">Semence</span><span class="n">[kg]</span></div>
+</div>
+<div class="tbl">
+<div class="tbl-cap">Blé tendre<span>[VARIÉTÉ]</span></div>
+<div class="tr th"><span>Parcelle</span><span>ha</span><span>kg/ha</span><span>Total</span></div>
+<div class="tr"><span class="p"><b>Les Rivières</b><small>[DATE]</small></span><span>12,30</span><span>[dose]</span><span class="tot">[kg]</span></div>
+<div class="tr sum"><span>Total</span><span>12,30</span><span></span><span>[kg]</span></div>
+</div>
+</div>
+
+
+<!-- onglet -->
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div class="tuiles">
+<div class="tuile ambre"><span class="l">Fumier</span><span class="n">25 t</span></div>
+<div class="tuile"><span class="l">Chaux</span><span class="n">24,6 t</span></div>
+<div class="tuile"><span class="l">Surface</span><span class="n">12,30 ha</span></div>
+</div>
+<div class="tbl">
+<div class="tbl-cap">Fumier<span>1 parcelle</span></div>
+<div class="tr th"><span>Parcelle</span><span>ha</span><span>t/ha</span><span>Total</span></div>
+<div class="tr"><span class="p"><b>Les Rivières</b><small>02/04</small></span><span>12,30</span><span>2,0</span><span class="tot">25 t</span></div>
+</div>
+<div class="tbl">
+<div class="tbl-cap">Chaux<span>1 parcelle</span></div>
+<div class="tr th"><span>Parcelle</span><span>ha</span><span>t/ha</span><span>Total</span></div>
+<div class="tr"><span class="p"><b>Les Rivières</b><small>[DATE]</small></span><span>12,30</span><span>2,0</span><span class="tot">24,6 t</span></div>
+</div>
+</div>
+
+
+<!-- onglet -->
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div class="tuiles">
+<div class="tuile vert"><span class="l">Récolté</span><span class="n">122 t</span></div>
+<div class="tuile vert"><span class="l">Luzerne</span><span class="n">68 t</span></div>
+<div class="tuile bleu"><span class="l">RGA</span><span class="n">54 t</span></div>
+</div>
+<div class="tbl">
+<div class="tbl-cap">Luzerne<span>32,50 ha</span></div>
+<div class="tr th"><span>Coupe</span><span>ha</span><span>t/ha</span><span>Total</span></div>
+<div class="tr"><span class="p"><b>1ʳᵉ coupe</b></span><span>32,5</span><span>1,2</span><span class="tot">40 t</span></div>
+<div class="tr"><span class="p"><b>2ᵉ coupe</b></span><span>24,0</span><span>1,1</span><span class="tot">28 t</span></div>
+<div class="tr vide"><span class="p"><b>3ᵉ coupe</b></span><span>—</span><span>—</span><span>—</span></div>
+<div class="tr sum"><span>Total</span><span>56,5</span><span></span><span>68 t</span></div>
+</div>
+<div class="tbl">
+<div class="tbl-cap">Prairies RGA / trèfle<span>28,10 ha</span></div>
+<div class="tr th"><span>Coupe</span><span>ha</span><span>t/ha</span><span>Total</span></div>
+<div class="tr"><span class="p"><b>1ʳᵉ coupe</b></span><span>28,1</span><span>1,9</span><span class="tot">54 t</span></div>
+<div class="tr vide"><span class="p"><b>2ᵉ coupe</b></span><span>—</span><span>—</span><span>—</span></div>
+</div>
+</div>
+
+
+<!-- onglet -->
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div class="tuiles">
+<div class="tuile vert"><span class="l">Interventions</span><span class="n">12</span></div>
+<div class="tuile"><span class="l">Surface</span><span class="n">[ha]</span></div>
+<div class="tuile"><span class="l">Parcelles</span><span class="n">3</span></div>
+</div>
+<div class="tbl">
+<div class="tbl-cap">Journal<span>du plus récent</span></div>
+<div class="tr th" style="grid-template-columns: minmax(0,.7fr) minmax(0,1.6fr) minmax(0,.7fr) minmax(0,.8fr)"><span>Date</span><span style="text-align: left">Intervention</span><span>ha</span><span>Qté</span></div>
+<div class="tr" style="grid-template-columns: minmax(0,.7fr) minmax(0,1.6fr) minmax(0,.7fr) minmax(0,.8fr)"><span style="text-align: left">28/06</span><span class="p" style="text-align: left"><b>2ᵉ coupe luzerne</b><small>Grand Triangle</small></span><span>8,5</span><span class="tot">16 t</span></div>
+<div class="tr" style="grid-template-columns: minmax(0,.7fr) minmax(0,1.6fr) minmax(0,.7fr) minmax(0,.8fr)"><span style="text-align: left">18/05</span><span class="p" style="text-align: left"><b>1ʳᵉ coupe foin RGA</b><small>Les Rivières</small></span><span>[ha]</span><span class="tot">30 t</span></div>
+<div class="tr" style="grid-template-columns: minmax(0,.7fr) minmax(0,1.6fr) minmax(0,.7fr) minmax(0,.8fr)"><span style="text-align: left">12/05</span><span class="p" style="text-align: left"><b>1ʳᵉ coupe luzerne</b><small>Grand Triangle</small></span><span>8,5</span><span class="tot">22 t</span></div>
+<div class="tr" style="grid-template-columns: minmax(0,.7fr) minmax(0,1.6fr) minmax(0,.7fr) minmax(0,.8fr)"><span style="text-align: left">02/04</span><span class="p" style="text-align: left"><b>Épandage fumier</b><small>Les Rivières</small></span><span>12,3</span><span class="tot">25 t</span></div>
+</div>
+</div>
+
+
+<button class="btn-sec"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"></path><path d="M4 20h16"></path></svg>Exporter</button>
+</main>
+<nav class="nav">
+<a href="maquette-charte-ferme.html" class="on"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path><path d="M10 20v-6h4v6"></path></svg></span>Ferme</a>
+<a href="maquette-charte-carte.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"></path><path d="M9 4v14M15 6v14"></path></svg></span>Carte</a>
+<a href="maquette-charte-parcelles.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V8"></path><path d="M12 8c-3 0-4-2-4-5 3 0 4 2 4 5zM12 8c3 0 4-2 4-5-3 0-4 2-4 5z"></path><path d="M12 14c-3 0-4-2-4-4 3 0 4 1.5 4 4zM12 14c3 0 4-2 4-4-3 0-4 1.5-4 4z"></path></svg></span>Parcelles</a>
+<a href="maquette-charte-stocks.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="13" width="8" height="8" rx="1.5"></rect><rect x="13" y="13" width="8" height="8" rx="1.5"></rect><rect x="8" y="3" width="8" height="8" rx="1.5"></rect></svg></span>Stocks</a>
+<a href="maquette-charte-troupeau.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="11" cy="13" rx="7" ry="5"></ellipse><circle cx="19" cy="10" r="2.5"></circle><path d="M7 18v3M14 18v3"></path></svg></span>Troupeau</a>
+<a href="maquette-charte-batiments.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V9l9-5 9 5v12"></path><path d="M7 21v-8h10v8"></path><path d="M7 17h10"></path></svg></span>Bâtiments</a>
+</nav>
+</div>
+</body>
+</html>

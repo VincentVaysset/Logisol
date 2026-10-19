@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logisol — Troupeau</title>
+<!-- Maquette de référence : charte Ovilog appliquée à Logisol. Visuel uniquement. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&amp;family=Roboto:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#357f4b}a:hover{color:#24613a}
+.app{--ch-fond:#fbf8f1;--ch-carte:#ffffff;--ch-bord:#e6ddc9;--ch-bord-champ:#d9cfb8;--ch-separateur:#efe9da;--ch-texte:#2b261c;--ch-texte2:#5e5b47;--ch-icone:#8a8670;--ch-vert:#357f4b;--ch-vert-fonce:#2f6e44;--ch-vert-pastel:#e3f3e6;--ch-vert-texte:#24613a;--ch-bleu:#1f5a8a;--ch-bleu-pastel:#e6f0fa;--ch-ambre:#b5701c;--ch-ambre-pastel:#fbeed7;--ch-ambre-texte:#8a5413;--ch-rouge:#a33a31;--ch-rouge-pastel:#fbe3e0;--ch-onglets:#efe9da;font-family:Roboto,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--ch-fond);color:var(--ch-texte);display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;position:relative}
+.app *{box-sizing:border-box}
+.hd{background:var(--ch-vert);color:#fff;padding:12px 16px 10px;display:flex;flex-direction:column;gap:6px}
+.hd-top{display:flex;align-items:center;gap:8px}
+.icon-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.brand{flex:1;display:flex;align-items:center;justify-content:center;gap:8px}
+.brand img{width:30px;height:30px;border-radius:50%;background:#fff;display:block}
+.brand-name{font-family:Fredoka,sans-serif;font-size:19px;font-weight:700;letter-spacing:.5px}
+.pill-hd{display:flex;align-items:center;gap:6px;background:var(--ch-ambre-pastel);color:var(--ch-ambre-texte);border:none;border-radius:999px;padding:0 12px;height:36px;font:inherit;font-size:13px;font-weight:500}
+.pill-hd .dot{width:8px;height:8px;border-radius:50%;background:var(--ch-vert)}
+.farm-row{display:flex;justify-content:space-between;font-size:12px;opacity:.85;padding:0 2px}
+.hd h1{font-size:16px;font-weight:600;margin:2px 2px 0}
+.main{flex:1;overflow:visible;padding:16px;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.card-t{font-size:15px;font-weight:700;margin:0}
+.sec{font-size:12px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--ch-texte2);margin:4px 2px 0}
+.tabs{display:flex;gap:4px;background:var(--ch-onglets);padding:4px;border-radius:999px}
+.tab{flex:1;border:none;background:none;padding:9px 6px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;color:var(--ch-texte2)}
+.tab.on{background:var(--ch-carte);color:var(--ch-texte);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.big{display:flex;align-items:baseline;gap:8px}
+.big .n{font-size:40px;font-weight:700;line-height:1;color:var(--ch-vert-fonce);font-variant-numeric:tabular-nums}
+.big .u{font-size:16px;color:var(--ch-texte2)}
+.lg{display:flex;flex-direction:column;gap:6px}
+.lg-h{display:flex;justify-content:space-between;font-size:14px}
+.lg-h b{font-variant-numeric:tabular-nums}
+.bar{height:10px;border-radius:999px;background:var(--ch-onglets);overflow:hidden}
+.bar>div{height:100%;border-radius:999px}
+.cl{background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.cl-l1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cl-nm{font-size:15px;font-weight:700}
+.cl-q{font-size:16px;font-weight:700;color:var(--ch-vert-fonce);font-variant-numeric:tabular-nums}
+.cl-l2{font-size:13px;color:var(--ch-texte2)}
+.pas{align-self:flex-start;font-size:12px;font-weight:500;border-radius:999px;padding:3px 10px;white-space:nowrap;background:var(--ch-onglets);color:var(--ch-texte2)}
+.pas.vert{background:var(--ch-vert-pastel);color:var(--ch-vert-texte)}
+.nav{position:sticky;bottom:0;z-index:5;display:flex;justify-content:space-around;align-items:center;background:var(--ch-carte);border-top:1px solid var(--ch-bord);padding:6px 4px 10px}
+.nav a{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:var(--ch-icone);font-size:11px;font-weight:500;min-width:52px}
+.nav a .pi{width:52px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center}
+.nav a.on{color:var(--ch-vert-texte);font-weight:700}
+.nav a.on .pi{background:var(--ch-vert-pastel)}
+</style>
+</head>
+<body style="background:#efe9da">
+<div class="app" style="width:100%;max-width:430px;min-height:100vh;margin:0 auto">
+<header class="hd">
+<div class="hd-top">
+<button class="icon-btn" aria-label="Réglages"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg></button>
+<div class="brand"><img src="img/logo-mark.png" alt=""><span class="brand-name">LOGISOL</span></div>
+<button class="pill-hd"><span class="dot"></span>En ligne</button>
+</div>
+<div class="farm-row"><span>GAEC de la Ferme</span><span>Campagne 2025-2026</span></div>
+<h1>Troupeau · 240 brebis</h1>
+</header>
+<main class="main">
+<div class="tabs"><button class="tab">Ration actuelle</button><button class="tab on">Historique &amp; bilan</button></div>
+<div class="card">
+<div style="display: flex; justify-content: space-between; align-items: center"><span class="card-t">Consommé sur la campagne</span><span class="pas vert">240 brebis</span></div>
+<div class="big"><span class="n">42,8</span><span class="u">tonnes</span></div>
+<div class="lg">
+<div class="lg-h"><span>Luzerne séchée (Séchoir 1)</span><b>24,5 t</b></div>
+<div class="bar"><div style="width: 57%; background: #357f4b"></div></div>
+</div>
+<div class="lg">
+<div class="lg-h"><span>Foin RGA / trèfle (Séchoir 2)</span><b>12,1 t</b></div>
+<div class="bar"><div style="width: 28%; background: #1f5a8a"></div></div>
+</div>
+<div class="lg">
+<div class="lg-h"><span>Concentrés / céréales (Silo A)</span><b>6,2 t</b></div>
+<div class="bar"><div style="width: 15%; background: #b5701c"></div></div>
+</div>
+</div>
+<p class="sec">Périodes de consommation</p>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div class="cl">
+<span class="pas vert">En cours · depuis le 01/09</span>
+<div class="cl-l1"><span class="cl-nm">Fin de gestation — 240 brebis</span><span class="cl-q">11,04 t</span></div>
+<span class="cl-l2">2 kg/j · Luzerne 1ʳᵉ coupe · 23 jours</span>
+</div>
+<div class="cl">
+<span class="pas">01/06 au 31/08 · 92 jours</span>
+<div class="cl-l1"><span class="cl-nm">Milieu de gestation — 240 brebis</span><span class="cl-q">30,91 t</span></div>
+<span class="cl-l2">1,4 kg/j · Foin RGA + Luzerne 2ᵉ coupe</span>
+</div>
+<div class="cl">
+<span class="pas">01/01 au 31/05 · 151 jours</span>
+<div class="cl-l1"><span class="cl-nm">Agnelles renouvellement — 60 têtes</span><span class="cl-q">8,15 t</span></div>
+<span class="cl-l2">0,9 kg/j · Luzerne + concentrés</span>
+</div>
+</div>
+</main>
+<nav class="nav">
+<a href="maquette-charte-ferme.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path><path d="M10 20v-6h4v6"></path></svg></span>Ferme</a>
+<a href="maquette-charte-carte.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"></path><path d="M9 4v14M15 6v14"></path></svg></span>Carte</a>
+<a href="maquette-charte-parcelles.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V8"></path><path d="M12 8c-3 0-4-2-4-5 3 0 4 2 4 5zM12 8c3 0 4-2 4-5-3 0-4 2-4 5z"></path><path d="M12 14c-3 0-4-2-4-4 3 0 4 1.5 4 4zM12 14c3 0 4-2 4-4-3 0-4 1.5-4 4z"></path></svg></span>Parcelles</a>
+<a href="maquette-charte-stocks.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="13" width="8" height="8" rx="1.5"></rect><rect x="13" y="13" width="8" height="8" rx="1.5"></rect><rect x="8" y="3" width="8" height="8" rx="1.5"></rect></svg></span>Stocks</a>
+<a href="maquette-charte-troupeau.html" class="on"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="11" cy="13" rx="7" ry="5"></ellipse><circle cx="19" cy="10" r="2.5"></circle><path d="M7 18v3M14 18v3"></path></svg></span>Troupeau</a>
+<a href="maquette-charte-batiments.html"><span class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V9l9-5 9 5v12"></path><path d="M7 21v-8h10v8"></path><path d="M7 17h10"></path></svg></span>Bâtiments</a>
+</nav>
+</div>
+</body>
+</html>
