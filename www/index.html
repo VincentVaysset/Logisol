@@ -509,22 +509,22 @@
 
   <!-- Vue Bâtiments : bergeries, silos à grain, hangars à fourrage. -->
   <div id="batiments-view" class="scroll-view vue-claire" hidden>
-    <div class="stk-head">
+    <div class="stk-head ch-stk-head">
       <div>
         <h2 class="stk-titre">Bâtiments</h2>
-        <p id="batiments-sous-titre" class="stk-sous"></p>
+        <p id="batiments-sous-titre" class="stk-sous sec"></p>
       </div>
       <div class="lieu-tete-actions">
         <span id="bat-actions-lieux">
-          <button type="button" id="btn-new-mouvement" class="stk-btn-clair">🔁 Mouvement</button>
-          <button type="button" id="btn-new-batiment" class="stk-btn-sombre">➕ Bâtiment</button>
+          <button type="button" id="btn-new-mouvement" class="stk-btn-clair btn-mini">🔁 Mouvement</button>
+          <button type="button" id="btn-new-batiment" class="stk-btn-sombre btn-mini">＋ Bâtiment</button>
         </span>
         <span id="bat-actions-materiel" hidden>
-          <button type="button" id="btn-new-materiel" class="stk-btn-sombre">➕ Matériel</button>
+          <button type="button" id="btn-new-materiel" class="stk-btn-sombre btn-mini">＋ Matériel</button>
         </span>
       </div>
     </div>
-    <div class="trp-onglets" id="batiments-sous-vues">
+    <div class="trp-onglets tabs" id="batiments-sous-vues">
       <button type="button" data-batvue="lieux" class="is-active">Bâtiments</button>
       <button type="button" data-batvue="materiel">Matériel</button>
     </div>

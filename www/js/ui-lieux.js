@@ -67,10 +67,11 @@ function ligneCellule({ c, v, taux: t, depasse }, interactif) {
   const cap = Number(c.capaciteMaxTonnes) || 0;
   const vide = !v.lots.length;
   const valeur = cap ? `${fmt1(v.tonnes)} / ${fmt1(cap)} t` : `${fmt1(v.tonnes)} t`;
-  return `<div class="lieu-ligne"${interactif ? ` data-cellule="${esc(c.id)}"` : ''}>
-    <div class="lieu-ligne-tete"><span class="stk-detail-nom">${esc(c.nom || 'Cellule')}${vide ? ' · vide' : ''}</span>
-      <strong class="${vide ? 'lieu-zero' : ''}">${valeur}</strong></div>
-    ${vide ? '' : `<span class="stk-sous-ligne">${v.lots.map((l) => `${esc(libelleLot(l))} ${fmt1(l.tonnes)} t`).join(' · ')}</span>`}
+  const teinte = vide ? '' : contenuDe(c) === 'FOURRAGE' ? ' vert' : ' ambre';
+  return `<div class="lieu-ligne tuile${teinte}"${interactif ? ` data-cellule="${esc(c.id)}"` : ''}>
+    <div class="lieu-ligne-tete"><span class="stk-detail-nom l">${esc(c.nom || 'Cellule')}${vide ? ' · vide' : ''}</span>
+      <strong class="n${vide ? ' lieu-zero' : ''}">${valeur}</strong></div>
+    ${vide ? '' : `<span class="stk-sous-ligne s">${v.lots.map((l) => `${esc(libelleLot(l))} ${fmt1(l.tonnes)} t`).join(' · ')}</span>`}
     ${t != null && !vide ? `<div class="stk-jauge"><div class="${depasse ? 'lieu-jauge-depasse' : contenuDe(c) === 'FOURRAGE' ? '' : 'stk-jauge-cereales'}" style="width:${Math.max(0, Math.min(100, t))}%"></div></div>` : ''}
     ${depasse ? '<span class="lieu-pastille">Capacité dépassée : à vérifier</span>' : ''}
   </div>`;
@@ -79,7 +80,7 @@ function ligneCellule({ c, v, taux: t, depasse }, interactif) {
 function ligneEmplacement({ e, v }, interactif) {
   const bottes = Math.round(v.quantite);
   const vide = !v.lots.length;
-  return `<div class="lieu-ligne"${interactif ? ` data-emplacement="${esc(e.id)}"` : ''}>
+  return `<div class="lieu-ligne row"${interactif ? ` data-emplacement="${esc(e.id)}"` : ''}>
     <div class="lieu-ligne-tete"><span class="stk-detail-nom">${esc(e.nom || 'Emplacement')}${vide ? ' · vide' : ''}</span>
       <strong class="${vide ? 'lieu-zero' : ''}">${pluriel(bottes, 'botte')}${v.tonnes > 0.05 ? ` · ${fmt1(v.tonnes)} t` : ''}</strong></div>
     ${vide ? '' : `<span class="stk-sous-ligne">${v.lots.map((l) => `${pluriel(Math.round(l.quantite), 'botte')} ${esc(libelleLot(l))}`).join(' · ')}${v.poidsMoyenBotteKg ? ` · ~${Math.round(v.poidsMoyenBotteKg)} kg` : ''}</span>`}
@@ -87,7 +88,7 @@ function ligneEmplacement({ e, v }, interactif) {
 }
 
 function ligneLot(l, interactif) {
-  return `<div class="lieu-ligne"${interactif ? ` data-lot="${esc(l.id)}"` : ''}>
+  return `<div class="lieu-ligne row"${interactif ? ` data-lot="${esc(l.id)}"` : ''}>
     <div class="lieu-ligne-tete"><span class="stk-detail-nom">${esc(l.nom || 'Lot')}</span><strong>${Number(l.nbBrebis) || 0}</strong></div>
   </div>`;
 }
@@ -95,9 +96,11 @@ function ligneLot(l, interactif) {
 /** Lignes du contenu d'un bâtiment : aussi l'aperçu ouvert depuis la carte. */
 export function htmlContenuBatiment(b, { interactif = false, rep = contenuDesLieux() } = {}) {
   const { cels, emps, lots } = contenuBatiment(b, rep);
-  return cels.map((x) => ligneCellule(x, interactif)).join('') +
-    emps.map((x) => ligneEmplacement(x, interactif)).join('') +
-    lots.map((l) => ligneLot(l, interactif)).join('');
+  // Gabarit maquette-charte-batiments.html : cellules en .tuiles, puis
+  // emplacements et lots en lignes .row.
+  const tuiles = cels.length ? `<div class="tuiles c2">${cels.map((x) => ligneCellule(x, interactif)).join('')}</div>` : '';
+  const lignes = emps.map((x) => ligneEmplacement(x, interactif)).join('') + lots.map((l) => ligneLot(l, interactif)).join('');
+  return tuiles + (lignes ? `<div class="ch-rows">${lignes}</div>` : '');
 }
 
 function resume({ cels, emps, lots }) {
@@ -151,6 +154,16 @@ function historique(contenu) {
   }).join('')}</div>`;
 }
 
+// Rond .ic de la maquette : teinte et pictogramme par groupe de bâtiment.
+const IC_GROUPE = { fourrage: 'vert', grain: 'ambre', bergeries: '', mixtes: 'bleu' };
+const svg = (d) => `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const IC_SVG = {
+  fourrage: svg('<path d="M3 21V9l9-5 9 5v12"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/>'),
+  grain: svg('<path d="M6 21V8a6 6 0 0 1 12 0v13"/><path d="M6 13h12M10 21v-4h4v4"/>'),
+  bergeries: svg('<ellipse cx="11" cy="13" rx="7" ry="5"/><circle cx="19" cy="10" r="2.5"/><path d="M7 18v3M14 18v3"/>'),
+  mixtes: svg('<path d="M3 21V9l9-5 9 5v12"/><path d="M9 21v-6h6v6"/>')
+};
+
 function carte(b, groupe, rep) {
   const contenu = contenuBatiment(b, rep);
   const { cels, emps, lots } = contenu;
@@ -168,16 +181,16 @@ function carte(b, groupe, rep) {
     : '';
   const ouvert = ouverts.has(b.id);
   const histo = historiques.has(b.id);
-  return `<details class="stk-groupe" data-batiment="${esc(b.id)}"${ouvert ? ' open' : ''}>
+  return `<details class="stk-groupe card" data-batiment="${esc(b.id)}"${ouvert ? ' open' : ''}>
     <summary>
-      <div class="stk-groupe-tete"><span class="stk-groupe-nom">${esc(b.nom || 'Bâtiment')}</span>
-        <span><span class="stk-groupe-val">${stockage ? `${fmt1(tonnes)} t` : `${tetes} têtes`}</span> <span class="stk-chev">▼</span></span></div>
-      <p class="stk-groupe-sous">${esc(resume(contenu))}</p>
-      ${jauge}
+      <div class="stk-groupe-tete head"><span class="ic ${IC_GROUPE[groupe] || 'gris'}">${IC_SVG[groupe] || IC_SVG.bergeries}</span>
+        <div><span class="stk-groupe-nom card-t">${esc(b.nom || 'Bâtiment')}</span><span class="stk-groupe-sous card-s">${esc(resume(contenu))}</span></div>
+        <span class="ch-head-droite"><span class="stk-groupe-val pas ${IC_GROUPE[groupe] || ''}">${stockage ? `${fmt1(tonnes)} t` : `${tetes} têtes`}</span> <span class="stk-chev">▼</span></span></div>
+      ${jauge.replace('class="stk-jauge"', 'class="stk-jauge bar"')}
     </summary>
     ${htmlContenuBatiment(b, { interactif: true, rep })}
     <div class="stk-actions">
-      ${stockage ? '<button type="button" class="stk-lien" data-mouvement>🔁 Mouvement</button>' : '<span></span>'}
+      ${stockage ? '<button type="button" class="stk-lien btn-mini" data-mouvement>🔁 Mouvement</button>' : '<span></span>'}
       <span class="lieu-actions-droite">
         ${stockage ? `<button type="button" class="stk-lien-gris" data-historique>${histo ? 'Masquer l\'historique' : 'Historique'}</button>` : ''}
         <button type="button" class="stk-lien-gris" data-modifier-batiment>Modifier</button>
@@ -215,7 +228,7 @@ export function renderLieux() {
   });
   listeEl.innerHTML = GROUPES_BATIMENTS
     .filter((g) => parGroupe.get(g.id).length)
-    .map((g) => `<h3 class="stk-section">${g.nom}</h3><div class="stk-groupes lieu-groupe">${parGroupe.get(g.id).join('')}</div>`)
+    .map((g) => `<h3 class="stk-section sec">${g.nom}</h3><div class="stk-groupes lieu-groupe">${parGroupe.get(g.id).join('')}</div>`)
     .join('');
   cabler();
 }
