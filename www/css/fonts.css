@@ -1,0 +1,7 @@
+/* Polices de la charte, embarquées (www/fonts/, licence SIL OFL 1.1) :
+   aucune requête réseau, l'appli démarre hors ligne. Sous-ensemble latin
+   (accents français compris). */
+@font-face { font-family: 'Roboto'; font-style: normal; font-weight: 400; font-display: swap; src: url('../fonts/roboto-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Roboto'; font-style: normal; font-weight: 500; font-display: swap; src: url('../fonts/roboto-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Roboto'; font-style: normal; font-weight: 700; font-display: swap; src: url('../fonts/roboto-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Fredoka'; font-style: normal; font-weight: 700; font-display: swap; src: url('../fonts/fredoka-latin-700-normal.woff2') format('woff2'); }

@@ -17,6 +17,7 @@
      réseau — elles ne peuvent pas être embarquées, c'est la France entière. -->
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
 <link rel="stylesheet" href="vendor/leaflet-draw/leaflet.draw.css" />
+<link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -161,32 +162,35 @@
 
 <!-- Écran principal -->
 <section id="screen-app" class="screen-app" hidden>
-  <header>
-    <!-- Header épuré : logo + nom + mention hors-ligne à gauche, indicateurs
-         et accès aux réglages à droite. L'email et la déconnexion ne
-         disparaissent pas — ils vivent dans le panneau Paramètres
-         (#parametres-panel), ouvert via la roue crantée, pour ne pas
-         encombrer une barre déjà dense sur petit écran. -->
-    <div class="header-brand">
-      <img class="header-logo" src="img/logo-mark.png" alt="" aria-hidden="true">
-      <div class="header-titre">
-        <span class="header-nom">Logisol</span>
-        <span class="header-sous-titre">Gestion Parcellaire &amp; Élevage</span>
+  <header class="ch-entete">
+    <!-- En-tête charte Ovilog : 3 lignes sur bandeau vert. Ids inchangés
+         (btn-parametres, btn-rapports, sync-status, campagne-stock-select). -->
+    <div class="ch-entete-l1">
+      <div class="ch-entete-gauche">
+      <button id="btn-parametres" type="button" class="header-icon-btn ch-rond" aria-label="Paramètres et compte">
+        <svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+      <button id="btn-rapports" type="button" class="header-icon-btn ch-rond" aria-label="Rapports et synthèses PDF">
+          <svg class="ch-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
+        </button>
+      </div>
+      <div class="header-brand">
+        <!-- Emblème déposé dans www/assets/ ; tant qu'il manque, le rond
+             pastel reste seul (l'image cassée est retirée). -->
+        <span class="ch-logo"><img class="header-logo" src="assets/logisol_emblem.png" alt="" aria-hidden="true" onerror="this.remove()"></span>
+        <span class="header-nom">LOGISOL</span>
+      </div>
+      <div class="header-compte">
+        <span id="sync-status" class="sync-status" title="État de la synchronisation">🟠 Hors-ligne</span>
       </div>
     </div>
-    <div class="header-compte">
-      <!-- Voyant de synchro (sync-status.js) : 🟢 dès qu'un aller-retour
-           Firestore a touché le serveur (pas seulement le cache local),
-           🟠 sinon (pas de réseau, ou pas encore de confirmation serveur —
-           ex. juste après l'ouverture sur un nouvel appareil, le temps que
-           le premier téléchargement complet arrive). -->
+    <div class="ch-entete-l2">
+      <span class="ch-exploitation">Exploitation ovine Bio</span>
       <!-- Campagne Stocks / Troupeau (01/09 → 31/08, cf. campagne-stock.js) :
            visible seulement sur ces deux onglets. -->
       <select id="campagne-stock-select" class="campagne-select" aria-label="Campagne Stocks et Troupeau" hidden></select>
-      <span id="sync-status" class="sync-status" title="État de la synchronisation">🟠 Hors-ligne</span>
-      <button id="btn-rapports" type="button" class="header-icon-btn" aria-label="Rapports et synthèses PDF">📄</button>
-      <button id="btn-parametres" type="button" class="header-icon-btn" aria-label="Paramètres et compte">⚙️</button>
     </div>
+    <div class="ch-entete-l3" id="ch-titre-ecran" aria-live="polite"></div>
   </header>
 
   <!-- Panneau Paramètres : compte (email, déconnexion) et identité de version
@@ -1820,5 +1824,6 @@
 <script type="module" src="js/firebase-config.js"></script>
 <script type="module" src="js/auth.js"></script>
 <script type="module" src="js/main.js"></script>
+<script type="module" src="js/titre-ecran.js"></script>
 </body>
 </html>
