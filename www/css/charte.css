@@ -100,3 +100,47 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 /* Carte réduite de l'écran Ferme : la carte « Parcellaire du domaine » de la
    maquette (bloc de 150 px, bord --ch-bord, rayon 18). */
 #map.map-reduite{flex:0 0 150px;height:150px;min-height:0;margin:16px 16px 0;border:1px solid var(--ch-bord);border-radius:18px;overflow:hidden}
+
+/* ==========================================================================
+   ÉCRAN CARTE — maquette-charte-carte.html (.chip, .map-btn, .sheet)
+   ========================================================================== */
+#carte-secteur-filtre.chips{padding:12px 12px 0;gap:8px;overflow-x:auto;background:var(--ch-fond)}
+.map-btn,.btn-fab.map-btn{flex:0 0 44px;width:44px;height:44px;min-height:44px;padding:0;border-radius:14px;background:var(--ch-carte);border:1px solid var(--ch-bord);color:var(--ch-texte2);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.12);font-size:18px}
+.fab-row .btn-fab:not(.map-btn){flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;min-height:44px;padding:0 14px;border-radius:18px;font-size:14px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.fab-row #btn-draw{background:var(--ch-vert);color:var(--ch-carte);border:none}
+.fab-row .btn-fab-secondary{background:var(--ch-carte);color:var(--ch-texte);border:1px solid var(--ch-bord)}
+/* Contrôles Leaflet (zoom, calques) au gabarit .map-btn */
+.leaflet-bar{border:1px solid var(--ch-bord) !important;border-radius:14px !important;box-shadow:0 1px 3px rgba(0,0,0,.12) !important;overflow:hidden}
+.leaflet-bar a,.leaflet-bar a:hover{width:44px !important;height:44px !important;line-height:44px !important;background:var(--ch-carte) !important;color:var(--ch-texte2) !important;border-bottom-color:var(--ch-separateur) !important;backdrop-filter:none}
+.leaflet-control-layers{border:1px solid var(--ch-bord) !important;border-radius:14px !important;box-shadow:0 1px 3px rgba(0,0,0,.12) !important;background:var(--ch-carte) !important}
+.leaflet-control-layers-toggle{filter:none;width:44px;height:44px}
+.leaflet-control-layers-expanded{background:var(--ch-carte) !important;color:var(--ch-texte) !important;border:1px solid var(--ch-bord) !important}
+.leaflet-control-layers-separator{border-color:var(--ch-separateur) !important}
+.leaflet-control-attribution{background:var(--ch-carte);color:var(--ch-texte2)}
+.leaflet-control-attribution a{color:var(--ch-vert)}
+/* Étiquette de parcelle : pilule blanche de la maquette */
+.parcelle-label{background:var(--ch-carte);color:var(--ch-vert-texte);border-radius:999px;padding:4px 10px;box-shadow:0 2px 8px rgba(0,0,0,.25);text-shadow:none;font-size:12px;font-weight:700}
+.parcelle-label-sub{color:var(--ch-texte2);opacity:1}
+.parcelle-label-derobee{color:var(--ch-bleu)}
+/* Légende et badge GPS : cartes blanches */
+.map-legend{background:var(--ch-carte);color:var(--ch-texte);border:1px solid var(--ch-bord);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.12);backdrop-filter:none}
+.legend-toggle{background:var(--ch-onglets);border:none;border-radius:999px;color:var(--ch-texte2);min-height:32px}
+.gps-badge{background:var(--ch-carte);color:var(--ch-texte2);border:1px solid var(--ch-bord);box-shadow:0 1px 3px rgba(0,0,0,.12);backdrop-filter:none;font-weight:500}
+.gps-badge-rtk{background:var(--ch-vert-pastel);color:var(--ch-vert-texte);border-color:var(--ch-vert-pastel)}
+.gps-badge-standard{color:var(--ch-vert-texte)}
+.gps-badge-inconnu{color:var(--ch-icone)}
+/* Aperçu de parcelle : la .sheet de la maquette (carte visible au-dessus) */
+.ch-sheet-carte{background:none}
+.sheet{background:var(--ch-carte);border-radius:18px 18px 0 0;padding:10px 16px 16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 -12px 30px rgba(0,0,0,.18);position:relative;z-index:2}
+.sheet::before{width:40px;height:4px;border-radius:999px;background:var(--ch-bord-champ);margin:0 auto}
+#apercu-panel .sheet h2{font-size:17px;font-weight:700;margin:0;padding-right:40px}
+#apercu-panel .apercu-infos{margin:0}
+#apercu-panel .apercu-infos > div{padding:6px 0;border-bottom:1px dashed var(--ch-bord)}
+#apercu-panel .apercu-infos dt{font-size:13px;color:var(--ch-texte2)}
+#apercu-panel .apercu-infos dd{font-size:14px;font-weight:700;color:var(--ch-vert-texte)}
+#apercu-panel .apercu-activite{min-height:44px;padding:8px 0;border:none;border-top:1px dashed var(--ch-bord);border-radius:0;background:none}
+#apercu-panel .fiche-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0}
+#apercu-panel .fiche-actions .btn{width:100%;min-height:44px;padding:0 14px;font-size:14px}
+#apercu-fermer{position:absolute;top:14px;right:16px;width:30px;height:30px;min-height:0 !important;padding:0;border-radius:50%;border:none;background:var(--ch-onglets);color:var(--ch-texte2);font-size:0}
+#apercu-fermer::before{content:'✕';font-size:15px}
+#apercu-fermer::after{content:'';position:absolute;inset:-7px}   /* cible 44 px */

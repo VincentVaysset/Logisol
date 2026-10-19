@@ -246,7 +246,7 @@ function peuplerFiltreSecteurs(secteurs) {
   const html = ['', ...secteurs]
     .map((s) => {
       const actif = s === secteurFiltre;
-      return `<button type="button" class="filtre-chip ${actif ? 'is-active' : ''}" data-secteur="${escapeAttr(s)}">${escapeHtml(s || 'Toutes')}</button>`;
+      return `<button type="button" class="filtre-chip chip ${actif ? 'is-active' : ''}" data-secteur="${escapeAttr(s)}">${escapeHtml(s || 'Toutes')}</button>`;
     })
     .join('');
   [carteSecteurFiltreEl, listeSecteurFiltreEl].forEach((el) => {

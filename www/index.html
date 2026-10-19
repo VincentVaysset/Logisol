@@ -427,7 +427,7 @@
   <!-- Filtre par secteur : mêmes boutons réutilisés au-dessus de la carte et
        de la liste (voir main.js/peuplerFiltreSecteurs). N'apparaît que s'il
        existe au moins un secteur renseigné sur une parcelle. -->
-  <div id="carte-secteur-filtre" class="filtre-chips" hidden></div>
+  <div id="carte-secteur-filtre" class="filtre-chips chips" hidden></div>
 
   <div id="map"></div>
 
@@ -618,10 +618,10 @@
        tant qu'aucune position n'a encore été demandée cette session. -->
   <div id="gps-badge" class="gps-badge" hidden></div>
   <div class="fab-row" id="fab-carte">
-    <button id="btn-locate" type="button" class="btn btn-fab btn-fab-icon" title="Centrer sur ma position">📍</button>
-    <button id="btn-fit" type="button" class="btn btn-fab btn-fab-icon" title="Voir toutes mes parcelles">🎯</button>
+    <button id="btn-locate" type="button" class="btn btn-fab btn-fab-icon map-btn" title="Centrer sur ma position">📍</button>
+    <button id="btn-fit" type="button" class="btn btn-fab btn-fab-icon map-btn" title="Voir toutes mes parcelles">🎯</button>
     <button id="btn-draw" type="button" class="btn btn-fab">✏️ Dessiner</button>
-    <button id="btn-releve" type="button" class="btn btn-fab btn-fab-icon" title="Relever un contour au GPS/RTK">📐</button>
+    <button id="btn-releve" type="button" class="btn btn-fab btn-fab-icon map-btn" title="Relever un contour au GPS/RTK">📐</button>
     <button id="btn-import" type="button" class="btn btn-fab btn-fab-secondary">📂 Importer</button>
   </div>
   <input type="file" id="input-geojson" accept=".json,.geojson,application/geo+json,application/json" hidden>
@@ -1101,8 +1101,8 @@
        d'abord SAVOIR (quelle culture, depuis quand) et AGIR (noter, saisir
        une intervention) ; modifier le contour ou le nom est plus rare et
        reste à un bouton. -->
-  <div id="apercu-panel" class="fiche-overlay" hidden>
-    <div class="fiche-panel">
+  <div id="apercu-panel" class="fiche-overlay ch-sheet-carte" hidden>
+    <div class="fiche-panel sheet">
       <h2 id="apercu-nom">Parcelle</h2>
       <dl class="apercu-infos">
         <div><dt>Surface</dt><dd id="apercu-surface">—</dd></div>
