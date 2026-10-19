@@ -57,7 +57,7 @@
 .btn-secondary{background:var(--ch-carte);border:1px solid var(--ch-bord);color:var(--ch-texte)}
 .btn-mini:not(.btn-primary):not(.btn-danger){height:40px;min-height:40px;border-radius:999px;border:1px solid var(--ch-vert);background:var(--ch-carte);color:var(--ch-vert);padding:0 14px;font:inherit;font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}
 .tabs:not(#tabs){display:flex;gap:4px;background:var(--ch-onglets);padding:4px;border-radius:999px}
-.tabs:not(#tabs) .tab,.tabs:not(#tabs) button{flex:1;border:none;background:none;padding:9px 6px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;color:var(--ch-texte2);min-height:0 !important}
+.tabs:not(#tabs) .tab,.tabs:not(#tabs) button{flex:1;line-height:1.2;border:none;background:none;padding:9px 6px;border-radius:999px;font:inherit;font-size:13px;font-weight:600;color:var(--ch-texte2);min-height:0 !important}
 .tabs:not(#tabs) .on,.tabs:not(#tabs) .is-active{background:var(--ch-carte);color:var(--ch-texte);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .chips{display:flex;gap:8px;overflow:hidden}
 .chip{flex:none;min-height:36px;padding:0 14px;border:1px solid var(--ch-bord-champ);border-radius:999px;background:var(--ch-carte);font:inherit;font-size:13px;font-weight:500;color:var(--ch-texte);display:flex;align-items:center;gap:6px}
@@ -151,7 +151,7 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
    ========================================================================== */
 #list-view{background:var(--ch-fond)}
 #parcelles-sous-vues.tabs{margin:16px 16px 0}
-#parcelles-sous-vues .choix-btn{flex:1;min-height:0;border:none;background:none;padding:9px 6px;border-radius:999px;font-size:13px;font-weight:600;color:var(--ch-texte2)}
+#parcelles-sous-vues .choix-btn{flex:1;min-height:0 !important;line-height:1.2;border:none;background:none;padding:9px 6px;border-radius:999px;font-size:13px;font-weight:600;color:var(--ch-texte2)}
 #parcelles-sous-vues .choix-btn.is-active{background:var(--ch-carte);color:var(--ch-texte);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 #liste-secteur-filtre.chips{padding:12px 16px 0;overflow-x:auto}
 #parcelles-liste{padding:16px;display:flex;flex-direction:column;gap:12px}
@@ -203,3 +203,29 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 .stk-mvt .s{font-size:12px;color:var(--ch-texte2)}
 .stk-mvt .q{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
 .sep{border-top:1px solid var(--ch-separateur)}
+
+/* ==========================================================================
+   ÉCRAN TROUPEAU — maquette-charte-troupeau.html (.tabs, .card, .big, .lg,
+   .bar, .cl en colonne, .pas, .cl-q)
+   ========================================================================== */
+#troupeau-view{background:var(--ch-fond);padding:16px 16px calc(24px + var(--bottomnav-h))}
+#troupeau-view > *{margin-bottom:12px}
+#troupeau-sous-vues.tabs{margin:0 0 12px}
+.trp-lots{gap:12px}
+.card.trp-lot,.card.trp-bilan-carte,.card.trp-conso{display:flex;flex-direction:column;gap:12px;padding:16px;box-shadow:none;border:1px solid var(--ch-bord);border-radius:18px;overflow:visible}
+.trp-lot .trp-lot-tete{padding:0}
+.trp-lot .cl-nm{font-size:15px;font-weight:700;color:var(--ch-texte)}
+.trp-lot .stk-groupe-sous{margin:4px 0 0;font-size:13px;color:var(--ch-texte2)}
+.trp-lot .row,.trp-bilan-carte .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed var(--ch-bord);font-size:13.5px;min-height:0;background:none}
+.trp-lot .row strong{font-variant-numeric:tabular-nums}
+.trp-lot .stk-actions,.trp-lot .trp-lot-cycle{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--ch-separateur);padding-top:10px;margin:0}
+.big{display:flex;align-items:baseline;gap:8px}
+.big .n{font-size:40px;font-weight:700;line-height:1;color:var(--ch-vert-fonce);font-variant-numeric:tabular-nums}
+.big .u{font-size:16px;color:var(--ch-texte2)}
+.lg{display:flex;flex-direction:column;gap:6px}
+.lg-h{display:flex;justify-content:space-between;font-size:14px}
+.lg-h b{font-variant-numeric:tabular-nums}
+.trp-totaux.tuiles{background:none;border:none;padding:0}
+.trp-total.tuile .n{display:block}
+.trp-bilan-carte .stk-jauge.bar,.trp-lot .stk-jauge.bar{height:10px}
+.cl-q{font-size:16px;font-weight:700;color:var(--ch-vert-fonce);font-variant-numeric:tabular-nums}

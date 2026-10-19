@@ -298,15 +298,25 @@ function renderBilan() {
     bilanEl.innerHTML = '<p class="list-empty">Aucune ration distribuée sur cette campagne.</p>';
     return;
   }
-  const barre = (id, pct) => `<div class="stk-jauge"><div class="stk-jauge-${id}" style="width:${pct}%"></div></div>`;
+  const barre = (id, pct) => `<div class="stk-jauge bar"><div class="stk-jauge-${id}" style="width:${pct}%"></div></div>`;
   // Béliers : une colonne de plus seulement s'il y en a (lot de béliers ou
   // ration distribuée) — sinon le bilan reste celui brebis / agnelles.
   const types = [['brebis', 'Brebis', 'pctBrebis'], ['agnelles', 'Agnelles', 'pctAgnelles']];
   if (b.totaux.beliers > 0 || getLots().some((l) => typeAnimauxDe(l) === 'BELIERS')) types.push(['beliers', 'Béliers', 'pctBeliers']);
-  bilanEl.innerHTML = `<div class="trp-totaux${types.length > 2 ? ' trp-totaux-3' : ''}">
-      ${types.map(([k, nom]) => `<div class="trp-total"><span>${nom}</span><strong>${formatTonnes(b.totaux[k])} t</strong></div>`).join('')}
+  // Carte « Consommé sur la campagne » de maquette-charte-troupeau.html :
+  // gros chiffre .big, puis une ligne .lg + .bar par groupe d'aliments.
+  const totalConso = types.reduce((n, [k]) => n + (b.totaux[k] || 0), 0);
+  const TEINTE = { luzerne: 'var(--ch-vert)', enrubannage: 'var(--ch-vert)', prairie: 'var(--ch-bleu)', cereales: 'var(--ch-ambre)', concentres: 'var(--ch-ambre)', paille: 'var(--ch-icone)' };
+  const pctDe = (t) => (totalConso > 0 ? Math.round((t / totalConso) * 100) : 0);
+  bilanEl.innerHTML = `<div class="card trp-conso">
+      <div class="cl-l1"><span class="card-t">Consommé sur la campagne</span></div>
+      <div class="big"><span class="n">${formatTonnes(totalConso)}</span><span class="u">tonnes</span></div>
+      ${b.groupes.map((g) => `<div class="lg"><div class="lg-h"><span>${escapeHtml(g.nom)}</span><b>${formatTonnes(g.total)} t</b></div><div class="bar"><div style="width:${pctDe(g.total)}%;background:${TEINTE[g.id] || 'var(--ch-vert)'}"></div></div></div>`).join('')}
     </div>
-    ${b.groupes.map((g) => `<div class="stk-carte trp-bilan-carte">
+    <div class="trp-totaux tuiles${types.length > 2 ? ' trp-totaux-3' : ' c2'}">
+      ${types.map(([k, nom], i) => `<div class="trp-total tuile${i === 0 ? ' vert' : ''}"><span class="l">${nom}</span><strong class="n">${formatTonnes(b.totaux[k])} t</strong></div>`).join('')}
+    </div>
+    ${b.groupes.map((g) => `<div class="stk-carte trp-bilan-carte card">
       <div class="stk-groupe-tete"><span class="stk-groupe-nom">${escapeHtml(g.nom)}</span><span class="stk-groupe-val">${formatTonnes(g.total)} t</span></div>
       ${types.map(([k, nom, pct]) => `<div class="trp-bilan-ligne"><div class="trp-bilan-tete"><span>${nom}</span><strong>${formatTonnes(g[k])} t</strong></div>${barre(g.id, g[pct])}</div>`).join('')}
       <div class="trp-bilan-aliments">${g.aliments.map((a) => `<div class="trp-bilan-aliment">

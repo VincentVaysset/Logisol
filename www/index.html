@@ -445,8 +445,8 @@
 
   <div id="list-view" class="list-view" hidden>
     <div class="choix-row sous-vues tabs" id="parcelles-sous-vues">
-      <button type="button" class="choix-btn is-active" data-sousvue="liste">📋 Liste</button>
-      <button type="button" class="choix-btn" data-sousvue="previsionnel">📅 Assolement prévisionnel</button>
+      <button type="button" class="choix-btn is-active" data-sousvue="liste">Liste</button>
+      <button type="button" class="choix-btn" data-sousvue="previsionnel">Assolement prévisionnel</button>
     </div>
     <div id="liste-secteur-filtre" class="filtre-chips chips" hidden></div>
     <div id="parcelles-liste"></div>
@@ -542,16 +542,16 @@
        (inchangé, hors périmètre de la refonte). Campagne : sélecteur de
        l'en-tête (01/09 -> 31/08), partagé avec Stocks. -->
   <div id="troupeau-view" class="scroll-view vue-claire" hidden>
-    <div class="stk-head">
+    <div class="stk-head ch-stk-head">
       <div>
         <h2 class="stk-titre">Troupeau</h2>
-        <p id="troupeau-sous-titre" class="stk-sous"></p>
+        <p id="troupeau-sous-titre" class="stk-sous sec"></p>
       </div>
-      <button type="button" id="btn-new-lot" class="stk-btn-sombre">➕ Lot</button>
+      <button type="button" id="btn-new-lot" class="stk-btn-sombre btn-mini">＋ Lot</button>
     </div>
     <div id="troupeau-reouverte" class="stk-bandeau" hidden></div>
 
-    <div class="trp-onglets" id="troupeau-sous-vues">
+    <div class="trp-onglets tabs" id="troupeau-sous-vues">
       <button type="button" data-sousvue="actuel" class="is-active">Distribué</button>
       <button type="button" data-sousvue="historique">Bilan campagne</button>
       <button type="button" data-sousvue="previsionnel">Prévisionnel</button>

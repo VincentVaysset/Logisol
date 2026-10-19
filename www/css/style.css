@@ -747,7 +747,7 @@ label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom
    barre basse des maquettes Ferme/Parcelles/Stocks/Bâtiments — icône +
    libellé, gris pour l'onglet inactif, vert pour l'actif, sans fond ni
    pastille derrière le bouton. */
-.tabs {
+#tabs.tabs {   /* barre du bas seulement : .tabs sert aussi aux onglets segmentés (charte.css) */
   position: fixed;
   left: 0;
   right: 0;

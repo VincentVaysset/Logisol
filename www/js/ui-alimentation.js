@@ -319,14 +319,14 @@ function renderLots() {
     const stade = lot.stadeId ? getStadeById(lot.stadeId) : null;
     const sous = [effectifLisible(lot.nbBrebis, type), stade && stade.nom ? stade.nom.toLowerCase() : null,
       aff ? `depuis le ${jjmm(aff.dateDebut)}` : 'aucune ration distribuée'].filter(Boolean).join(' · ');
-    const badge = !aff ? '<span class="trp-badge trp-badge-sans">Sans ration</span>'
-      : composants.length ? '<span class="trp-badge">En cours</span>' : '<span class="trp-badge">Pâturage</span>';
-    const lignes = composants.map((c) => `<div class="stk-detail-ligne"><span class="stk-detail-nom">${escapeHtml(c.stockLabel)}</span><strong>${kg(c.kgParAnimalJour)} kg/j</strong></div>`).join('');
+    const badge = !aff ? '<span class="trp-badge trp-badge-sans pas">Sans ration</span>'
+      : composants.length ? '<span class="trp-badge pas vert">En cours</span>' : '<span class="trp-badge pas bleu">Pâturage</span>';
+    const lignes = composants.map((c) => `<div class="stk-detail-ligne row"><span class="stk-detail-nom">${escapeHtml(c.stockLabel)}</span><strong>${kg(c.kgParAnimalJour)} kg/j</strong></div>`).join('');
     // Par animal, fourrages et concentrés séparés (vigilance acidose) : kg
     // bruts, informatif, aucun seuil ni couleur.
     const pa = rationParAnimal(composants);
     const total = composants.length
-      ? `<div class="stk-detail-ligne trp-total-lot"><span>Par ${PAR_ANIMAL[type] || 'brebis'}</span><strong>${kg(pa.total)} kg/j</strong></div>
+      ? `<div class="stk-detail-ligne row trp-total-lot"><span>Par ${PAR_ANIMAL[type] || 'brebis'}</span><strong>${kg(pa.total)} kg/j</strong></div>
          <div class="trp-par-animal">Fourrages ${kg(pa.fourrages)} kg · Concentrés ${kg(pa.concentres)} kg${pa.pctConcentres != null ? ` · ${pa.pctConcentres} % de concentrés` : ''}</div>`
       : '';
     const r = stockRestantLot(composants, stock, besoin);
@@ -339,14 +339,14 @@ function renderLots() {
     // Aliment épuisé : la consommation est plafonnée au stock (plafond-conso.js)
     // et rien ne bascule tout seul — l'alerte reste jusqu'au report.
     const alertes = epuisementsDuLot(lot).map((e) => alerteEpuisement(lot, e, stock)).join('');
-    return `<div class="stk-carte trp-lot" data-id="${escapeAttr(lot.id)}">
+    return `<div class="stk-carte trp-lot card" data-id="${escapeAttr(lot.id)}">
       <div class="trp-lot-tete">
-        <div class="stk-groupe-tete"><span class="stk-groupe-nom">${escapeHtml(lot.nom || 'Lot')}</span>${badge}</div>
+        <div class="stk-groupe-tete cl-l1"><span class="stk-groupe-nom cl-nm">${escapeHtml(lot.nom || 'Lot')}</span>${badge}</div>
         <p class="stk-groupe-sous">${escapeHtml(sous)}</p>
       </div>
       ${alertes}${lignes}${total}${restant}
       <div class="stk-actions">
-        <button type="button" class="stk-lien" data-changer="${escapeAttr(lot.id)}">🔄 Changer la ration</button>
+        <button type="button" class="stk-lien btn-mini" data-changer="${escapeAttr(lot.id)}">🔄 Changer la ration</button>
         <button type="button" class="stk-lien-gris" data-historique="${escapeAttr(lot.id)}">Historique ${ouvert ? '▴' : '▾'}</button>
       </div>
       <div class="stk-actions trp-lot-cycle">
