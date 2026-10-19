@@ -2184,3 +2184,143 @@ header .campagne-select { min-height: 44px; }
 .itv-trace { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 12px; }
 .itv-trace .btn-mini { align-self: flex-start; }
 .itv-trace[hidden] { display: none; }
+
+/* ==========================================================================
+   CHARTE OVILOG — COMPOSANTS (étape 4). Bloc en fin de fichier : il prime
+   sur les styles d'écran plus haut sans toucher à leur structure. Aucune
+   classe ni id lus par le JS ne sont renommés.
+   ========================================================================== */
+
+/* Page */
+body { background: var(--ch-fond); color: var(--ch-texte); }
+.scroll-view { padding: 16px 16px calc(var(--bottomnav-h) + 24px); }
+
+/* Cartes : fond blanc, filet --ch-bord, rayon 18, aucune ombre */
+.stk-carte, .stk-groupe, .bat-card, .cat-card, .periode-card, .ration-stade-card,
+.rapport-card, .trp-bilan-carte, .lieu-groupe, .mat-categorie, .inv-bloc, .login-card,
+.feed-item, .parcelle-card, .meteo-box, .graissage-box, .trp-lot {
+  background: var(--ch-carte);
+  border: 1px solid var(--ch-bord);
+  border-radius: var(--ch-rayon);
+  box-shadow: none;
+}
+.periode-card, .ration-stade-card, .rapport-card, .inv-bloc, .login-card, .meteo-box, .graissage-box { padding: 16px; }
+
+/* Cartes de liste : 56 px mini, 12/14, nom 16 gras vert foncé, infos 13 */
+.parcelle-card, .feed-item, .bat-card, .lieu-ligne, .mat-ligne, .stock-ligne,
+.contenant-ligne, .apercu-activite, .mvt-ligne, .stk-mvt {
+  min-height: 56px;
+  gap: 10px;
+}
+.parcelle-card, .feed-item, .stock-ligne, .apercu-activite { padding: 12px 14px; }
+.parcelle-card-nom, .bat-card-nom, .mat-nom, .stock-ligne-nom, .lot-card-nom,
+.contenant-nom, .apercu-activite-nom, .stk-groupe-nom, .feed-type {
+  font-size: 16px; font-weight: 700; color: var(--ch-vert-fonce);
+}
+.parcelle-card-sub, .bat-card-sub, .mat-sub, .stock-ligne-sub, .lot-card-sub,
+.contenant-detail, .apercu-activite-date, .stk-groupe-sous, .stk-sous, .feed-parcelles, .feed-details {
+  font-size: 13px; color: var(--ch-texte2);
+}
+.stk-chev { color: var(--ch-icone); }
+
+/* Stocks : couleur par groupe (liseré gauche + jauge) — Fourrages vert
+   (luzerne vert, prairies RGA/trèfle bleu), Céréales et concentrés ambre,
+   Paille gris. */
+.stk-groupe { border-left-width: 5px; }
+.stk-groupe[data-groupe="luzerne"], .stk-groupe[data-groupe="enrubannage"] { border-left-color: var(--ch-vert); }
+.stk-groupe[data-groupe="prairie"] { border-left-color: var(--ch-bleu); }
+.stk-groupe[data-groupe="cereales"], .stk-groupe[data-groupe="concentres"] { border-left-color: var(--ch-ambre); }
+.stk-groupe[data-groupe="paille"] { border-left-color: var(--ch-icone); }
+.stk-jauge { background: var(--ch-onglets); }
+.stk-jauge-prairie { background: var(--ch-bleu) !important; }
+.stk-jauge-enrubannage { background: var(--ch-vert) !important; }
+.stk-jauge-concentres { background: var(--ch-ambre) !important; }
+
+/* Tuiles de chiffres : fond pastel, liseré gauche 5 px, rayon 14 */
+.tuile, .rapport-kpi, .trp-total {
+  background: var(--ch-vert-pastel);
+  border: none; border-left: 5px solid var(--ch-vert-fonce);
+  border-radius: 14px; padding: 10px 12px; box-shadow: none;
+}
+.tuile-nom, .rapport-kpi-label { font-size: 13px; color: var(--ch-texte2); text-transform: none; letter-spacing: 0; }
+.tuile-val, .rapport-kpi-valeur { font-size: 24px; font-weight: 700; color: var(--ch-vert-fonce); }
+.tuile-besoin, .tuile-tire { background: var(--ch-bleu-pastel); border-left-color: var(--ch-bleu); }
+.tuile-besoin .tuile-val, .tuile-tire .tuile-val { color: var(--ch-bleu); }
+.tuile-cereale { background: var(--ch-ambre-pastel); border-left-color: var(--ch-ambre-texte); }
+.tuile-cereale .tuile-val { color: var(--ch-ambre-texte); }
+.tuile-paille, .tuile-consomme { background: var(--ch-onglets); border-left-color: var(--ch-icone); }
+.tuile-paille .tuile-val, .tuile-consomme .tuile-val { color: var(--ch-icone); }
+
+/* Pastilles : 12 px, 500, pilule, fond pastel + texte foncé de la même teinte */
+.fiche-badge, .trp-badge, .periode-badge, .bilan-badge, .badge-afaire, .badge-bientot,
+.reel-statut, .lieu-pastille, .mat-cuma {
+  font-size: 12px; font-weight: 500; border-radius: 999px; padding: 3px 10px;
+  background: var(--ch-vert-pastel); color: var(--ch-vert-texte); border: none;
+}
+.badge-bientot, .lieu-pastille, .periode-badge-encours { background: var(--ch-ambre-pastel); color: var(--ch-ambre-texte); }
+.mat-cuma, .trp-badge-sans { background: var(--ch-onglets); color: var(--ch-texte2); }
+
+/* Onglets segmentés */
+.trp-onglets { background: var(--ch-onglets); border-radius: 999px; padding: 4px; }
+.trp-onglets button { border-radius: 999px; min-height: 40px !important; font-size: 13px; color: var(--ch-texte2); }
+.trp-onglets button.is-active { background: var(--ch-carte); color: var(--ch-vert-texte); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
+/* Puces de filtre */
+.filtre-chip {
+  min-height: 44px; border-radius: 999px; padding: 6px 14px;
+  background: var(--ch-carte); border: 1px solid var(--ch-bord-champ); color: var(--ch-texte);
+}
+.filtre-chip.is-active {
+  background: var(--ch-vert-pastel); border: 2px solid var(--ch-vert); color: var(--ch-vert-texte); font-weight: 700;
+}
+
+/* Boutons */
+.btn { min-height: 44px; border-radius: var(--ch-rayon); font-size: 15px; font-weight: 600; }
+.btn-primary { background: var(--ch-vert); color: var(--ch-carte); border: none; }
+.btn-secondary { background: var(--ch-carte); color: var(--ch-texte); border: 1px solid var(--ch-bord); }
+/* Action secondaire : pilule de 40 px (44 de cible), contour et texte verts */
+.btn-mini.btn-secondary, .stk-btn-clair, .ration-ajouter, .apercu-trace-btn, .lien-section {
+  min-height: 44px; border-radius: 999px; padding: 8px 16px;
+  background: var(--ch-carte); color: var(--ch-vert); border: 1px solid var(--ch-vert); font-weight: 600;
+}
+.apercu-trace-btn.is-active { background: var(--ch-vert-pastel); color: var(--ch-vert-texte); }
+/* Rouge : vraies alertes et Supprimer seulement — en contour, jamais en fond */
+.btn-danger, .stk-suppr, .mat-suppr, .rc-suppr {
+  background: var(--ch-carte); color: var(--ch-rouge); border: 1px solid var(--ch-rouge);
+}
+.btn-icone-suppr { color: var(--ch-rouge); }
+.draw-btn-cancel { background: var(--ch-blanc-voile); }
+.toast-erreur { background: var(--ch-rouge-pastel); color: var(--ch-rouge); }
+.fiche-error-banner, .login-error { background: var(--ch-rouge-pastel); color: var(--ch-rouge); border-color: var(--ch-rouge); }
+
+/* Bouton flottant « + » (nouvelle activité, vue Ferme) */
+#btn-new-intervention.btn-feed-add {
+  position: fixed; right: 16px; bottom: calc(var(--bottomnav-h) + 16px + env(safe-area-inset-bottom, 0px));
+  width: 56px; height: 56px; min-height: 56px; padding: 0; border-radius: 50%;
+  font-size: 0; z-index: 1200;
+  background: var(--ch-vert); color: var(--ch-carte);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+#btn-new-intervention.btn-feed-add::after { content: '+'; font-size: 32px; font-weight: 400; line-height: 56px; }
+#feed[hidden] #btn-new-intervention { display: none; }
+
+/* Champs */
+input, select, textarea {
+  font-size: 16px; padding: 12px;
+  border: 1px solid var(--ch-bord-champ); border-radius: var(--ch-rayon);
+  background: var(--ch-carte); color: var(--ch-texte);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--ch-vert); box-shadow: 0 0 0 3px var(--ch-vert-pastel);
+}
+input[type="checkbox"], input[type="radio"] { accent-color: var(--ch-vert); box-shadow: none; }
+
+/* Bottom sheet */
+.fiche-overlay { background: var(--ch-voile); }
+.fiche-panel { background: var(--ch-carte); border-radius: 18px 18px 0 0; }
+.fiche-panel::before { width: 40px; height: 4px; border-radius: 2px; background: var(--ch-bord-champ); }
+
+/* Titres de section */
+.section-titre, .section-sous-titre, .apercu-sous-titre, .groupe-titre, .stk-section {
+  font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ch-texte2);
+}

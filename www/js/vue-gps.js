@@ -110,6 +110,9 @@ export function ouvrirVueGps() {
   if (!controle) {
     controle = creerControle(map);
     map.on('dragstart', surDeplacementManuel);
+    // La carte change de taille (barre du tracé sur 2 lignes, en-tête...) :
+    // le tracteur reste à sa place à l'écran.
+    map.on('resize', () => { if (actif && suivi) centrerSur(dernierFix, false); });
   }
   controle.getContainer().hidden = false;
   actif = true;
