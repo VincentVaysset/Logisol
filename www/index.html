@@ -489,20 +489,20 @@
   <!-- Vue Stocks : synthèse d'exploitation construite à partir des récoltes
        saisies parcelle par parcelle. -->
   <div id="stocks-view" class="scroll-view vue-claire" hidden>
-    <div class="stk-head">
+    <div class="stk-head ch-stk-head">
       <div>
         <h2 class="stk-titre">Stocks</h2>
-        <p id="stocks-sous-titre" class="stk-sous"></p>
+        <p id="stocks-sous-titre" class="stk-sous sec"></p>
       </div>
-      <button type="button" id="btn-inventaire" class="stk-btn-sombre">📋 Inventaire</button>
+      <button type="button" id="btn-inventaire" class="stk-btn-sombre btn-mini">Inventaire</button>
     </div>
     <div id="stocks-reouverte" class="stk-bandeau" hidden></div>
     <div id="stocks-cloture" class="stk-carte stk-cloture" hidden></div>
     <!-- En-tête : 3 lignes Fourrages / Céréales / Paille, reste en t. Même
          calcul que partout (fourrages.js/stockDisponibleCanonique), à la date
          de référence de la campagne choisie dans l'en-tête. -->
-    <div id="stocks-totaux" class="stk-carte stk-totaux"></div>
-    <h3 class="stk-section">Détail par type</h3>
+    <div id="stocks-totaux" class="tuiles stk-totaux"></div>
+    <h3 class="stk-section sec">Détail par type</h3>
     <div id="stocks-groupes" class="stk-groupes"></div>
     <p class="stk-note">Reste = récoltes + achats − ventes et pertes − rations distribuées ± ajustements. Le même chiffre que « Stock restant » dans Troupeau.</p>
   </div>

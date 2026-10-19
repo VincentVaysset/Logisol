@@ -376,11 +376,14 @@ export function renderVue() {
 
   renderCloture(d.campagne);
 
+  // Tuiles de la maquette (maquette-charte-stocks.html) : disponible, puis
+  // les deux fourrages principaux. Céréales et paille ont leur carte plus bas.
+  const resteDe = (id) => { const g = d.groupes.find((x) => x.id === id); return g ? g.reste : 0; };
   totauxEl.innerHTML = [
-    ['🌿', 'Fourrages', d.totaux.fourrages],
-    ['🌾', 'Céréales', d.totaux.cereales],
-    ['🧺', 'Paille', d.totaux.paille]
-  ].map(([ico, nom, t]) => `<div class="stk-ligne-total"><span><span class="stk-ico">${ico}</span>${nom}</span><strong>${formatTonnes(t)} t</strong></div>`).join('');
+    ['vert', 'Disponible', d.totaux.total],
+    ['vert', 'Luzerne', resteDe('luzerne')],
+    ['bleu', 'RGA / trèfle', resteDe('prairie')]
+  ].map(([cl, nom, t]) => `<div class="tuile ${cl}"><span class="l">${nom}</span><span class="n">${formatTonnes(t)} t</span></div>`).join('');
 
   groupesEl.innerHTML = d.groupes.length
     ? d.groupes.map((g) => carteGroupe(g, d)).join('')
@@ -432,6 +435,10 @@ function bottesDe(ligne) {
   return { poids, nb: Math.round((ligne.reste * 1000) / poids) };
 }
 
+// Teinte charte par groupe : fourrages vert (prairies RGA/trèfle bleu),
+// céréales et concentrés ambre, paille neutre.
+const TEINTE_GROUPE = { luzerne: 'vert', enrubannage: 'vert', prairie: 'bleu', cereales: 'ambre', concentres: 'ambre' };
+
 function carteGroupe(g, d) {
   const ouvert = groupesOuverts.has(g.id);
   const lignes = g.lignes.map((l) => {
@@ -439,7 +446,7 @@ function carteGroupe(g, d) {
     const bot = bottes ? `<span class="stk-sous-ligne">≈ ${bottes.nb} bottes · <input type="number" class="stk-poids" data-cle="${escapeAttr(l.cle)}" value="${bottes.poids}" min="0" step="1" inputmode="numeric"> kg/botte</span>` : '';
     // Aliment acheté : renommable partout d'un coup (renommer-aliment.js).
     const ren = l.cle && estAchete(l.cle) ? ` <button type="button" class="stk-renommer" data-renommer="${escapeAttr(l.cle)}" data-nom="${escapeAttr(l.libelle)}" aria-label="Renommer">✏️</button>` : '';
-    return `<div class="stk-detail-ligne"><span class="stk-detail-nom">${escapeHtml(l.libelle)}${ren}${bot}</span><strong>${formatTonnes(l.reste)} t</strong></div>`;
+    return `<div class="stk-detail-ligne cup${l.reste > 0.0005 ? '' : ' vide'}"><span class="stk-detail-nom k">${escapeHtml(l.libelle)}${ren}</span><strong class="v">${formatTonnes(l.reste)} t</strong>${bot ? `<span class="s">${bot}</span>` : ''}</div>`;
   }).join('');
   const mangee = g.id !== 'paille' && g.mangeePar.length
     ? `<button type="button" class="stk-lien-ligne" data-vers="troupeau"><span>Mangée par ${escapeHtml(g.mangeePar.join(', '))}</span><span class="stk-lien">Troupeau →</span></button>`
@@ -451,18 +458,19 @@ function carteGroupe(g, d) {
       <button type="button" data-action="AJUSTEMENT">⚖️ Ajustement</button>
     </div>` : '';
   const mouvements = mouvementsOuverts.has(g.id) ? listeMouvements(g, d) : '';
-  const jauge = g.jauge == null ? '' : `<div class="stk-jauge"><div class="stk-jauge-${g.id}" style="width:${g.jauge}%"></div></div>`;
-  return `<details class="stk-groupe" data-groupe="${g.id}"${ouvert ? ' open' : ''}>
+  const jauge = g.jauge == null ? '' : `<div class="stk-jauge bar"><div class="stk-jauge-${g.id}" style="width:${g.jauge}%"></div></div>`;
+  const teinte = TEINTE_GROUPE[g.id] || '';
+  return `<details class="stk-groupe card" data-groupe="${g.id}"${ouvert ? ' open' : ''}>
     <summary>
-      <div class="stk-groupe-tete"><span class="stk-groupe-nom">${escapeHtml(g.nom)}${g.precision ? ` <small>(${escapeHtml(g.precision)})</small>` : ''}</span>
-        <span class="stk-groupe-val">${formatTonnes(g.reste)} t <span class="stk-chev">▾</span></span></div>
+      <div class="stk-groupe-tete cup-h"><span class="stk-groupe-nom cup-nm"><span class="sw ${teinte || 'gris'}"></span>${escapeHtml(g.nom)}${g.precision ? ` <small>(${escapeHtml(g.precision)})</small>` : ''}</span>
+        <span class="stk-groupe-val"><span class="pas ${teinte}">${formatTonnes(g.reste)} t</span> <span class="stk-chev">▾</span></span></div>
       <p class="stk-groupe-sous">${escapeHtml(sousTitreGroupe(g))}</p>
       ${jauge}
     </summary>
-    ${lignes}
+    <div class="cups">${lignes}</div>
     ${mangee}
     <div class="stk-actions">
-      <button type="button" class="stk-lien" data-menu="${g.id}">＋ Achat / ajustement</button>
+      <button type="button" class="stk-lien btn-mini" data-menu="${g.id}">＋ Achat / ajustement</button>
       <button type="button" class="stk-lien-gris" data-mouvements="${g.id}">Mouvements ${mouvementsOuverts.has(g.id) ? '▴' : '▾'}</button>
     </div>
     ${menu}
@@ -498,13 +506,13 @@ function listeMouvements(g, d) {
         ? `<button type="button" class="stk-suppr" data-supprimer="${escapeAttr(m.id)}">Supprimer</button>`
         : `<button type="button" class="stk-lien-gris" data-modifier="${escapeAttr(m.id)}">Modifier</button>`;
     const quoi = m.typeMouvement === 'AJUSTEMENT' ? (m.categorieLabel || '') : [m.sourceNom, m.destinationNom].filter(Boolean).join(' → ');
-    return `<div class="stk-mvt"><div><span class="stk-mvt-nom">${t.icone} ${escapeHtml(t.label)} · ${escapeHtml(dateLisible(m.date))}</span>
-      <span class="stk-sous-ligne">${escapeHtml(quoi || m.libelle || '')}</span></div>
-      <div class="stk-mvt-droite"><strong>${q}</strong>${action}</div></div>`;
+    return `<div class="stk-mvt row"><div class="ch-col"><span class="stk-mvt-nom t">${t.icone} ${escapeHtml(t.label)} · ${escapeHtml(dateLisible(m.date))}</span>
+      <span class="stk-sous-ligne s">${escapeHtml(quoi || m.libelle || '')}</span></div>
+      <div class="stk-mvt-droite"><strong class="q">${q}</strong>${action}</div></div>`;
   }).join('');
-  const lignesAnciennes = anciennes.map((s) => `<div class="stk-mvt"><div><span class="stk-mvt-nom">🌾 Récolte saisie à la main · ${escapeHtml(dateLisible(s.date))}</span>
-      <span class="stk-sous-ligne">${escapeHtml(s.parcelleNom || 'sans parcelle')} · ancienne saisie, hors stock</span></div>
-      <div class="stk-mvt-droite"><strong>${formatTonnes(s.tonnes)} t</strong><button type="button" class="stk-lien-gris" data-ancienne="${escapeAttr(s.id)}">Modifier</button></div></div>`).join('');
+  const lignesAnciennes = anciennes.map((s) => `<div class="stk-mvt row"><div class="ch-col"><span class="stk-mvt-nom t">🌾 Récolte saisie à la main · ${escapeHtml(dateLisible(s.date))}</span>
+      <span class="stk-sous-ligne s">${escapeHtml(s.parcelleNom || 'sans parcelle')} · ancienne saisie, hors stock</span></div>
+      <div class="stk-mvt-droite"><strong class="q">${formatTonnes(s.tonnes)} t</strong><button type="button" class="stk-lien-gris" data-ancienne="${escapeAttr(s.id)}">Modifier</button></div></div>`).join('');
   return `<div class="stk-mvts">${lignesMvt}${lignesAnciennes}</div>`;
 }
 

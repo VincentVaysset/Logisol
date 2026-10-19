@@ -165,3 +165,41 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 .rot .v{font-size:14px;font-weight:700}
 .acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border-top:1px solid var(--ch-separateur);padding-top:8px}
 .field{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;border:1px solid var(--ch-bord-champ);border-radius:18px;background:var(--ch-carte);color:var(--ch-icone);font-size:15px}
+
+/* ==========================================================================
+   ÉCRAN STOCKS — maquette-charte-stocks.html (.tuiles, .card, .cup-h, .cups,
+   .cup, .row, .bar, .btn-mini)
+   ========================================================================== */
+#stocks-view{background:var(--ch-fond);padding:16px 16px calc(24px + var(--bottomnav-h))}
+#stocks-view > *{margin-bottom:12px}
+.ch-stk-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ch-stk-head .stk-titre{display:none}    /* titre déjà dans l'en-tête (h1) */
+.ch-stk-head .sec{margin:4px 2px 0}
+#stocks-totaux.tuiles{background:none;border:none;box-shadow:none;padding:0}
+.stk-groupes{display:flex;flex-direction:column;gap:12px}
+.stk-groupe.card{padding:16px;border-left-width:1px;overflow:visible;display:flex;flex-direction:column;gap:12px}
+.stk-groupe.card > summary{padding:0;display:flex;flex-direction:column;gap:8px}
+.cup-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cup-nm{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--ch-texte)}
+.cup-nm .sw{width:10px;height:10px;border-radius:3px;flex:none;background:var(--ch-icone)}
+.sw.vert{background:var(--ch-vert)}.sw.bleu{background:var(--ch-bleu)}.sw.ambre{background:var(--ch-ambre)}
+.stk-groupe-val{display:flex;align-items:center;gap:6px;font-size:inherit}
+.stk-groupe .stk-groupe-sous{margin:0;font-size:12px;color:var(--ch-texte2)}
+.cups{display:grid;gap:6px;grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
+.cups:empty{display:none}
+.cup,.stk-detail-ligne.cup{border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--ch-onglets);border:none;min-height:0}
+.cup .k{font-size:11px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ch-texte2)}
+.cup .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ch-texte)}
+.cup .s{font-size:12px;color:var(--ch-texte2)}
+.cup.vide{background:var(--ch-carte);border:1px dashed var(--ch-bord-champ)}
+.cup.vide .v{color:var(--ch-icone)}
+.stk-groupe .stk-lien-ligne{border-top:1px solid var(--ch-separateur);padding:10px 0 0;background:none}
+.stk-groupe .stk-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--ch-separateur);padding:10px 0 0}
+.stk-groupe .stk-mvts{display:flex;flex-direction:column}
+.stk-mvt.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px dashed var(--ch-bord);background:none;border-radius:0;min-height:0}
+.stk-mvt.row:first-child{border-top:none}
+.ch-col{display:flex;flex-direction:column;gap:2px;min-width:0}
+.stk-mvt .t{font-size:14px;font-weight:600}
+.stk-mvt .s{font-size:12px;color:var(--ch-texte2)}
+.stk-mvt .q{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.sep{border-top:1px solid var(--ch-separateur)}
