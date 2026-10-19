@@ -16,6 +16,17 @@ import { messagePermission } from './diagnostic-regles.js';
 import { getVueLegende, toggleVueLegende, onVueLegendeChange } from './vue-legende.js';
 
 const tableEl = document.getElementById('prev-tableau');
+// Assolement affiché depuis sa première colonne à chaque ouverture de la vue
+// (le défilement horizontal de la fois précédente le montrait décalé, noms
+// coupés à gauche). Jamais pendant une saisie : seulement quand le tableau
+// redevient visible.
+if (tableEl && tableEl.parentElement && typeof IntersectionObserver !== 'undefined') {
+  let visible = false;
+  new IntersectionObserver((entrees) => entrees.forEach((e) => {
+    if (e.isIntersecting && !visible) tableEl.parentElement.scrollLeft = 0;
+    visible = e.isIntersecting;
+  })).observe(tableEl.parentElement);
+}
 const syntheseEl = document.getElementById('prev-synthese');
 const anneesEl = document.getElementById('prev-annees');
 const etatEl = document.getElementById('prev-etat');

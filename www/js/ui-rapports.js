@@ -20,6 +20,7 @@ const syntheseEl = document.getElementById('rap-synthese');
 const fertiKpisEl = document.getElementById('rap-ferti-kpis');
 const fertiFiltreEl = document.getElementById('rap-ferti-filtre');
 const fertiTableauEl = document.getElementById('rap-ferti-tableau');
+const fertiTableau2El = document.getElementById('rap-ferti-tableau-2');
 const exportStatutEl = document.getElementById('rapports-export-statut');
 const btnTelechargerEl = document.getElementById('rapports-telecharger-pdf');
 
@@ -47,6 +48,9 @@ export function initRapports() {
     panelOuvert = true;
     panelEl.hidden = false;
     render();
+    // Tableaux larges : affichés depuis leur début à l'ouverture (libellés
+    // visibles), jamais au défilement laissé la fois précédente.
+    panelEl.querySelectorAll('.table-scroll').forEach((c) => { c.scrollLeft = 0; });
   });
   document.getElementById('rapports-fermer').addEventListener('click', () => {
     panelOuvert = false;
@@ -57,7 +61,7 @@ export function initRapports() {
   document.getElementById('rap-campagne-plus').addEventListener('click', () => { campagneR++; render(); });
 
   fertiFiltreEl.innerHTML = [
-    { v: 'tous', l: 'Tout' }, { v: 'fumier', l: '💩 Fumier' }, { v: 'chaux', l: '🪨 Chaux' }
+    { v: 'tous', l: 'Tout' }, { v: 'fumier', l: 'Fumier' }, { v: 'chaux', l: 'Chaux' }
   ].map((f) => `<button type="button" class="filtre-chip" data-filtre="${f.v}">${f.l}</button>`).join('');
   fertiFiltreEl.querySelectorAll('[data-filtre]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -134,20 +138,20 @@ function renderSemis() {
     : '';
 
   semisKpisEl.innerHTML = `
-    <div class="rapport-kpi">
+    <div class="rapport-kpi rapport-kpi-ambre">
       <div class="rapport-kpi-valeur">${formatHa(cal.automne.ha)} ha</div>
-      <div class="rapport-kpi-label">🍂 Semis d'automne</div>
+      <div class="rapport-kpi-label">Semis d'automne</div>
       <div class="rapport-kpi-detail">${detailTxt(cal.automne.details)}</div>
       ${sousTotauxTxt}
     </div>
     <div class="rapport-kpi">
       <div class="rapport-kpi-valeur">${formatHa(cal.printemps.ha)} ha</div>
-      <div class="rapport-kpi-label">🌱 Semis de printemps</div>
+      <div class="rapport-kpi-label">Semis de printemps</div>
       <div class="rapport-kpi-detail">${detailTxt(cal.printemps.details)}</div>
     </div>
-    <div class="rapport-kpi">
+    <div class="rapport-kpi rapport-kpi-bleu">
       <div class="rapport-kpi-valeur">${formatHa(cal.derobees.ha)} ha</div>
-      <div class="rapport-kpi-label">🟣 Dérobées / couverts en place (réel)</div>
+      <div class="rapport-kpi-label">Dérobées / couverts en place (réel)</div>
       <div class="rapport-kpi-detail">${cal.derobees.parcelles.length
         ? cal.derobees.parcelles.map((p) => `${esc(p.nom)} : ${esc(p.derobee)}`).join(' · ')
         : 'Aucune actuellement.'}</div>
@@ -180,78 +184,82 @@ function renderSemis() {
 }
 
 // --- Plan de fertilisation ----------------------------------------------------
-const COLONNES_FERTI = [
-  { champ: 'nom', label: 'Parcelle' },
-  { champ: 'surfaceHa', label: 'Surface (ha)' },
-  { champ: 'fumierTHa', label: 'Fumier (t/ha)' },
-  { champ: 'fumierT', label: 'Fumier (t)' },
-  { champ: 'chauxTHa', label: 'Chaux (t/ha)' },
-  { champ: 'chauxT', label: 'Chaux (t)' }
+// Un tableau par produit, 4 colonnes (Parcelle | ha | dose/ha | total) :
+// lisible sur téléphone. « Tout » affiche Fumier puis Chaux l'un sous
+// l'autre plutôt qu'une 5e/6e colonne. Total : surface et tonnage, jamais de
+// dose moyenne.
+const PRODUITS_FERTI = [
+  { id: 'fumier', label: 'Fumier', dose: 'fumierTHa', total: 'fumierT' },
+  { id: 'chaux', label: 'Chaux', dose: 'chauxTHa', total: 'chauxT' }
 ];
 
 function renderFertilisation() {
   const plan = planFertilisation(parcelles, String(campagneR), getPrevisions());
 
   fertiKpisEl.innerHTML = `
-    <div class="rapport-kpi">
+    <div class="rapport-kpi rapport-kpi-ambre">
       <div class="rapport-kpi-valeur">${formatHa(plan.totalFumierT)} t</div>
-      <div class="rapport-kpi-label">💩 Fumier à épandre</div>
+      <div class="rapport-kpi-label">Fumier à épandre</div>
     </div>
-    <div class="rapport-kpi">
+    <div class="rapport-kpi rapport-kpi-neutre">
       <div class="rapport-kpi-valeur">${formatHa(plan.totalChauxT)} t</div>
-      <div class="rapport-kpi-label">🪨 Chaux à épandre</div>
+      <div class="rapport-kpi-label">Chaux à épandre</div>
     </div>`;
 
   fertiFiltreEl.querySelectorAll('[data-filtre]').forEach((btn) => {
     btn.classList.toggle('is-active', btn.dataset.filtre === filtreFerti);
   });
 
-  let lignes = plan.lignes.filter((l) => {
-    if (filtreFerti === 'fumier') return l.fumierTHa > 0;
-    if (filtreFerti === 'chaux') return l.chauxTHa > 0;
-    return true;
-  });
-  lignes = lignes.slice().sort((a, b) => {
-    const va = a[triFerti.champ], vb = b[triFerti.champ];
-    const cmp = typeof va === 'string' ? va.localeCompare(vb, 'fr', { numeric: true }) : va - vb;
-    return cmp * triFerti.dir;
-  });
+  const produits = PRODUITS_FERTI.filter((pr) => filtreFerti === 'tous' || filtreFerti === pr.id);
+  const tables = [fertiTableauEl, fertiTableau2El];
+  tables.forEach((t, i) => { t.hidden = i >= produits.length; if (t.hidden) t.innerHTML = ''; });
 
-  if (!lignes.length) {
-    fertiTableauEl.innerHTML = `<tbody><tr><td class="list-empty">Aucune dose de fumier ou de chaux renseignée pour ${campagneR}.</td></tr></tbody>`;
-    return;
-  }
-
-  const totSurf = lignes.reduce((n, l) => n + l.surfaceHa, 0);
-  const totFumierT = lignes.reduce((n, l) => n + l.fumierT, 0);
-  const totChauxT = lignes.reduce((n, l) => n + l.chauxT, 0);
-
-  fertiTableauEl.innerHTML = `
-    <thead><tr>${COLONNES_FERTI.map((c) => {
-      const actif = c.champ === triFerti.champ;
-      const fleche = actif ? (triFerti.dir === 1 ? ' ▲' : ' ▼') : '';
-      return `<th class="th-tri${actif ? ' is-active' : ''}" data-champ="${c.champ}">${c.label}${fleche}</th>`;
-    }).join('')}</tr></thead>
-    <tbody>${lignes.map((l) => `<tr>
-      <th>${esc(l.nom)}</th>
-      <td>${formatHa(l.surfaceHa)}</td>
-      <td>${l.fumierTHa ? formatHa(l.fumierTHa) : '—'}</td>
-      <td>${l.fumierTHa ? formatHa(l.fumierT) : '—'}</td>
-      <td>${l.chauxTHa ? formatHa(l.chauxTHa) : '—'}</td>
-      <td>${l.chauxTHa ? formatHa(l.chauxT) : '—'}</td>
-    </tr>`).join('')}</tbody>
-    <tfoot><tr>
-      <th>Total (${lignes.length} parcelle${lignes.length > 1 ? 's' : ''})</th>
-      <td>${formatHa(totSurf)}</td><td></td>
-      <td>${formatHa(totFumierT)}</td><td></td>
-      <td>${formatHa(totChauxT)}</td>
-    </tr></tfoot>`;
-
-  fertiTableauEl.querySelectorAll('.th-tri').forEach((th) => {
-    th.addEventListener('click', () => {
-      const champ = th.dataset.champ;
-      triFerti = champ === triFerti.champ ? { champ, dir: -triFerti.dir } : { champ, dir: 1 };
-      renderFertilisation();
+  produits.forEach((pr, i) => {
+    const table = tables[i];
+    const colonnes = [
+      { champ: 'nom', label: 'Parcelle' },
+      { champ: 'surfaceHa', label: 'ha' },
+      { champ: pr.dose, label: `${pr.label} t/ha` },
+      { champ: pr.total, label: `${pr.label} t` }
+    ];
+    let lignes = plan.lignes.filter((l) => l[pr.dose] > 0);
+    const champTri = colonnes.some((c) => c.champ === triFerti.champ) ? triFerti.champ
+      : (triFerti.champ.endsWith('THa') ? pr.dose : triFerti.champ.endsWith('T') ? pr.total : 'nom');
+    lignes = lignes.slice().sort((a, b) => {
+      const va = a[champTri], vb = b[champTri];
+      const cmp = typeof va === 'string' ? va.localeCompare(vb, 'fr', { numeric: true }) : va - vb;
+      return cmp * triFerti.dir;
+    });
+    const titre = `<caption>${pr.label}</caption>`;
+    if (!lignes.length) {
+      table.innerHTML = `${titre}<tbody><tr><td class="list-empty">Aucune dose de ${pr.label.toLowerCase()} renseignée pour ${campagneR}.</td></tr></tbody>`;
+      return;
+    }
+    const totSurf = lignes.reduce((n, l) => n + l.surfaceHa, 0);
+    const totT = lignes.reduce((n, l) => n + l[pr.total], 0);
+    table.innerHTML = `${titre}
+      <thead><tr>${colonnes.map((c) => {
+        const actif = c.champ === champTri;
+        const fleche = actif ? (triFerti.dir === 1 ? ' ▲' : ' ▼') : '';
+        return `<th class="th-tri${actif ? ' is-active' : ''}" data-champ="${c.champ}">${c.label}${fleche}</th>`;
+      }).join('')}</tr></thead>
+      <tbody>${lignes.map((l) => `<tr>
+        <th>${esc(l.nom)}</th>
+        <td>${formatHa(l.surfaceHa)}</td>
+        <td>${formatHa(l[pr.dose])}</td>
+        <td>${formatHa(l[pr.total])}</td>
+      </tr>`).join('')}</tbody>
+      <tfoot><tr>
+        <th>Total (${lignes.length} parcelle${lignes.length > 1 ? 's' : ''})</th>
+        <td>${formatHa(totSurf)}</td><td></td>
+        <td>${formatHa(totT)}</td>
+      </tr></tfoot>`;
+    table.querySelectorAll('.th-tri').forEach((th) => {
+      th.addEventListener('click', () => {
+        const champ = th.dataset.champ;
+        triFerti = champ === champTri ? { champ, dir: -triFerti.dir } : { champ, dir: 1 };
+        renderFertilisation();
+      });
     });
   });
 }

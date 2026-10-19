@@ -10,6 +10,7 @@
   --ch-ambre:#b5701c; --ch-ambre-pastel:#fbeed7; --ch-ambre-texte:#8a5413;
   --ch-rouge:#a33a31; --ch-rouge-pastel:#fbe3e0;
   --ch-onglets:#efe9da; --ch-rayon:18px;
+  --ch-ligne-alt:#f6f1e4;   /* ligne Total des tableaux */
   /* Transparences dérivées de la charte (texte --ch-texte et blanc) :
      voiles de bottom sheet et pastilles posées sur la carte. */
   --ch-voile: rgba(43,38,28,0.5);
@@ -2363,3 +2364,53 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--ch-vert); box-
   background: var(--ch-ambre-pastel); color: var(--ch-ambre-texte);
   border-radius: 999px; padding: 2px 8px;
 }
+
+/* ==========================================================================
+   CHARTE OVILOG — RAPPORTS & SYNTHÈSES, PLAN DE FERTILISATION (commit 6).
+   Visuel seulement : calculs, PDF et structure des tableaux inchangés.
+   ========================================================================== */
+.rapport-kpi { flex: 1 1 140px; }
+.rapport-kpi-detail { font-size: 12px; color: var(--ch-texte2); }
+.rapport-kpi-ambre { background: var(--ch-ambre-pastel); border-left-color: var(--ch-ambre-texte); }
+.rapport-kpi-ambre .rapport-kpi-valeur { color: var(--ch-ambre-texte); }
+.rapport-kpi-bleu { background: var(--ch-bleu-pastel); border-left-color: var(--ch-bleu); }
+.rapport-kpi-bleu .rapport-kpi-valeur { color: var(--ch-bleu); }
+.rapport-kpi-neutre { background: var(--ch-onglets); border-left-color: var(--ch-icone); }
+.rapport-kpi-neutre .rapport-kpi-valeur { color: var(--ch-icone); }
+
+/* Tableaux : en-tête --ch-onglets 12 px, chiffres à droite en tabular-nums,
+   ligne Total --ch-ligne-alt en gras, 1re colonne figée sur fond blanc. */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 12px; border: 1px solid var(--ch-bord); border-radius: 14px; }
+.table-scroll .tableau { border-radius: 0; }
+.tableau { font-variant-numeric: tabular-nums; background: var(--ch-carte); }
+.tableau caption { caption-side: top; text-align: left; padding: 10px 10px 6px; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.6px; color: var(--ch-texte2); background: var(--ch-carte); }
+.tableau th, .tableau td { border-bottom: 1px solid var(--ch-separateur); }
+.tableau td { text-align: right; }
+.tableau thead th { background: var(--ch-onglets); font-size: 12px; font-weight: 500; color: var(--ch-texte2); }
+.tableau tfoot td, .tableau tfoot th, .tableau .total { background: var(--ch-ligne-alt); font-weight: 700; color: var(--ch-texte); }
+/* (.tableau-prev a déjà sa propre colonne figée : le nom, 2e colonne.) */
+.tableau:not(.tableau-prev) tbody th:first-child, .tableau:not(.tableau-prev) tfoot th:first-child, .tableau:not(.tableau-prev) thead th:first-child {
+  position: sticky; left: 0; z-index: 1; background: var(--ch-carte); text-align: left;
+}
+.tableau:not(.tableau-prev) thead th:first-child { background: var(--ch-onglets); z-index: 2; }
+.tableau:not(.tableau-prev) tfoot th:first-child { background: var(--ch-ligne-alt); }
+.tableau-prev thead .col-nom-parcelle { background: var(--ch-onglets); }
+.tableau-prev tfoot .col-nom-parcelle { background: var(--ch-ligne-alt); }
+.tableau-synthese .famille th { background: var(--ch-onglets); color: var(--ch-texte2); font-weight: 500; }
+/* Lignes de contrôle (✅ / ⚠️) : le texte passe à la ligne au lieu
+   d'élargir le tableau (c'était lui qui décalait l'assolement). */
+.tableau .rapport-validation-ok th, .tableau .rapport-validation-ko th { white-space: normal; position: static; font-weight: 500; }
+.tableau .rapport-validation-ok th { background: var(--ch-vert-pastel); color: var(--ch-vert-texte); }
+.tableau .rapport-validation-ko th { background: var(--ch-ambre-pastel); color: var(--ch-ambre-texte); }
+.tableau-ferti th:first-child { white-space: normal; min-width: 120px; }
+.tableau[hidden] { display: none; }
+
+/* Puces Tout / Fumier / Chaux : pilule 36 px (cible 44 avec la marge tactile) */
+#rap-ferti-filtre .filtre-chip { min-height: 36px; }
+/* PDF : bouton principal ; flèches de campagne : secondaires 44 px */
+.ch-btn-principal { min-height: 44px; padding: 10px 18px; font-size: 15px; font-weight: 600; border-radius: var(--ch-rayon); background: var(--ch-vert); color: var(--ch-carte); border: none; }
+.btn-secondary.ch-btn-fleche {
+  width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0;
+  border-radius: var(--ch-rayon); background: var(--ch-carte); color: var(--ch-texte); border: 1px solid var(--ch-bord);
+}
+.tableau-synthese { min-width: 0; }
