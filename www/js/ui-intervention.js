@@ -82,7 +82,7 @@ const el = {};
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
   'g-surface','surface','surface-tout','surface-tracer','surface-aide',
   'trace-commun','trace-lancer','trace-resume','trace-voir',
-  'g-fourrage','coupe','fourrage','fourrages','fourrage-aide',
+  'g-fourrage','coupe','fourrage','fourrages','fourrage-aide','surface-recolte','surface-recolte-aide',
   'produit-recolte',
   'g-pressage','nb-bottes','poids-botte',
   'g-sechage','nb-remorques','t-remorque',
@@ -383,6 +383,7 @@ function renderCibles() {
   el.parcelles.querySelectorAll('input[type=checkbox]').forEach((cb) => {
     cb.addEventListener('change', () => {
       if (cb.checked) selection.add(cb.dataset.id); else selection.delete(cb.dataset.id);
+      if (!el['g-fourrage'].hidden) majSurfaceRecolte();
       cb.closest('.parcelle-pick').classList.toggle('is-picked', cb.checked);
       majCompteur();
       if (groupeCourant()) appliquerGroupe();
@@ -494,7 +495,7 @@ function appliquerGroupe() {
   const paille = f === 'PRESSAGE' && produitRecolte === 'PAILLE';
   const fourrage = (f === 'PRESSAGE' || f === 'SECHAGE') && !paille;
   el['g-fourrage'].hidden = !fourrage;
-  if (fourrage) injecterFourrageDeLaParcelle();
+  if (fourrage) { injecterFourrageDeLaParcelle(); majSurfaceRecolte(); }
   if (f === 'SEMIS') injecterCultureSemisDeLaParcelle();
   if (!g) { el['groupe-total'].hidden = true; return; }
   el[g.bloc].hidden = false;
@@ -604,6 +605,7 @@ function lancerTrace(apres, { reprise = null } = {}) {
         };
         if (resultat.dureeHeures != null && !el['champ-duree'].hidden) el.duree.value = resultat.dureeHeures;
         majResumeTrace();
+        if (!el['g-fourrage'].hidden) majSurfaceRecolte();
       }
       if (apres) apres(resultat);
     }
@@ -762,16 +764,19 @@ function lireSaisie() {
   // Coupe et type de fourrage accompagnent les deux récoltes de fourrage :
   // ce sont eux qui suivent le fourrage jusqu'à la ration. La paille n'en a
   // pas besoin (litière, pas un fourrage de ration, cf. exigerQuantiteRecolte).
+  // Surface récoltée (fourrages seulement) et son drapeau « estimée ».
+  const surface = () => ({ surfaceHa: n('surface-recolte'), surfaceEstimee: surfaceEstimee && n('surface-recolte') != null });
   if (f === 'PRESSAGE') {
     const paille = produitRecolte === 'PAILLE';
     return { nbBottes: n('nb-bottes'), poidsBotteKg: n('poids-botte'),
              numeroCoupe: paille ? null : n('coupe'),
              typeFourrage: paille ? '' : el.fourrage.value.trim(),
-             produitRecolte: produitRecolte || null };
+             produitRecolte: produitRecolte || null,
+             ...(paille ? {} : surface()) };
   }
   if (f === 'SECHAGE') {
     return { nbRemorques: n('nb-remorques'), tonnesParRemorque: n('t-remorque'),
-             numeroCoupe: n('coupe'), typeFourrage: el.fourrage.value.trim() };
+             numeroCoupe: n('coupe'), typeFourrage: el.fourrage.value.trim(), ...surface() };
   }
   if (f === 'SURFACE')  return { surfaceHa: n('surface') };
   if (f === 'MOISSON') {
@@ -796,6 +801,30 @@ function lireSaisie() {
   if (f === 'CHAULAGE') return { doseTonnesHa: n('dose-chaux') };
   return null;
 }
+
+// --- Surface récoltée (Pressage / Séchage de fourrage) ---------------------
+// Préremplie avec la surface du tracé GPS, sinon celle des parcelles
+// choisies, tant que l'exploitant n'y a pas touché. surfaceEstimee : récolte
+// saisie avant ce champ, surface déduite des parcelles — le drapeau tombe dès
+// que la valeur est corrigée à la main.
+let surfaceEstimee = false;
+function majSurfaceRecolte() {
+  const champ = el['surface-recolte'];
+  if (champ.dataset.saisi) return;
+  const gps = traceResultat && traceResultat.surfaceHa != null ? Number(traceResultat.surfaceHa) : null;
+  const ha = gps != null && !surfaceEstimee ? gps : (surfaceSelectionnee() || null);
+  champ.value = ha == null ? '' : ha;
+}
+function majAideSurfaceRecolte() {
+  const aide = el['surface-recolte-aide'];
+  aide.hidden = !surfaceEstimee;
+  aide.textContent = '* surface déduite des parcelles, non saisie. Corrige-la si la récolte ne couvrait pas toute la parcelle.';
+}
+el['surface-recolte'].addEventListener('input', () => {
+  el['surface-recolte'].dataset.saisi = '1';
+  surfaceEstimee = false;
+  majAideSurfaceRecolte();
+});
 
 function ecrireSaisie(s) {
   s = s || {};
@@ -833,6 +862,15 @@ function ecrireSaisie(s) {
   v('t-epandeur', s.tonnageEpandeur);
   v('dose-chaux', s.doseTonnesHa);
   v('coupe', s.numeroCoupe);
+  // Surface récoltée : valeur enregistrée (saisie, ou estimée et pas encore
+  // corrigée). Récolte antérieure au champ : surface des parcelles choisies,
+  // marquée estimée (préremplie plus bas, cf. majSurfaceRecolte).
+  v('surface-recolte', s.surfaceHa);
+  delete el['surface-recolte'].dataset.saisi;
+  if (s.surfaceHa != null) el['surface-recolte'].dataset.saisi = '1';
+  surfaceEstimee = s.surfaceHa != null ? !!s.surfaceEstimee
+    : !!(s.numeroCoupe != null || s.typeFourrage || s.nbRemorques != null || (s.nbBottes != null && s.produitRecolte !== 'PAILLE'));
+  majAideSurfaceRecolte();
   el.fourrage.value = s.typeFourrage || '';
   delete el.fourrage.dataset.saisi;
   if (s.typeFourrage) el.fourrage.dataset.saisi = '1';

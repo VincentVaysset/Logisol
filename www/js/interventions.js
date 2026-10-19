@@ -157,6 +157,10 @@ function nettoyerSaisie(s) {
    'capaciteBenne', 'remplissageBenne', 'ps',
    'nbEpandeurs', 'tonnageEpandeur', 'doseTonnesHa', 'numeroCoupe'].forEach(nombre);
   ['semence', 'typeFourrage', 'cultureId', 'typeAliment', 'psUniteSaisie', 'produitRecolte'].forEach(texte);
+  // Surface récoltée déduite des parcelles (récolte saisie avant le champ
+  // « Surface récoltée ») : signalée comme estimée tant qu'elle n'est pas
+  // corrigée dans l'activité.
+  if (s.surfaceEstimee === true && out.surfaceHa != null) out.surfaceEstimee = true;
   if (Array.isArray(s.melange)) {
     const m = s.melange
       .map((x) => ({ nom: String((x && x.nom) || '').trim(), pourcentage: Number((x && x.pourcentage) || 0) }))
