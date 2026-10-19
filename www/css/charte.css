@@ -297,3 +297,6 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 .tbl .tableau td:last-child{font-weight:700}
 .tbl .tableau .zero,.vide{color:var(--ch-icone)}
 #rapports-panel .btn-sec{height:44px;min-height:44px;border:1px solid var(--ch-bord);border-radius:18px;background:var(--ch-carte);color:var(--ch-texte);font-size:15px;font-weight:600}
+
+/* Ferme : puces de filtre du journal (défilement horizontal si nombreuses) */
+#ferme-filtres{overflow-x:auto;padding-bottom:2px}

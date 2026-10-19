@@ -436,9 +436,11 @@
   <div id="feed" class="feed" hidden>
     <!-- Écran Ferme : maquette docs/maquettes/maquette-charte-ferme.html. -->
     <div class="feed-head ch-ferme-haut">
+      <div class="tuiles c2" id="ferme-tuiles"></div>
       <button type="button" id="btn-new-intervention" class="btn btn-primary btn-feed-add"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Nouvelle intervention</button>
       <button type="button" id="btn-rapports" class="cl ch-cl-lien" aria-label="Rapports et synthèses PDF"><span class="ic gris"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg></span><span class="cl-c"><span class="ch-cl-t">Synthèses de campagne</span><span class="cl-l2">Assolement, semis, fertilisation, PDF</span></span><svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
       <p class="sec">Journal des activités</p>
+      <div class="chips" id="ferme-filtres"></div>
     </div>
     <div id="feed-list" class="liste"></div>
   </div>

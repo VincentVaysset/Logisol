@@ -317,6 +317,8 @@ function recomputeStocksEtTroupeau() {
   // Le contenu des cellules est celui de Stocks (rations et ajustements
   // compris) : il bouge avec eux.
   if (currentView === 'batiments') renderBatiments();
+  // Tuile « Fourrage dispo » de l'écran Ferme : même calcul que Stocks.
+  if (currentView === 'ferme') renderFeed();
 }
 
 // Bâtiments : la carte les affiche dans les vues Ferme et Carte, la vue

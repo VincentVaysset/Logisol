@@ -353,6 +353,11 @@ export function metaParCle() {
   return meta;
 }
 
+/** Fourrage disponible (t), même calcul que les tuiles de l'onglet Stocks. */
+export function fourrageDisponible() {
+  return donneesCampagne().totaux.fourrages;
+}
+
 function donneesCampagne() {
   const campagne = getCampagneStockChoisie();
   const b = bornesCampagneStock(campagne);

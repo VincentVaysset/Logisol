@@ -7,6 +7,9 @@ import { estCorrigeableAvecPs, corrigerAvecPs } from './corriger-ps.js';
 import { estCorrigeableRemplissage, corrigerRemplissage } from './corriger-remplissage.js';
 import { toastSucces, toastErreur } from './toast.js';
 import { tracesDeParcelle } from './traces.js';
+import { fourrageDisponible, formatTonnes } from './ui-stocks.js';
+import { CATEGORIES } from './interventions-types.js';
+import { campagneCourante } from './assolement-previsionnel.js';
 import { afficherTrace, masquerTrace, estAffichee, definirModeLargeur, getModeLargeur, onTracesAfficheesChange } from './trace-affichage.js';
 
 // Id de l'activité dont le petit formulaire "Corriger avec PS" est déplié
@@ -62,14 +65,43 @@ export function majEtat(partiel) {
 }
 
 // --- Fil d'activités ------------------------------------------------------
+// Filtre du journal par famille d'activité (CATEGORIES), local à l'écran.
+let familleFiltre = '';
+
+function renderTuilesFerme() {
+  const el = document.getElementById('ferme-tuiles');
+  if (!el) return;
+  let fourrage = null;
+  try { fourrage = fourrageDisponible(); } catch (_) { /* stocks pas encore chargés */ }
+  // Travaux de la saison : activités réalisées de la campagne culturale en cours.
+  const campagne = campagneCourante();
+  const travaux = etat.interventions.filter((i) => i.statut !== 'A_FAIRE' && String(i.campagneId || (i.date || '').slice(0, 4)) === campagne).length;
+  el.innerHTML = `<div class="tuile vert"><span class="l">Fourrage dispo</span><span class="n">${fourrage == null ? '—' : formatTonnes(fourrage) + ' t'}</span></div>
+    <div class="tuile bleu"><span class="l">Travaux saison</span><span class="n">${travaux}</span><span class="s">intervention${travaux > 1 ? 's' : ''} ${campagne}</span></div>`;
+}
+
+function renderFiltresFerme() {
+  const el = document.getElementById('ferme-filtres');
+  if (!el) return;
+  const presentes = new Set(etat.interventions.map((i) => { const t = typeDe(i); return t && t.categorie; }).filter(Boolean));
+  if (familleFiltre && !presentes.has(familleFiltre)) familleFiltre = '';
+  const puces = [{ value: '', label: 'Toutes' }, ...CATEGORIES.filter((c) => presentes.has(c.value))];
+  el.hidden = puces.length < 3;
+  el.innerHTML = puces.map((c) => `<button type="button" class="chip${c.value === familleFiltre ? ' on' : ''}" data-famille="${escapeAttr(c.value)}">${escapeHtml(c.label)}</button>`).join('');
+  el.querySelectorAll('[data-famille]').forEach((b) => b.addEventListener('click', () => { familleFiltre = b.dataset.famille; renderFeed(); }));
+}
+
 export function renderFeed() {
+  renderTuilesFerme();
+  renderFiltresFerme();
   const { interventions } = etat;
   if (!interventions.length) {
     feedList.innerHTML =
-      '<p class="list-empty">Aucune activité enregistrée.<br>Utilise « ➕ Intervention » pour commencer.</p>';
+      '<p class="list-empty">Aucune activité enregistrée.<br>Utilise « Nouvelle intervention » pour commencer.</p>';
     return;
   }
-  feedList.innerHTML = interventions.map(carteIntervention).join('');
+  const visibles = familleFiltre ? interventions.filter((i) => { const t = typeDe(i); return t && t.categorie === familleFiltre; }) : interventions;
+  feedList.innerHTML = visibles.length ? visibles.map(carteIntervention).join('') : '<p class="list-empty">Aucune activité de cette famille.</p>';
   feedList.querySelectorAll('.feed-item').forEach((el) => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('.feed-ps-correction')) return;
