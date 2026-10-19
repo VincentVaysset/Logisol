@@ -271,20 +271,61 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 .mat-categorie{border-radius:18px;border:1px solid var(--ch-bord);background:var(--ch-carte)}
 
 /* ==========================================================================
-   RAPPORTS & SYNTHÈSES — style de maquette-charte-syntheses.html appliqué à
-   l'écran existant (.tuiles 20 px, .tbl / .tbl-cap / .tr.th / .tr.sum,
-   .chip, .btn-sec). Les <table> restent des tableaux : même grille visuelle.
+   RAPPORTS & SYNTHÈSES — maquette-charte-rapports(-realise).html : campagne,
+   onglets Prévisionnel | Réalisé, bouton PDF, puis un document (.doc).
+   Tout est préfixé #rapports-panel : .tabs/.kpi/table existent ailleurs.
    ========================================================================== */
 #rapports-panel .fiche-panel{background:var(--ch-fond);display:flex;flex-direction:column;gap:12px}
 #rapports-panel .fiche-panel > *{margin:0}
-#rapports-panel .tuiles{margin:0}
-#rapports-panel .tuile{border-left:5px solid var(--ch-icone);box-shadow:none}
-#rapports-panel .tuile .l{font-size:12px;color:var(--ch-texte2);font-weight:400;margin:0}
-#rapports-panel .tuile .n{font-size:20px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;margin:0}
-#rapports-panel .tuile .s{font-size:12px;color:var(--ch-texte2);margin:0}
+#rapports-panel .camp{display:flex;align-items:center;gap:8px}
+#rapports-panel .camp-btn{width:44px;height:44px;border-radius:999px;border:1px solid var(--ch-bord);background:var(--ch-carte);color:var(--ch-texte);display:flex;align-items:center;justify-content:center;flex:none;padding:0;cursor:pointer}
+#rapports-panel .camp-nm{flex:1;text-align:center;font-size:17px;font-weight:700}
+#rapports-panel .rap-onglets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;background:var(--ch-onglets);padding:4px;border-radius:999px}
+#rapports-panel .rap-onglet{border:none;background:none;min-height:40px;border-radius:999px;font:inherit;font-size:14px;font-weight:600;color:var(--ch-texte2);cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0}
+#rapports-panel .rap-onglet.on{background:var(--ch-carte);color:var(--ch-texte);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+#rapports-panel .rap-btn-pdf{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;width:100%;background:var(--ch-vert);color:#fff;border:none;border-radius:18px;font:inherit;font-size:15px;font-weight:600;cursor:pointer}
+#rapports-panel .rap-btn-pdf:disabled{opacity:.6}
+#rapports-export-statut:empty{display:none}
+#rapports-panel .doc{background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;padding:18px 16px;display:flex;flex-direction:column;gap:18px;color:var(--ch-texte)}
+#rapports-panel .doc-hd{display:flex;flex-direction:column;gap:4px;padding-bottom:14px;border-bottom:2px solid var(--ch-vert)}
+#rapports-panel .doc-t{font-size:18px;font-weight:700;margin:0;color:var(--ch-texte)}
+#rapports-panel .doc-m{font-size:13px;color:var(--ch-texte2);display:flex;justify-content:space-between;gap:8px}
+#rapports-panel .s{display:flex;flex-direction:column;gap:10px}
+#rapports-panel .s-t{display:flex;align-items:baseline;gap:8px;margin:0;font-size:15px;font-weight:700;color:var(--ch-texte);text-transform:none;letter-spacing:0}
+#rapports-panel .s-t .num{color:var(--ch-vert);font-variant-numeric:tabular-nums}
+#rapports-panel .kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#rapports-panel .kpis.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+#rapports-panel .kpi{display:flex;flex-direction:column;gap:2px;min-width:0;padding:10px 12px;border-left:5px solid var(--ch-icone);border-radius:14px;background:var(--ch-onglets)}
+#rapports-panel .kpi .n{font-size:20px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ch-texte2)}
+#rapports-panel .kpi .n small{font-size:13px;font-weight:500}
+#rapports-panel .kpi .l{font-size:12px;color:var(--ch-texte2)}
+#rapports-panel .kpi.vert{background:var(--ch-vert-pastel);border-color:var(--ch-vert-fonce)}
+#rapports-panel .kpi.vert .n{color:var(--ch-vert-fonce)}
+#rapports-panel .kpi.bleu{background:var(--ch-bleu-pastel);border-color:var(--ch-bleu)}
+#rapports-panel .kpi.bleu .n{color:var(--ch-bleu)}
+#rapports-panel .kpi.ambre{background:var(--ch-ambre-pastel);border-color:var(--ch-ambre-texte)}
+#rapports-panel .kpi.ambre .n{color:var(--ch-ambre-texte)}
+#rapports-panel .kpis.c3 .kpi .n{font-size:18px}
+#rapports-panel .table-scroll{overflow-x:auto;margin:0}
+#rapports-panel table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums;background:none;border:none;box-shadow:none;margin:0}
+#rapports-panel caption{text-align:left;font-size:13px;font-weight:700;padding:0 0 6px;color:var(--ch-texte);text-transform:none;letter-spacing:0;background:none}
+#rapports-panel th{font-size:12px;font-weight:500;color:var(--ch-texte2);background:var(--ch-onglets);text-align:right;padding:7px 8px;white-space:nowrap;border:none;position:static;text-transform:none;letter-spacing:0}
+#rapports-panel th:first-child{text-align:left;border-radius:10px 0 0 10px}
+#rapports-panel th:last-child{border-radius:0 10px 10px 0}
+#rapports-panel td{padding:8px;border:none;border-bottom:1px solid var(--ch-separateur);text-align:right;white-space:nowrap;vertical-align:top;background:none;color:var(--ch-texte);font-weight:400}
+#rapports-panel td:first-child{text-align:left;white-space:normal}
+#rapports-panel td small{display:block;font-size:12px;color:var(--ch-texte2);font-weight:400}
+#rapports-panel td.na{color:var(--ch-icone)}
+#rapports-panel .ec-p{color:var(--ch-vert-texte);font-weight:600}
+#rapports-panel .ec-m{color:var(--ch-ambre-texte);font-weight:600}
+#rapports-panel tr.grp td{font-size:12px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ch-texte2);padding-top:12px;border-bottom:none}
+#rapports-panel tr.tot td{background:var(--ch-ligne-alt);font-weight:700;border-bottom:none}
+#rapports-panel tr.tot td:first-child{border-radius:10px 0 0 10px}
+#rapports-panel tr.tot td:last-child{border-radius:0 10px 10px 0}
+#rapports-panel .note{font-size:12px;color:var(--ch-texte2);margin:0}
+#rapports-panel .foot{font-size:12px;color:var(--ch-icone);text-align:center;border-top:1px solid var(--ch-separateur);padding-top:10px}
 .btn-sec{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;width:100%;background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;font:inherit;font-size:15px;font-weight:600;color:var(--ch-texte);cursor:pointer;padding:0 14px}
 .btn-sec.ch-btn-fleche{width:44px;min-width:44px;flex:none;padding:0}
-#rapports-panel .prev-entete{display:flex;align-items:center;gap:10px}
 .tbl{background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;overflow:hidden}
 .tbl.table-scroll{overflow-x:auto}
 .tbl .tableau{border-radius:0;font-size:13.5px;font-variant-numeric:tabular-nums}
@@ -296,7 +337,6 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 .tbl .tableau tfoot th,.tbl .tableau tfoot td,.tr.sum{background:var(--ch-ligne-alt);font-weight:700}
 .tbl .tableau td:last-child{font-weight:700}
 .tbl .tableau .zero,.vide{color:var(--ch-icone)}
-#rapports-panel .btn-sec{height:44px;min-height:44px;border:1px solid var(--ch-bord);border-radius:18px;background:var(--ch-carte);color:var(--ch-texte);font-size:15px;font-weight:600}
 
 /* Ferme : puces de filtre du journal (défilement horizontal si nombreuses) */
 #ferme-filtres{overflow-x:auto;padding-bottom:2px}

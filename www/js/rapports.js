@@ -16,7 +16,7 @@ function r(v) { return Math.round((Number(v) || 0) * 100) / 100; }
 // Fétuque/Trèfle sont pérennes (pas de semis à planifier chaque campagne).
 // Sur ce dossier, céréales et RG trèfle se sèment à l'automne, la luzerne
 // (Luz 0, seule "année de semis" du référentiel) au printemps.
-const SAISON_PAR_FAMILLE = { CEREALES: 'automne', PRAIRIE_COURTE: 'automne', SEMIS_PRAIRIE: 'printemps' };
+export const SAISON_PAR_FAMILLE = { CEREALES: 'automne', PRAIRIE_COURTE: 'automne', SEMIS_PRAIRIE: 'printemps' };
 
 // Sous-totaux du semis d'automne : deux familles y sèment, mais ce ne sont
 // pas le même chantier — un semoir à céréales et un semoir à prairie ne se

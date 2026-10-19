@@ -360,8 +360,10 @@ export function fourrageDisponible() {
   return donneesCampagne().totaux.fourrages;
 }
 
-function donneesCampagne() {
-  const campagne = getCampagneStockChoisie();
+/** Bilan stocks d'une campagne (Rapports > Réalisé), même calcul que l'onglet. */
+export function bilanStocksCampagne(campagne) { return donneesCampagne(campagne); }
+
+function donneesCampagne(campagne = getCampagneStockChoisie()) {
   const b = bornesCampagneStock(campagne);
   const dateRef = dateReferenceCampagne(campagne);
   const lots = getLots();
