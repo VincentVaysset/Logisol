@@ -9,6 +9,7 @@
 // contrats sont donc exprimés en JSDoc — mêmes noms de champs, mêmes valeurs
 // d'énumération, vérifiés par l'éditeur, sans rien ajouter à la chaîne de
 // build.
+import { COULEURS_CARTE as C } from './charte.js';
 import { db, auth } from './firebase-config.js';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp
@@ -31,10 +32,10 @@ const COL = collection(db, 'lgs_batiments');
  */
 
 export const TYPES_BATIMENT = [
-  { value: 'BERGERIE',           label: 'Bergerie',            icone: '🐑', couleur: '#8a6d5c' },
-  { value: 'STOCKAGE_GRAIN',     label: 'Stockage grain',      icone: '🌾', couleur: '#c98a3e' },
-  { value: 'STOCKAGE_FOURRAGE',  label: 'Stockage fourrage',   icone: '🧻', couleur: '#5b8c5a' },
-  { value: 'MIXTE',              label: 'Mixte',               icone: '🏚️', couleur: '#79765f' }
+  { value: 'BERGERIE',           label: 'Bergerie',            icone: '🐑', couleur: C.texte2 },
+  { value: 'STOCKAGE_GRAIN',     label: 'Stockage grain',      icone: '🌾', couleur: C.ambre },
+  { value: 'STOCKAGE_FOURRAGE',  label: 'Stockage fourrage',   icone: '🧻', couleur: C.vert },
+  { value: 'MIXTE',              label: 'Mixte',               icone: '🏚️', couleur: C.icone }
 ];
 
 // Grains réellement rentrés en cellule sur l'exploitation. Le blé manquait,

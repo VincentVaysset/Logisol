@@ -21,6 +21,7 @@
 // couverte est ajoutée à un Set commun, qui ne peut donc jamais compter deux
 // fois la même surface au sol quel que soit le nombre de passages qui s'y
 // superposent. Surface = nombre de cellules déjà vues × 0,25 m².
+import { COULEURS_CARTE as C } from './charte.js';
 import { getMap } from './map.js';
 import { ecouterPositionChantier, arreterEcoutePositionChantier } from './gps.js';
 import { creerFiltre } from './trace-points-calc.js';
@@ -71,7 +72,7 @@ function assurerLayers() {
   const map = getMap();
   if (!map) return null;
   if (!rubanLayer) rubanLayer = L.layerGroup().addTo(map);
-  if (!filLayer) filLayer = L.polyline([], { color: '#16a34a', weight: 4 }).addTo(map);
+  if (!filLayer) filLayer = L.polyline([], { color: C.vert, weight: 4 }).addTo(map);
   return map;
 }
 
@@ -82,7 +83,7 @@ function afficherCurseur(fix) {
     curseurMarker.setLatLng([fix.lat, fix.lon]);
   } else {
     curseurMarker = L.circleMarker([fix.lat, fix.lon], {
-      radius: 8, color: '#16a34a', weight: 3, fillColor: '#16a34a', fillOpacity: 0.4
+      radius: 8, color: C.vert, weight: 3, fillColor: C.vert, fillOpacity: 0.4
     }).addTo(map);
   }
 }
@@ -124,7 +125,7 @@ function ajouterSegmentRuban(a, b) {
   // Quadrilatère du ruban, pour l'affichage uniquement.
   const coin = (pt, signe) => depuisMercator({ x: pt.x + signe * px * demi, y: pt.y + signe * py * demi });
   const quad = [coin(a, 1), coin(b, 1), coin(b, -1), coin(a, -1)];
-  L.polygon(quad, { color: '#16a34a', weight: 0, fillColor: '#22c55e', fillOpacity: 0.35 }).addTo(rubanLayer);
+  L.polygon(quad, { color: C.vert, weight: 0, fillColor: C.vert, fillOpacity: 0.35 }).addTo(rubanLayer);
 
   // Rasterisation : la boîte englobante du quadrilatère en mètres, testée
   // cellule par cellule en coordonnées locales (long du trajet / travers) —

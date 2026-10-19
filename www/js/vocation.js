@@ -3,6 +3,8 @@
 // COURS (cf. implantations.js) + cultures_config. Logique partagée entre la
 // carte, la légende, la vue liste et l'écran d'accueil pour ne pas la
 // dupliquer.
+import { COULEURS_CARTE as C, couleurCulture } from './charte.js';
+
 export const VOCATIONS = [
   { value: 'culture', label: 'Culture' },
   { value: 'prairie', label: 'Prairie' },
@@ -14,12 +16,12 @@ export const VOCATIONS = [
 const VOCATION_LABEL = Object.fromEntries(VOCATIONS.map((v) => [v.value, v.label]));
 
 const VOCATION_FIXED_COLOR = {
-  batiment: '#8a6d5c',
-  bois: '#2c4d29',
-  autre: '#9a988f'
+  batiment: C.texte2,
+  bois: C.vertFonce,
+  autre: C.icone
 };
 
-export const COULEUR_A_RENSEIGNER = '#c4c0b0';
+export const COULEUR_A_RENSEIGNER = C.bordChamp;
 
 // Vue regroupée (macro / PAC) : chaque culture retombe sur la couleur et le
 // libellé de SA FAMILLE (cultures_config.famille) plutôt que sa couleur
@@ -38,10 +40,10 @@ export const FAMILLE_LABEL = {
   derobee: 'Dérobée / Couvert', autre: 'Autre'
 };
 export const FAMILLE_COULEUR = {
-  prairie_permanente: '#65a30d', prairie_temporaire: '#059669',
-  prairie: '#059669',
-  cereale: '#d97706', oleagineux: '#a8b83f', legumineuse: '#10b981',
-  derobee: '#8b5cf6', autre: '#9a988f'
+  prairie_permanente: C.texte2, prairie_temporaire: C.bleu,
+  prairie: C.bleu,
+  cereale: C.ambre, oleagineux: C.ambre, legumineuse: C.vert,
+  derobee: C.vertFonce, autre: C.icone
 };
 
 export function estVocationCulture(vocation) {
@@ -65,7 +67,7 @@ export function resolveCouleur(parcelle, implantationsByParcelle, culturesById, 
     const culture = impl ? culturesById.get(impl.cultureId) : null;
     if (!culture) return COULEUR_A_RENSEIGNER;
     if (groupe) return FAMILLE_COULEUR[culture.famille] || FAMILLE_COULEUR.autre;
-    return culture.couleur;
+    return couleurCulture(culture);
   }
   return VOCATION_FIXED_COLOR[vocation] || VOCATION_FIXED_COLOR.autre;
 }

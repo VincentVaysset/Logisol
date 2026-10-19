@@ -10,6 +10,7 @@
 // valeur : la PIRE précision rencontrée sur l'ensemble du tracé, jamais la
 // meilleure — un relevé n'est fiable qu'à hauteur de son pire point, pas de
 // son meilleur.
+import { COULEURS_CARTE as C } from './charte.js';
 import { getMap, latLngsToGeoJsonPolygon } from './map.js';
 import { ecouterPositionNative, arreterEcoutePositionNative, releveGpsDepuisFix } from './gps.js';
 
@@ -30,7 +31,7 @@ function assurerLayers() {
   const map = getMap();
   if (!map) return null;
   if (!polygonLayer) {
-    polygonLayer = L.polygon([], { color: '#2563eb', weight: 3, fillOpacity: 0.15, dashArray: '4, 6' }).addTo(map);
+    polygonLayer = L.polygon([], { color: C.bleu, weight: 3, fillOpacity: 0.15, dashArray: '4, 6' }).addTo(map);
   }
   if (!sommetsLayer) {
     sommetsLayer = L.layerGroup().addTo(map);
@@ -46,7 +47,7 @@ function redessiner() {
   sommetsLayer.clearLayers();
   points.forEach((p, i) => {
     L.circleMarker([p.lat, p.lon], {
-      radius: 7, color: '#1d4ed8', weight: 2, fillColor: '#fff', fillOpacity: 1
+      radius: 7, color: C.bleu, weight: 2, fillColor: C.blanc, fillOpacity: 1
     }).bindTooltip(String(i + 1), { permanent: true, direction: 'top', className: 'releve-sommet-label' })
       .addTo(sommetsLayer);
   });
@@ -55,7 +56,7 @@ function redessiner() {
 function afficherCurseur(fix) {
   const map = assurerLayers();
   if (!map) return;
-  const style = fix.fixType === 'RTK_FIX' ? '#059669' : (fix.fixType === 'RTK_FLOAT' ? '#e0a326' : '#94a3b8');
+  const style = fix.fixType === 'RTK_FIX' ? C.vert : (fix.fixType === 'RTK_FLOAT' ? C.ambre : C.icone);
   if (curseurMarker) {
     curseurMarker.setLatLng([fix.lat, fix.lon]);
     curseurMarker.setStyle({ color: style });

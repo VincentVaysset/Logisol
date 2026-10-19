@@ -209,7 +209,7 @@ function iconeType(itv) {
 }
 function couleurType(itv) {
   const t = typeDe(itv);
-  return (t && t.couleur) || '#9a988f';
+  return (t && t.couleur) || 'var(--ch-icone)';
 }
 
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];

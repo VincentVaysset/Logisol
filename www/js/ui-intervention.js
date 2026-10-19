@@ -376,7 +376,7 @@ function renderCibles() {
   el.parcelles.innerHTML = dispo.map((p) => `
     <label class="parcelle-pick${selection.has(p.id) ? ' is-picked' : ''}" data-id="${escapeAttr(p.id)}">
       <input type="checkbox" ${selection.has(p.id) ? 'checked' : ''} data-id="${escapeAttr(p.id)}">
-      <span class="parcelle-pick-swatch" style="background:${escapeAttr(p.couleur || '#c4c0b0')}"></span>
+      <span class="parcelle-pick-swatch" style="background:${escapeAttr(p.couleur || 'var(--ch-bord-champ)')}"></span>
       <span class="parcelle-pick-nom">${escapeHtml(p.nom)}</span>
       <span class="parcelle-pick-surface">${p.sousTitre ? escapeHtml(p.sousTitre) : (p.surfaceHa != null ? p.surfaceHa + ' ha' : '')}</span>
     </label>`).join('');
@@ -414,7 +414,7 @@ function renderActivites() {
       <div class="activite-grille">
         ${g.types.map((t) => `
           <button type="button" class="activite-btn${t.id === typeChoisiId ? ' is-active' : ''}"
-                  data-id="${escapeAttr(t.id)}" style="--act-couleur:${escapeAttr(t.couleur || '#9a988f')}">
+                  data-id="${escapeAttr(t.id)}" style="--act-couleur:${escapeAttr(t.couleur || 'var(--ch-icone)')}">
             <span class="activite-icone">${escapeHtml(t.icone || '🔧')}</span>
             <span class="activite-nom">${escapeHtml(t.nom)}</span>
             ${fluxDe(t) ? '<span class="activite-flux">stock</span>' : ''}

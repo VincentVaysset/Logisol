@@ -4,11 +4,12 @@
 // « Largeur de l'outil » : le trait prend la largeur réelle de l'outil à
 // l'échelle de la carte, ce qui montre la surface couverte (recouvrements
 // compris) ; sinon, un simple trait.
+import { COULEURS_CARTE as C } from './charte.js';
 import { getMap } from './map.js';
 import { lireTrace } from './traces.js';
 import { morceauxContinus } from './trace-points-calc.js';
 
-const COULEUR_DEFAUT = '#2563eb';
+const COULEUR_DEFAUT = C.bleu;
 const affichees = new Map();   // id -> { groupe, lignes, largeurM, couleur, points, coupures, titre }
 let modeLargeur = false;
 let controle = null;

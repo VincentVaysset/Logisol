@@ -83,7 +83,7 @@ function renderTypes() {
   }
   typesListeEl.innerHTML = liste.map((t) => `
     <div class="cat-card" data-id="${escapeAttr(t.id)}">
-      <span class="pastille" style="background:${escapeAttr(t.couleur || '#9a988f')}"></span>
+      <span class="pastille" style="background:${escapeAttr(t.couleur || 'var(--ch-icone)')}"></span>
       <div class="cat-card-nom">${escapeHtml(t.icone || '')} ${escapeHtml(t.nom)}</div>
       <label class="campagnes-check"><input type="checkbox" class="campagnes-pivot" ${pivotCampagneDe(t) ? 'checked' : ''}> Pivot</label>
       <label class="campagnes-check"><input type="checkbox" class="campagnes-recolte" ${recolteCampagneDe(t) ? 'checked' : ''}> Récolte</label>

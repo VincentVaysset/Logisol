@@ -2,6 +2,7 @@
 // colorés par vocation/culture) et légende. Ne connaît rien de
 // Firestore/cultures : reçoit des parcelles déjà enrichies (_couleur, _label)
 // calculées par main.js.
+import { COULEURS_CARTE as C } from './charte.js';
 import { getVueLegende, toggleVueLegende } from './vue-legende.js';
 import { positionActuelle } from './gps.js';
 
@@ -304,7 +305,7 @@ export function renderBatiments(list) {
     vus.add(b.id);
     const icone = L.divIcon({
       className: 'batiment-marqueur',
-      html: `<span style="background:${escapeAttr(b._couleur || '#79765f')}">${escapeHtml(b._icone || '🏚️')}</span>`,
+      html: `<span style="background:${escapeAttr(b._couleur || C.texte2)}">${escapeHtml(b._icone || '🏚️')}</span>`,
       iconSize: [34, 34],
       iconAnchor: [17, 17]
     });
@@ -413,13 +414,13 @@ export function renderParcelles(list) {
     const latlngs = geoJsonPolygonToLatLngs(p.coordonnees);
     if (!latlngs) return;
     seen.add(p.id);
-    const color = p._couleur || '#888888';
+    const color = p._couleur || C.icone;
     // Dérobée/couvert : bordure violette en pointillés SUR la couleur de la
     // culture principale (le remplissage ne change pas) — repérable d'un
     // coup d'œil sans se substituer à l'identité de la parcelle.
     const enDerobee = !!(p.derobee && String(p.derobee).trim());
     const style = enDerobee
-      ? { color: '#8b5cf6', fillColor: color, fillOpacity: 0.45, weight: 3, dashArray: '6, 5' }
+      ? { color: C.vertFonce, fillColor: color, fillOpacity: 0.45, weight: 3, dashArray: '6, 5' }
       : { color, fillColor: color, fillOpacity: 0.45, weight: 2, dashArray: null };
 
     let layer = layers.get(p.id);

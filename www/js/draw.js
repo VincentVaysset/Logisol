@@ -5,6 +5,7 @@
 // #draw-toolbar), pas par les gestes cachés de Leaflet.draw : au doigt, la
 // fermeture "tape sur le premier point" et le double-clic sont trop peu
 // fiables, et rien n'indiquait à l'utilisateur comment annuler ou terminer.
+import { COULEURS_CARTE as C } from './charte.js';
 import { getMap, latLngsToGeoJsonPolygon } from './map.js';
 
 let drawnLayer = null;
@@ -317,7 +318,7 @@ export function startDrawing() {
       try { polygonDrawer.disable(); } catch (err) { logError('disable ancien tracé', err); }
     }
     polygonDrawer = new L.Draw.Polygon(map, {
-      shapeOptions: { color: '#ffb300', weight: 3, fillOpacity: 0.25 },
+      shapeOptions: { color: C.ambre, weight: 3, fillOpacity: 0.25 },
       showArea: false,
       // allowIntersection: TRUE À DESSEIN. Avec false, Leaflet.draw REFUSE de
       // fermer le polygone dès que deux segments se croisent, et se contente

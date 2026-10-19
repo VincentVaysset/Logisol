@@ -54,7 +54,7 @@ function render() {
   listeEl.innerHTML = liste.map((c) => {
     if (c.id === editingId) {
       return `<div class="cat-card" data-id="${escapeAttr(c.id)}">
-        <span class="pastille" style="background:${escapeAttr(c.couleur || '#9a988f')}"></span>
+        <span class="pastille" style="background:${escapeAttr(c.couleur || 'var(--ch-icone)')}"></span>
         <input type="text" class="cultures-input-nom" value="${escapeAttr(c.nom || '')}" aria-label="Nouveau nom">
         <button type="button" class="btn btn-primary btn-mini cultures-ok" aria-label="Enregistrer">✔</button>
         <button type="button" class="btn btn-secondary btn-mini cultures-annuler" aria-label="Annuler">✕</button>
@@ -62,7 +62,7 @@ function render() {
     }
     const n = nombreImplantations(c.id);
     return `<div class="cat-card" data-id="${escapeAttr(c.id)}">
-      <span class="pastille" style="background:${escapeAttr(c.couleur || '#9a988f')}"></span>
+      <span class="pastille" style="background:${escapeAttr(c.couleur || 'var(--ch-icone)')}"></span>
       <div class="cat-card-nom">${escapeHtml(c.nom || '')}</div>
       <div class="cat-card-detail">${n ? `${n} implantation${n > 1 ? 's' : ''}` : 'inutilisée'}</div>
       <button type="button" class="btn btn-secondary btn-mini cultures-renommer" aria-label="Renommer">✏️</button>
