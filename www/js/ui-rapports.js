@@ -138,21 +138,21 @@ function renderSemis() {
     : '';
 
   semisKpisEl.innerHTML = `
-    <div class="rapport-kpi rapport-kpi-ambre">
-      <div class="rapport-kpi-valeur">${formatHa(cal.automne.ha)} ha</div>
-      <div class="rapport-kpi-label">Semis d'automne</div>
-      <div class="rapport-kpi-detail">${detailTxt(cal.automne.details)}</div>
+    <div class="rapport-kpi rapport-kpi-ambre tuile ambre">
+      <div class="rapport-kpi-valeur n">${formatHa(cal.automne.ha)} ha</div>
+      <div class="rapport-kpi-label l">Semis d'automne</div>
+      <div class="rapport-kpi-detail s">${detailTxt(cal.automne.details)}</div>
       ${sousTotauxTxt}
     </div>
-    <div class="rapport-kpi">
-      <div class="rapport-kpi-valeur">${formatHa(cal.printemps.ha)} ha</div>
-      <div class="rapport-kpi-label">Semis de printemps</div>
-      <div class="rapport-kpi-detail">${detailTxt(cal.printemps.details)}</div>
+    <div class="rapport-kpi tuile vert">
+      <div class="rapport-kpi-valeur n">${formatHa(cal.printemps.ha)} ha</div>
+      <div class="rapport-kpi-label l">Semis de printemps</div>
+      <div class="rapport-kpi-detail s">${detailTxt(cal.printemps.details)}</div>
     </div>
-    <div class="rapport-kpi rapport-kpi-bleu">
-      <div class="rapport-kpi-valeur">${formatHa(cal.derobees.ha)} ha</div>
-      <div class="rapport-kpi-label">Dérobées / couverts en place (réel)</div>
-      <div class="rapport-kpi-detail">${cal.derobees.parcelles.length
+    <div class="rapport-kpi rapport-kpi-bleu tuile bleu">
+      <div class="rapport-kpi-valeur n">${formatHa(cal.derobees.ha)} ha</div>
+      <div class="rapport-kpi-label l">Dérobées / couverts en place (réel)</div>
+      <div class="rapport-kpi-detail s">${cal.derobees.parcelles.length
         ? cal.derobees.parcelles.map((p) => `${esc(p.nom)} : ${esc(p.derobee)}`).join(' · ')
         : 'Aucune actuellement.'}</div>
     </div>`;
@@ -197,13 +197,13 @@ function renderFertilisation() {
   const plan = planFertilisation(parcelles, String(campagneR), getPrevisions());
 
   fertiKpisEl.innerHTML = `
-    <div class="rapport-kpi rapport-kpi-ambre">
-      <div class="rapport-kpi-valeur">${formatHa(plan.totalFumierT)} t</div>
-      <div class="rapport-kpi-label">Fumier à épandre</div>
+    <div class="rapport-kpi rapport-kpi-ambre tuile ambre">
+      <div class="rapport-kpi-valeur n">${formatHa(plan.totalFumierT)} t</div>
+      <div class="rapport-kpi-label l">Fumier à épandre</div>
     </div>
-    <div class="rapport-kpi rapport-kpi-neutre">
-      <div class="rapport-kpi-valeur">${formatHa(plan.totalChauxT)} t</div>
-      <div class="rapport-kpi-label">Chaux à épandre</div>
+    <div class="rapport-kpi rapport-kpi-neutre tuile">
+      <div class="rapport-kpi-valeur n">${formatHa(plan.totalChauxT)} t</div>
+      <div class="rapport-kpi-label l">Chaux à épandre</div>
     </div>`;
 
   fertiFiltreEl.querySelectorAll('[data-filtre]').forEach((btn) => {
@@ -230,7 +230,7 @@ function renderFertilisation() {
       const cmp = typeof va === 'string' ? va.localeCompare(vb, 'fr', { numeric: true }) : va - vb;
       return cmp * triFerti.dir;
     });
-    const titre = `<caption>${pr.label}</caption>`;
+    const titre = `<caption>${pr.label} <span>${lignes.length} parcelle${lignes.length > 1 ? 's' : ''}</span></caption>`;
     if (!lignes.length) {
       table.innerHTML = `${titre}<tbody><tr><td class="list-empty">Aucune dose de ${pr.label.toLowerCase()} renseignée pour ${campagneR}.</td></tr></tbody>`;
       return;

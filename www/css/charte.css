@@ -269,3 +269,31 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 .kv .v{font-size:14px;font-weight:700}
 /* Matériel (même écran) : catégories en .card */
 .mat-categorie{border-radius:18px;border:1px solid var(--ch-bord);background:var(--ch-carte)}
+
+/* ==========================================================================
+   RAPPORTS & SYNTHÈSES — style de maquette-charte-syntheses.html appliqué à
+   l'écran existant (.tuiles 20 px, .tbl / .tbl-cap / .tr.th / .tr.sum,
+   .chip, .btn-sec). Les <table> restent des tableaux : même grille visuelle.
+   ========================================================================== */
+#rapports-panel .fiche-panel{background:var(--ch-fond);display:flex;flex-direction:column;gap:12px}
+#rapports-panel .fiche-panel > *{margin:0}
+#rapports-panel .tuiles{margin:0}
+#rapports-panel .tuile{border-left:5px solid var(--ch-icone);box-shadow:none}
+#rapports-panel .tuile .l{font-size:12px;color:var(--ch-texte2);font-weight:400;margin:0}
+#rapports-panel .tuile .n{font-size:20px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;margin:0}
+#rapports-panel .tuile .s{font-size:12px;color:var(--ch-texte2);margin:0}
+.btn-sec{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;width:100%;background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;font:inherit;font-size:15px;font-weight:600;color:var(--ch-texte);cursor:pointer;padding:0 14px}
+.btn-sec.ch-btn-fleche{width:44px;min-width:44px;flex:none;padding:0}
+#rapports-panel .prev-entete{display:flex;align-items:center;gap:10px}
+.tbl{background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;overflow:hidden}
+.tbl.table-scroll{overflow-x:auto}
+.tbl .tableau{border-radius:0;font-size:13.5px;font-variant-numeric:tabular-nums}
+.tbl .tableau caption,.tbl-cap{padding:12px 14px 8px;font-size:15px;font-weight:700;color:var(--ch-texte);text-transform:none;letter-spacing:0;text-align:left;background:var(--ch-carte)}
+.tbl .tableau caption span,.tbl-cap span{font-size:13px;font-weight:500;color:var(--ch-texte2)}
+.tbl .tableau th,.tbl .tableau td{padding:10px 14px;border-bottom:none;border-top:1px solid var(--ch-separateur)}
+.tbl .tableau thead th,.tr.th{font-size:12px;font-weight:500;color:var(--ch-texte2);background:var(--ch-onglets);border-top:none;padding:8px 14px}
+.tbl .tableau tbody th{font-weight:700}
+.tbl .tableau tfoot th,.tbl .tableau tfoot td,.tr.sum{background:var(--ch-ligne-alt);font-weight:700}
+.tbl .tableau td:last-child{font-weight:700}
+.tbl .tableau .zero,.vide{color:var(--ch-icone)}
+#rapports-panel .btn-sec{height:44px;min-height:44px;border:1px solid var(--ch-bord);border-radius:18px;background:var(--ch-carte);color:var(--ch-texte);font-size:15px;font-weight:600}
