@@ -178,10 +178,11 @@ header.ch-entete {
 .ch-entete-gauche { display: flex; gap: 0; justify-self: start; margin-left: -6px; }
 .header-brand { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
 .ch-logo {
-  flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%;
-  background: var(--ch-vert-pastel); overflow: hidden; display: inline-flex;
+  flex: 0 0 36px; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--ch-carte); overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
 }
-.header-logo { width: 30px; height: 30px; border-radius: 50%; background: var(--ch-carte); object-fit: contain; }
+.header-logo { height: 32px; width: auto; max-width: 32px; border-radius: 0; object-fit: contain; }
 .header-nom { font-family: 'Fredoka', Roboto, sans-serif; font-weight: 700; font-size: 19px; letter-spacing: 0.5px; color: var(--ch-carte); line-height: 1; }
 .header-compte { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
 .ch-rond {
