@@ -12,7 +12,7 @@
 // "prelevements" n'est PAS supprimée pour autant (lots.js garde ses
 // fonctions de lecture/écriture, inutilisées ici mais intactes) — seule
 // l'UI qui l'affichait/l'alimentait a disparu.
-import { getLots, createLot, updateLot, deleteLot, typeAnimauxDe, getLotsActifs, estCloture, cloturerLot, rouvrirLot, renouvelerLot, rationFermeeParCloture, TYPES_ANIMAUX } from './lots.js';
+import { getLots, createLot, updateLot, deleteLot, typeAnimauxDe, getLotsActifs, estCloture, cloturerLot, rouvrirLot, renouvelerLot, rationFermeeParCloture, TYPES_ANIMAUX, resumeEffectifs, effectifLisible } from './lots.js';
 import {
   ouvrirSectionRationsLot, fermerSectionRationsLot,
   initTroupeauRations, renderTroupeauRations,
@@ -253,21 +253,11 @@ async function supprimer() {
 // --- Vue ------------------------------------------------------------------
 function jjmm(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : ''; }
 function kg(v) { return (Math.round((Number(v) || 0) * 100) / 100).toLocaleString('fr-FR'); }
-function effectifLisible(n, type) {
-  const nb = Number(n) || 0;
-  if (type === 'AGNELLES') return `${nb} agnelle${nb > 1 ? 's' : ''}`;
-  if (type === 'BELIERS') return `${nb} bélier${nb > 1 ? 's' : ''}`;
-  return `${nb} brebis`;
-}
 const PAR_ANIMAL = { BREBIS: 'brebis', AGNELLES: 'agnelle', BELIERS: 'bélier' };
 
 export function renderVue() {
   const lots = getLotsActifs();
-  const parType = { BREBIS: 0, AGNELLES: 0, BELIERS: 0 };
-  lots.forEach((l) => { parType[typeAnimauxDe(l)] += Number(l.nbBrebis) || 0; });
-  document.getElementById('troupeau-sous-titre').textContent =
-    [effectifLisible(parType.BREBIS, 'BREBIS'), effectifLisible(parType.AGNELLES, 'AGNELLES'),
-     parType.BELIERS ? effectifLisible(parType.BELIERS, 'BELIERS') : null].filter(Boolean).join(' · ');
+  document.getElementById('troupeau-sous-titre').textContent = resumeEffectifs(lots).texte;
 
   const bandeau = document.getElementById('troupeau-reouverte');
   const reouvertes = getClotures().filter((c) => c.statut === 'reouverte').map((c) => c.id).sort();

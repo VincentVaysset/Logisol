@@ -7,10 +7,8 @@ import { estCorrigeableAvecPs, corrigerAvecPs } from './corriger-ps.js';
 import { estCorrigeableRemplissage, corrigerRemplissage } from './corriger-remplissage.js';
 import { toastSucces, toastErreur } from './toast.js';
 import { tracesDeParcelle } from './traces.js';
-import { fourrageDisponible, formatTonnes } from './ui-stocks.js';
 import { CATEGORIES } from './interventions-types.js';
-import { campagneCourante } from './assolement-previsionnel.js';
-import { campagneDeActivite } from './calendrier-campagne.js';
+import { resumeEffectifs, onLotsChange } from './lots.js';
 import { afficherTrace, masquerTrace, estAffichee, definirModeLargeur, getModeLargeur, onTracesAfficheesChange } from './trace-affichage.js';
 
 // Id de l'activité dont le petit formulaire "Corriger avec PS" est déplié
@@ -37,6 +35,8 @@ let etat = { interventions: [], parcelles: [], cultures: [], implantations: [] }
 
 export function initAccueil(opts = {}) {
   onModifierParcelle = opts.onModifierParcelle || (() => {});
+  // Effectifs de la tuile Troupeau : à jour dès qu'un lot change.
+  onLotsChange(() => renderTuilesFerme());
 
   document.getElementById('btn-new-intervention').addEventListener('click', () =>
     openCreateIntervention()
@@ -69,16 +69,17 @@ export function majEtat(partiel) {
 // Filtre du journal par famille d'activité (CATEGORIES), local à l'écran.
 let familleFiltre = '';
 
+// Tuiles du haut : surface des parcelles et effectifs du troupeau (lots
+// Logisol actifs, lots.js — jamais les collections d'Ovilog).
 function renderTuilesFerme() {
   const el = document.getElementById('ferme-tuiles');
   if (!el) return;
-  let fourrage = null;
-  try { fourrage = fourrageDisponible(); } catch (_) { /* stocks pas encore chargés */ }
-  // Travaux de la saison : activités réalisées de la campagne culturale en cours.
-  const campagne = campagneCourante();
-  const travaux = etat.interventions.filter((i) => i.statut !== 'A_FAIRE' && campagneDeActivite(i) === campagne).length;
-  el.innerHTML = `<div class="tuile vert"><span class="l">Fourrage dispo</span><span class="n">${fourrage == null ? '—' : formatTonnes(fourrage) + ' t'}</span></div>
-    <div class="tuile bleu"><span class="l">Travaux saison</span><span class="n">${travaux}</span><span class="s">intervention${travaux > 1 ? 's' : ''} ${campagne}</span></div>`;
+  const parcelles = etat.parcelles || [];
+  const ha = parcelles.reduce((t, p) => t + (Number(p.surfaceHa) || 0), 0);
+  const eff = resumeEffectifs();
+  const n = parcelles.length;
+  el.innerHTML = `<div class="tuile vert"><span class="l">Surface</span><span class="n">${ha.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha</span><span class="s">${n} parcelle${n > 1 ? 's' : ''}</span></div>
+    <div class="tuile bleu"><span class="l">Troupeau</span><span class="n">${eff.total.toLocaleString('fr-FR')}</span><span class="s">${escapeHtml(eff.texte)}</span></div>`;
 }
 
 function renderFiltresFerme() {

@@ -173,6 +173,20 @@ export const TYPES_ANIMAUX = [
   { value: 'AGNELLES', label: 'Agnelles' },
   { value: 'BELIERS', label: 'Béliers' }
 ];
+/** Effectifs des lots actifs : total et « 350 brebis · 60 agnelles · 3 béliers ». */
+export function resumeEffectifs(liste = getLotsActifs()) {
+  const parType = { BREBIS: 0, AGNELLES: 0, BELIERS: 0 };
+  liste.forEach((l) => { parType[typeAnimauxDe(l)] += Number(l.nbBrebis) || 0; });
+  const total = parType.BREBIS + parType.AGNELLES + parType.BELIERS;
+  return { total, parType, texte: [effectifLisible(parType.BREBIS, 'BREBIS'), effectifLisible(parType.AGNELLES, 'AGNELLES'),
+    parType.BELIERS ? effectifLisible(parType.BELIERS, 'BELIERS') : null].filter(Boolean).join(' · ') };
+}
+export function effectifLisible(n, type) {
+  const nb = Number(n) || 0;
+  if (type === 'AGNELLES') return `${nb} agnelle${nb > 1 ? 's' : ''}`;
+  if (type === 'BELIERS') return `${nb} bélier${nb > 1 ? 's' : ''}`;
+  return `${nb} brebis`;
+}
 function typeValide(t) { return TYPES_ANIMAUX.some((x) => x.value === t) ? t : 'BREBIS'; }
 export function typeAnimauxDe(lot) { return typeValide(lot && lot.typeAnimaux); }
 
