@@ -34,9 +34,12 @@
 //     calendrier), sans récolte entre deux, reste en N+1.
 //   - Une récolte NE BASCULE JAMAIS elle-même (même une moisson, qui est
 //     aussi un pivot) et réarme le « +1 » pour le prochain pivot. Datée du
-//     01/09 au 31/12, elle appartient à la culture en place (dernière coupe
-//     d'une prairie, moisson d'automne) : le calendrier y compte l'année
-//     civile, pas la suivante.
+//     01/09 au 31/12, elle appartient à la culture en place :
+//       · un semis / travail du sol a eu lieu depuis la dernière récolte →
+//         campagne héritée de ce pivot (dérobée semée le 25/08 après la
+//         moisson, fauchée en novembre : 2027) ;
+//       · sinon → max(héritée, année civile) (dernière coupe de luzerne en
+//         septembre, tournesol moissonné le 25/09 : 2026).
 //   - forcerCampagne sur une activité est TOUJOURS prioritaire, et n'altère
 //     pas la chaîne pour les activités suivantes (une correction ponctuelle
 //     n'a pas à fausser tout ce qui vient après). La valeur que la règle lui
@@ -134,7 +137,11 @@ export function calculerCampagnes(activitesParcelle, defaut, deps = {}) {
     let valeur;
     if (estRecolte) {
       const automne = Number(String(act.date).slice(5, 7)) >= 9;
-      valeur = maxi(herite, automne ? String(act.date).slice(0, 4) : cal);
+      // Semis / travail du sol depuis la dernière récolte : c'est sa culture
+      // qu'on récolte (dérobée semée fin août, fauchée en novembre).
+      const pivotDepuisRecolte = herite != null && campagneRecolte == null;
+      if (automne && pivotDepuisRecolte) valeur = herite;
+      else valeur = maxi(herite, automne ? String(act.date).slice(0, 4) : cal);
     } else if (estPivot && campagneRecolte != null) {
       valeur = maxi(Number(campagneRecolte) + 1, cal);
     } else {
