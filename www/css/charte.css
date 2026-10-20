@@ -102,9 +102,6 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 .feed-item .feed-type{font-size:15px;font-weight:700;color:var(--ch-texte)}
 .feed-item .feed-notes{font-size:13px;color:var(--ch-texte2);font-style:italic}
 .feed-item .feed-photo{width:56px;height:56px;border-radius:14px;object-fit:cover;flex:none}
-/* Carte réduite de l'écran Ferme : la carte « Parcellaire du domaine » de la
-   maquette (bloc de 150 px, bord --ch-bord, rayon 18). */
-#map.map-reduite{flex:0 0 150px;height:150px;min-height:0;margin:16px 16px 0;border:1px solid var(--ch-bord);border-radius:18px;overflow:hidden}
 
 /* ==========================================================================
    ÉCRAN CARTE — maquette-charte-carte.html (.chip, .map-btn, .sheet)

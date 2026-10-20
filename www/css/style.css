@@ -795,11 +795,6 @@ label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom
    reste possible (l'annulation est explicite dans setView). */
 .tabs-bloques .tab { opacity: 0.55; }
 
-/* Vue Ferme : la carte occupe le haut, le fil d'activités le reste. */
-#map.map-reduite {
-  flex: 0 0 42%;
-  min-height: 180px;
-}
 
 /* ========================================================================
    Fil des dernières activités
@@ -1003,8 +998,6 @@ label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom
 /* La marge de 80 px qui écarte légende et attribution des boutons flottants
    n'a de sens que dans la vue Carte : c'est la seule où ces boutons existent.
    Dans la vue Ferme, elle laisserait un vide au bas d'une carte déjà réduite. */
-#map.map-reduite .map-legend,
-#map.map-reduite .leaflet-control-attribution { margin-bottom: 10px !important; }
 
 /* ========================================================================
    Vues défilantes (Stocks, Troupeau)

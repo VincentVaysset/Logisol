@@ -505,7 +505,8 @@ async function revérifierRegles() {
 // --- Messages contextuels au-dessus de la carte ---------------------------
 let indiceTimer = null;
 function afficherIndice(texte, dureeMs) {
-  if (!drawHint) return;
+  // Message de la carte : hors onglet Carte, il n'y a pas de carte à commenter.
+  if (!drawHint || currentView !== 'carte') return;
   clearTimeout(indiceTimer);
   drawHint.textContent = texte;
   drawHint.hidden = false;
@@ -731,8 +732,9 @@ function setView(vue) {
   currentView = vue;
   // La carte n'existe que dans les vues qui l'utilisent : la laisser affichée
   // sous une vue Stocks ou Troupeau chargerait des tuiles pour rien.
-  mapEl.hidden = vue !== 'ferme' && vue !== 'carte';
-  mapEl.classList.toggle('map-reduite', vue === 'ferme');
+  // L'écran Ferme n'a plus d'aperçu de carte : l'onglet Carte suffit.
+  mapEl.hidden = vue !== 'carte';
+  if (vue !== 'carte') masquerIndice();
   feedEl.hidden = vue !== 'ferme';
   listViewEl.hidden = vue !== 'liste';
   stocksViewEl.hidden = vue !== 'stocks';
@@ -755,7 +757,7 @@ function setView(vue) {
   if (vue === 'stocks') { renderStocks(); renderStockageParBatiment(); }
   if (vue === 'troupeau') renderTroupeau();
   if (vue === 'batiments') { renderBatiments(); renderMateriels(); }
-  if (vue === 'ferme' || vue === 'carte') {
+  if (vue === 'carte') {
     // #map vient de changer de taille (ou de redevenir visible) : Leaflet ne
     // le détecte pas seul, ce qui décalerait tuiles, contrôles et surtout la
     // conversion tap -> coordonnées.
