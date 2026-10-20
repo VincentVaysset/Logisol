@@ -359,3 +359,95 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 
 /* Réglages : build + commit sous l'entrée Diagnostic */
 .parametres-build{margin:6px 0 0;font-size:11px;color:var(--ch-icone);font-variant-numeric:tabular-nums}
+
+/* ==========================================================================
+   TABLETTE (≥ 900 px) — docs/maquettes/maquette-tablette-troupeau.html.
+   Même appli, CSS seul : sous 900 px rien ne change (téléphone, barre du bas).
+   - #tabs devient un rail vertical de 88 px à gauche (logo en haut) ;
+   - un conteneur commun d'environ 1100 px, centré : en-tête, onglets et
+     contenu s'alignent sur les mêmes bords (--tab-marge) ;
+   - cartes en grille (2 colonnes, 3 pour les petites cartes de chiffres) ;
+   - onglets à gauche, compteur et actions à droite, sur une seule ligne ;
+   - la Carte et le calendrier de pâturage gardent toute la largeur.
+   ========================================================================== */
+@media (min-width: 900px) {
+  :root { --bottomnav-h: 0px; --rail-l: 88px; }
+  #screen-app { padding-left: var(--rail-l); }
+  #screen-app > * { --tab-marge: max(28px, calc((100% - 1100px) / 2)); }
+
+  /* Rail */
+  #tabs.tabs {
+    top: 0; right: auto; bottom: 0; left: 0; width: var(--rail-l);
+    flex-direction: column; justify-content: flex-start; align-items: center; gap: 10px;
+    padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px)) env(safe-area-inset-left, 0px);
+    border-top: none; border-right: 1px solid var(--ch-bord);
+  }
+  #tabs.tabs::before {
+    content: ''; width: 40px; height: 40px; flex: none; margin-bottom: 12px; border-radius: 50%;
+    background: #fff url(../img/logo-mark.png) center / 40px 40px no-repeat;
+  }
+  #tabs .tab { flex: none; width: 76px; min-height: 0; padding: 4px 0; gap: 4px; }
+  #tabs .tab .pi { width: 56px; height: 34px; }
+  .hd .brand { display: none; }
+
+  /* Conteneur commun */
+  .hd { padding-left: var(--tab-marge); padding-right: var(--tab-marge); }
+  #screen-app .scroll-view, #screen-app .list-view, #screen-app .feed { padding: 18px var(--tab-marge) 28px; }
+  #screen-app .vue-claire > * { max-width: none; }
+  #parcelles-liste { padding: 0; }
+  .alerte, .draw-toolbar, .draw-hint, #carte-secteur-filtre.chips { margin-left: var(--tab-marge); margin-right: var(--tab-marge); }
+  #parcelles-recherche-champ, #liste-secteur-filtre.chips { margin-left: 0; margin-right: 0; }
+  #feed .feed-head, #feed #feed-list { max-width: none; }
+
+  /* Grilles de cartes */
+  .stk-groupes, #troupeau-lots, #materiels-liste, #parcelles-liste > .liste {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start;
+  }
+  .stk-groupes > *, #troupeau-lots > *, #materiels-liste > *, #parcelles-liste > .liste > * { margin: 0; min-width: 0; }
+  #troupeau-lots > .trp-clotures, #troupeau-lots > .list-empty, #parcelles-liste > .liste > .list-empty,
+  .stk-groupes > .stk-note { grid-column: 1 / -1; }
+  #troupeau-bilan { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+  #troupeau-bilan > .trp-conso, #troupeau-bilan > .trp-totaux { grid-column: 1 / -1; }
+  .tuiles:not(.c2) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tuiles.ch-tuiles-parcelles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  /* Une seule ligne d'actions : onglets à gauche, compteur et boutons à
+     droite. L'en-tête de la vue (titre déjà dans le bandeau) passe à droite
+     de la ligne des onglets. */
+  #troupeau-view, #batiments-view {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; align-content: start;
+  }
+  #troupeau-view[hidden], #batiments-view[hidden] { display: none; }
+  #troupeau-view > *, #batiments-view > * { grid-column: 1 / -1; margin-left: 0; margin-right: 0; }
+  #troupeau-sous-vues, #batiments-sous-vues { grid-row: 1; grid-column: 1; align-self: center; margin: 0; }
+  #troupeau-view > .stk-head, #batiments-view > .stk-head { grid-row: 1; grid-column: 2; margin: 0; justify-content: flex-end; align-items: center; gap: 12px; }
+  #stocks-view > .stk-head { align-items: center; }
+  .scroll-view > .stk-head .stk-titre { display: none; }
+  .scroll-view > .stk-head .stk-sous { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: .6px; text-transform: uppercase; color: var(--ch-texte2); }
+  .scroll-view > .stk-head > div:first-child { display: flex; align-items: center; }
+  #list-view > #parcelles-sous-vues { margin: 0 0 12px; width: max-content; max-width: 100%; }
+  #list-view > * { margin-left: 0; margin-right: 0; }
+  /* Parcelles : onglets à gauche, recherche à droite, sur la même ligne */
+  #list-view:not([hidden]) { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-content: start; }
+  #list-view > * { grid-column: 1 / -1; }
+  #list-view > #parcelles-sous-vues { grid-row: 1; grid-column: 1; margin: 0 0 12px; align-self: center; }
+  #list-view > #parcelles-recherche-champ { grid-row: 1; grid-column: 2; margin: 0 0 12px; max-width: 420px; justify-self: end; width: 100%; }
+
+  /* Fiches (feuilles du bas) : centrées, à la manière de la maquette */
+  .fiche-overlay.ch-sheet-carte { left: var(--rail-l); }
+  .fiche-overlay:not(#rapports-panel):not(.ch-sheet-carte) { left: var(--rail-l); align-items: center; justify-content: center; padding: 24px; }
+  .fiche-overlay:not(#rapports-panel):not(.ch-sheet-carte) > .fiche-panel { max-width: 640px; border-radius: 22px; padding-bottom: 20px; }
+  #troupeau-sous-vues button, #batiments-sous-vues button, #parcelles-sous-vues button { padding-left: 16px; padding-right: 16px; white-space: nowrap; }
+
+  /* Boutons de la carte : à droite du rail (positionnés dans #screen-app) */
+  .fab-row { left: calc(var(--rail-l) + 16px); max-width: 720px; }
+  .gps-badge { left: calc(var(--rail-l) + 16px); }
+
+  /* Pleine largeur : le calendrier de pâturage (comme la Carte) */
+  #troupeau-view.vue-large { --tab-marge: 28px; }
+
+  /* Rapports & Synthèses : un écran, à droite du rail, dans le conteneur */
+  #rapports-panel { left: var(--rail-l); align-items: stretch; background: var(--ch-fond); }
+  #rapports-panel .fiche-panel { max-height: none; height: 100%; border-radius: 0; padding: 18px max(28px, calc((100% - 1100px) / 2)) 28px; }
+  #rapports-panel .fiche-panel::before { display: none; }
+}
