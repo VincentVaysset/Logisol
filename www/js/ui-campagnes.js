@@ -17,6 +17,7 @@ const annulablesEl = document.getElementById('campagnes-reprise-annulables');
 
 let parcelles = [];
 let dernierEcarts = [];
+let dernieresIgnorees = [];
 let previsualisationFaite = false;
 
 /** Branché depuis main.js, comme setParcellesDisponibles (ui-intervention.js) :
@@ -35,6 +36,7 @@ export function initParametresCampagnes() {
     panelEl.hidden = false;
     renderTypes();
     dernierEcarts = [];
+    dernieresIgnorees = [];
     previsualisationFaite = false;
     renderReprise();
     renderAnnulables();
@@ -43,7 +45,9 @@ export function initParametresCampagnes() {
 
   document.getElementById('campagnes-reprise-previsualiser').addEventListener('click', () => {
     try {
-      dernierEcarts = previsualiserReprise(getInterventions());
+      const r = previsualiserReprise(getInterventions());
+      dernierEcarts = r.ecarts;
+      dernieresIgnorees = r.ignorees;
       previsualisationFaite = true;
       renderReprise();
     } catch (err) {
@@ -110,18 +114,27 @@ function renderTypes() {
 }
 
 function renderReprise() {
+  const nomsDe = (e) => e.parcelleIds.map(nomParcelle).join(', ');
+  // Jamais écrites : affichées pour information seulement.
+  const ignorees = dernieresIgnorees.map((e) => `
+    <div class="cat-card reprise-ignoree">
+      <div class="cat-card-nom">${escapeHtml(nomsDe(e))} — ${escapeHtml(e.typeNom)}</div>
+      <div class="cat-card-detail">${escapeHtml(e.date)} : ${e.raison === 'forcee'
+        ? `${escapeHtml(e.forcee)} forcée, ignorée (la règle donnerait ${escapeHtml(e.parParcelle.map(([p, c]) => (e.parcelleIds.length > 1 ? `${nomParcelle(p)} ${c}` : c)).join(', '))})`
+        : `parcelles divergentes, ignorée (${escapeHtml(e.parParcelle.map(([p, c]) => `${nomParcelle(p)} → ${c}`).join(', '))} ; enregistrée ${escapeHtml(e.ancienneCampagne || '—')})`}</div>
+    </div>`).join('');
   if (!dernierEcarts.length) {
-    repriseListeEl.innerHTML = previsualisationFaite
-      ? '<p class="list-empty">Aucun écart — l\'historique est déjà cohérent avec la règle actuelle.</p>'
-      : '<p class="list-empty">Touche « Prévisualiser » pour comparer l\'historique à la règle actuelle.</p>';
+    repriseListeEl.innerHTML = (previsualisationFaite
+      ? '<p class="list-empty">Aucun écart à appliquer — l\'historique est déjà cohérent avec la règle actuelle.</p>'
+      : '<p class="list-empty">Touche « Prévisualiser » pour comparer l\'historique à la règle actuelle.</p>') + ignorees;
     repriseAppliquerBtn.hidden = true;
     return;
   }
   repriseListeEl.innerHTML = dernierEcarts.map((e) => `
     <div class="cat-card" data-id="${escapeAttr(e.activiteId)}">
-      <div class="cat-card-nom">${escapeHtml(nomParcelle(e.parcelleId))} — ${escapeHtml(e.typeNom)}</div>
-      <div class="cat-card-detail">${escapeHtml(e.date)} : ${escapeHtml(e.ancienneCampagne || '—')} → ${escapeHtml(e.nouvelleCampagne)}</div>
-    </div>`).join('');
+      <div class="cat-card-nom">${escapeHtml(nomsDe(e))} — ${escapeHtml(e.typeNom)}</div>
+      <div class="cat-card-detail">${escapeHtml(e.date)} : ${escapeHtml(e.ancienneCampagne || '—')} → ${escapeHtml(e.nouvelleCampagne)}${e.saisieManuelle ? ' · saisie avant le 28/09/2026 : campagne peut-être choisie à la main' : ''}</div>
+    </div>`).join('') + ignorees;
   repriseAppliquerBtn.hidden = false;
   repriseAppliquerBtn.textContent = `✔ Appliquer les ${dernierEcarts.length} changement(s)`;
 }

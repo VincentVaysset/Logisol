@@ -19,39 +19,29 @@
 // RÈGLE (une seule, ici — le semis n'a PLUS de traitement à part, il suit
 // exactement la même règle que tout autre pivot) :
 //   - Les activités d'une parcelle sont rejouées par ordre chronologique.
-//   - Un type "pivot" (drapeau pivotCampagne — labour, déchaumage, semis,
-//     broyage de destruction...) fait basculer la campagne à N+1 si :
-//       (a) un type "récolte" (drapeau recolteCampagne) a eu lieu depuis le
-//           dernier pivot ("bascule armée") ; OU
-//       (b) aucun pivot n'a encore jamais ancré la chaîne de cette parcelle
-//           ET une activité — de n'importe quel type — existe déjà avant lui
-//           dans l'historique (pâturage, coupe, autre culture...) : ce pivot
-//           clôt alors implicitement une campagne jamais formellement
-//           ouverte dans l'appli. La nouvelle campagne est celle de
-//           l'activité précédente + 1, ou celle du calendrier si elle est
-//           plus tardive : le calendrier fait déjà passer un pivot d'octobre
-//           à N+1, l'y ajouter encore donnerait N+2.
-//     Le TOUT PREMIER ÉVÉNEMENT d'une parcelle — rien du tout avant lui,
-//     pas même une activité non-pivot — n'a rien à clore : il ancre une
-//     campagne par défaut, sans bascule.
-//   - Une récolte NE BASCULE JAMAIS elle-même (elle reste dans la campagne
-//     où elle a eu lieu, même si elle est aussi un pivot — cf. la moisson,
-//     qui clôt la culture ET rentre un produit) ; elle ancre sans progresser,
-//     et réarme la bascule pour le PROCHAIN pivot.
-//   - Les pivots suivants, une fois la chaîne ancrée et sans récolte entre
-//     deux (ex. déchaumage -> labour), restent dans la même campagne : pas
-//     de nouvelle bascule.
-//   - Toute activité NON pivot hérite de la campagne courante (celle du
-//     dernier pivot rencontré) mais n'ancre jamais elle-même la chaîne.
-//   - Avant le premier pivot d'une parcelle : chaque activité reprend la
-//     règle par défaut (le calendrier de campagne de sa propre date — 01/09
-//     et après : année suivante, calendrier-campagne.js —, sauf valeur
-//     imposée par l'appelant) — c'est ce qui fait qu'une luzerne sans jamais
-//     aucun pivot (donc sans bascule) voit quand même ses coupes annuelles
-//     réparties sur la bonne année civile, une par une.
+//   - Chaque activité prend max(campagne héritée des travaux, campagne du
+//     calendrier de sa date — 01/09 et après : année suivante,
+//     calendrier-campagne.js). Une culture pluriannuelle (prairie semée en
+//     2024, jamais retravaillée) ne reste donc pas bloquée sur la campagne
+//     de son semis : sa coupe de mai 2026 est en 2026.
+//   - Campagne héritée : celle du dernier pivot (drapeau pivotCampagne —
+//     labour, déchaumage, semis, broyage de destruction...) ; aucune avant
+//     le premier pivot.
+//   - Le « +1 » ne vient QUE d'une récolte (drapeau recolteCampagne) : le
+//     premier pivot qui suit une récolte hérite de la campagne de cette
+//     récolte + 1. Jamais par rapport à l'activité précédente : un
+//     déchaumage du 06/10 après un épandage du 05/10 (déjà N+1 par le
+//     calendrier), sans récolte entre deux, reste en N+1.
+//   - Une récolte NE BASCULE JAMAIS elle-même (même une moisson, qui est
+//     aussi un pivot) et réarme le « +1 » pour le prochain pivot. Datée du
+//     01/09 au 31/12, elle appartient à la culture en place (dernière coupe
+//     d'une prairie, moisson d'automne) : le calendrier y compte l'année
+//     civile, pas la suivante.
 //   - forcerCampagne sur une activité est TOUJOURS prioritaire, et n'altère
 //     pas la chaîne pour les activités suivantes (une correction ponctuelle
-//     n'a pas à fausser tout ce qui vient après).
+//     n'a pas à fausser tout ce qui vient après). La valeur que la règle lui
+//     aurait donnée reste lisible (resultat.sansForcage), pour que la reprise
+//     puisse la montrer « forcée, ignorée ».
 // L'implémentation réelle n'est importée qu'À LA DEMANDE (import dynamique),
 // jamais au chargement du module : ce fichier reste ainsi testable en Node
 // pur (cf. scratchpad/test-campagnes.mjs), sans tirer Firestore/
@@ -130,56 +120,41 @@ export function calculerCampagnes(activitesParcelle, defaut, deps = {}) {
     .slice()
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
-  let campagneActuelle = null; // pas encore ancrée par un pivot
-  let basculeArmee = false;    // une récolte a eu lieu depuis le dernier pivot
-  let precedente = null;       // campagne de l'activité précédente (non forcée)
+  let herite = null;          // campagne du dernier pivot
+  let campagneRecolte = null; // campagne de la dernière récolte depuis ce pivot (« +1 » armé)
   const resultat = new Map();
+  const sansForcage = new Map();
+  const maxi = (...v) => String(Math.max(...v.filter((x) => x != null && x !== '').map(Number)));
 
-  for (let i = 0; i < tri.length; i++) {
-    const act = tri[i];
+  for (const act of tri) {
+    const type = getTypeById(act.typeId);
+    const estPivot = estPivotCampagne(type);
+    const estRecolte = estRecolteCampagne(type);
+    const cal = valeurDefaut(defaut, act.date);
+    let valeur;
+    if (estRecolte) {
+      const automne = Number(String(act.date).slice(5, 7)) >= 9;
+      valeur = maxi(herite, automne ? String(act.date).slice(0, 4) : cal);
+    } else if (estPivot && campagneRecolte != null) {
+      valeur = maxi(Number(campagneRecolte) + 1, cal);
+    } else {
+      valeur = maxi(herite, cal);
+    }
+    sansForcage.set(act.id, valeur);
     if (act.forcerCampagne) {
       resultat.set(act.id, String(act.forcerCampagne));
       continue; // n'affecte jamais la chaîne pour les activités suivantes
     }
-
-    const type = getTypeById(act.typeId);
-    const estRecolte = estRecolteCampagne(type);
-    const base = campagneActuelle != null ? campagneActuelle : valeurDefaut(defaut, act.date);
-    // Rien du tout avant cette activité (même pas une activité non-pivot) :
-    // il n'y a formellement rien à clore, donc pas de bascule implicite.
-    const estTresPremierEvenement = i === 0;
-    let valeur;
-
-    if (estPivotCampagne(type)) {
-      if (estRecolte) {
-        // Une récolte ne bascule jamais elle-même, même si elle est aussi un
-        // pivot (moisson) : elle ancre sans progresser.
-        campagneActuelle = base;
-      } else if (campagneActuelle != null && basculeArmee) {
-        campagneActuelle = String(Number(base) + 1);
-      } else if (campagneActuelle == null && !estTresPremierEvenement) {
-        campagneActuelle = String(Math.max(Number(precedente) + 1, Number(base)));
-      } else {
-        // Premier pivot d'une parcelle vierge (rien avant lui), ou pivots
-        // successifs sans récolte entre deux (ex. déchaumage -> labour) :
-        // ancre sans faire progresser.
-        campagneActuelle = base;
-      }
-      basculeArmee = false;
-      valeur = campagneActuelle;
-    } else {
-      // Hérite de la campagne courante pour CETTE activité seulement — mais
-      // n'ancre pas la chaîne : tant qu'aucun pivot n'a jamais rien ancré
-      // (campagneActuelle reste null), chaque activité suivante doit encore
-      // recalculer sa propre valeur par défaut (cas d'une culture pérenne
-      // sans aucune destruction, ex. luzerne sur plusieurs années).
-      valeur = base;
-    }
-
     resultat.set(act.id, valeur);
-    precedente = valeur;
-    if (estRecolte) basculeArmee = true;
+    if (estRecolte) {
+      if (estPivot) herite = valeur;
+      campagneRecolte = valeur;
+    } else if (estPivot) {
+      herite = valeur;
+      campagneRecolte = null;
+    }
   }
 
+  resultat.sansForcage = sansForcage;
   return resultat;
 }
