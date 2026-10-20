@@ -25,6 +25,8 @@ export function initOutilsDiagnostic() {
   const bouton = document.getElementById('debug-outils');
   if (!bouton || !el.panel) return;
   bouton.addEventListener('click', ouvrir);
+  const entree = document.getElementById('btn-diagnostic');
+  if (entree) entree.addEventListener('click', ouvrir);
   el.fermer.addEventListener('click', () => { el.panel.hidden = true; });
   el.chercher.addEventListener('click', rechercher);
   el.vider.addEventListener('click', () => {
@@ -59,6 +61,9 @@ export function initOutilsDiagnostic() {
 
 async function ouvrir() {
   el.panel.hidden = false;
+  const journal = document.getElementById('debug-banner');
+  const demarrage = document.getElementById('diag-demarrage');
+  if (demarrage) demarrage.textContent = journal ? journal.textContent.trim() : '';
   if (!el.date.value) el.date.value = new Date().toISOString().slice(0, 10);
   afficherJournal();
   el.etat.textContent = 'Lecture de l\'état...';

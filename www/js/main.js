@@ -708,6 +708,7 @@ function initParametres() {
   const v = window.__LOGISOL_VERSION || {};
   document.getElementById('parametres-version').textContent =
     v.build && v.build !== 'local' ? `${v.build}${v.date ? ' · ' + v.date : ''}` : 'Build local (dev)';
+  document.getElementById('parametres-build').textContent = `build ${v.build || '?'} · ${v.commit || '?'}`;
   document.getElementById('btn-parametres').addEventListener('click', () => { panel.hidden = false; });
   document.getElementById('parametres-fermer').addEventListener('click', () => { panel.hidden = true; });
   initParametresCultures();

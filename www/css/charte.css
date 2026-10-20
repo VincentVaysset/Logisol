@@ -355,3 +355,6 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 .card.ch-coupes{display:flex;flex-direction:column;gap:12px}
 .ch-note{margin:0;font-size:12px;color:var(--ch-texte2)}
 .ch-note-ecart{color:var(--ch-ambre-texte)}
+
+/* Réglages : build + commit sous l'entrée Diagnostic */
+.parametres-build{margin:6px 0 0;font-size:11px;color:var(--ch-icone);font-variant-numeric:tabular-nums}
