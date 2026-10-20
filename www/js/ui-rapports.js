@@ -11,6 +11,7 @@ import { calendrierSemis, syntheseCategories, planFertilisation, SAISON_PAR_FAMI
 import {
   getPrevisions, onPrevisionsChange, campagneCourante, prevision, culturePrev, estSemisDeLAnnee
 } from './assolement-previsionnel.js';
+import { campagneDeActivite } from './calendrier-campagne.js';
 import { semisRealises, fertilisationRealisee, syntheseStocks } from './realise-calc.js';
 import { getInterventions, quantiteDeSaisie } from './interventions.js';
 import { getTypeById, formulaireDe } from './interventions-types.js';
@@ -236,7 +237,7 @@ function renderPrevisionnel() {
 
 // --- Réalisé --------------------------------------------------------------------
 function activitesCampagne(camp) {
-  return getInterventions().filter((i) => i.statut !== 'A_FAIRE' && String(i.campagneId || String(i.date || '').slice(0, 4)) === camp)
+  return getInterventions().filter((i) => i.statut !== 'A_FAIRE' && campagneDeActivite(i) === camp)
     .map((i) => ({ i, f: formulaireDe(getTypeById(i.typeId)), s: i.saisie || {} }));
 }
 

@@ -2,15 +2,16 @@
 // par (parcelle, campagne), id déterministe "{parcelleId}_{campagneId}" pour
 // que la mise à jour / suppression soit directe (pas besoin de requête).
 import { db } from './firebase-config.js';
+import { campagneEnCours } from './calendrier-campagne.js';
 import {
   collection, doc, getDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp
 } from "../vendor/firebase/firebase-firestore.js";
 
 const COL_NAME = 'assolements';
 
-// Campagne agricole = année calendaire en cours, pas de sélecteur pour l'instant.
+// Campagne agricole en cours (calendrier 01/09, calendrier-campagne.js).
 export function getCampagneActuelle() {
-  return new Date().getFullYear().toString();
+  return campagneEnCours();
 }
 
 function assolementId(parcelleId, campagneId) {

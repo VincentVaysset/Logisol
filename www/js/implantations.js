@@ -22,6 +22,7 @@
 // Les dates sont des chaînes "AAAA-MM-JJ" : comparables et triables telles
 // quelles, et insensibles au fuseau horaire (contrairement à un Date ou un
 // Timestamp, qui peut basculer d'un jour selon l'heure d'enregistrement).
+import { campagneDeDate } from './calendrier-campagne.js';
 import { db } from './firebase-config.js';
 import {
   collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, serverTimestamp
@@ -124,11 +125,7 @@ export function historiqueParcelle(parcelleId, liste = courantes) {
 // parcelle dont l'historique décide de la bascule — c'est exactement le bug
 // que campagnes.js/calculerCampagnes() corrige (cf. son en-tête).
 export function campagneDeSemis(dateSemis) {
-  const m = String(dateSemis || '').match(/^(\d{4})-(\d{2})/);
-  if (!m) return null;
-  const annee = Number(m[1]);
-  const mois = Number(m[2]);
-  return String(mois >= 8 ? annee + 1 : annee);
+  return campagneDeDate(dateSemis);
 }
 
 // Dépendances chargées à la demande (Firestore), comme campagnes.js/

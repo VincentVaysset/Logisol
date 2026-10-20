@@ -11,6 +11,7 @@
 // activité modifiée (campagneAvantReprise) pour qu'annulerReprise() puisse
 // la restaurer.
 import { calculerCampagnes } from './campagnes.js';
+import { campagneDeDate } from './calendrier-campagne.js';
 
 // Comme campagnes.js : import différé d'interventions.js (Firestore), pour
 // que calculerEcarts() reste testable en Node pur (cf.
@@ -59,7 +60,7 @@ export function calculerEcarts(interventions, deps = {}) {
     const items = activites.map((a) => ({
       id: a.id, date: a.date, typeId: a.typeId, forcerCampagne: a.forcerCampagne || null
     }));
-    const nouvelles = calculerCampagnes(items, (d) => d.slice(0, 4), deps);
+    const nouvelles = calculerCampagnes(items, campagneDeDate, deps);
     for (const a of activites) {
       const nouvelle = nouvelles.get(a.id);
       const ancienne = a.campagneId || null;

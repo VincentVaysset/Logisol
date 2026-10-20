@@ -16,6 +16,7 @@ import {
   typesPourCible, categorieDe, fluxDe, formulaireDe, fluxObligatoire,
   effetCultureDe, addType, TYPE_NOTE
 } from './interventions-types.js';
+import { campagneDeDate } from './calendrier-campagne.js';
 import { getMaterielById, getMateriels, onMaterielsChange, materielsPourAction } from './materiel.js';
 import {
   createIntervention, updateIntervention, deleteIntervention, quantiteDeSaisie, getInterventions,
@@ -1648,8 +1649,7 @@ function reinitialiser() {
 // exactement la même règle que le semis, au lieu de deux logiques distinctes
 // qui divergeaient (cf. campagnes.js, en-tête, pour l'historique du bug).
 function campagneParDefaut() {
-  const d = el.date.value || aujourdhui();
-  return d.slice(0, 4);
+  return campagneDeDate(el.date.value || aujourdhui());
 }
 
 /** Historique des activités déjà enregistrées sur une parcelle, du plus

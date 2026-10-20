@@ -13,13 +13,14 @@ import { toastSucces, toastErreur } from './toast.js';
 import { rapportTransferts } from './diagnostic-transferts.js';
 import { rapportLots } from './diagnostic-lots.js';
 import { rapportTracteurs } from './diagnostic-tracteurs.js';
+import { rapportCampagnesMultiParcelles } from './diagnostic-campagnes.js';
 
 const DELAI_SERVEUR_MS = 8000;
 const el = {};
 
 export function initOutilsDiagnostic() {
   ['panel', 'etat', 'parcelle', 'parcelles', 'date', 'chercher', 'resultat', 'journal', 'copier', 'vider', 'fermer',
-   'transferts', 'transferts-resultat', 'lots', 'lots-resultat', 'tracteurs', 'tracteurs-resultat']
+   'transferts', 'transferts-resultat', 'lots', 'lots-resultat', 'tracteurs', 'tracteurs-resultat', 'campagnes', 'campagnes-resultat']
     .forEach((k) => { el[k] = document.getElementById('diag-' + k); });
   const bouton = document.getElementById('debug-outils');
   if (!bouton || !el.panel) return;
@@ -40,6 +41,14 @@ export function initOutilsDiagnostic() {
     el['tracteurs-resultat'].hidden = false;
     try { el['tracteurs-resultat'].textContent = rapportTracteurs(); }
     catch (err) { el['tracteurs-resultat'].textContent = 'Liste impossible : ' + raison(err); }
+  });
+  el.campagnes.addEventListener('click', async () => {
+    el['campagnes-resultat'].hidden = false;
+    try {
+      const parcelles = await lireLocal(collection(db, 'parcelles'));
+      const noms = new Map(parcelles.docs.map((d) => [d.id, d.data().nom || d.id]));
+      el['campagnes-resultat'].textContent = rapportCampagnesMultiParcelles(noms);
+    } catch (err) { el['campagnes-resultat'].textContent = 'Liste impossible : ' + raison(err); }
   });
   el.transferts.addEventListener('click', () => {
     el['transferts-resultat'].hidden = false;

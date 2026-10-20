@@ -27,7 +27,10 @@
 //           ET une activité — de n'importe quel type — existe déjà avant lui
 //           dans l'historique (pâturage, coupe, autre culture...) : ce pivot
 //           clôt alors implicitement une campagne jamais formellement
-//           ouverte dans l'appli.
+//           ouverte dans l'appli. La nouvelle campagne est celle de
+//           l'activité précédente + 1, ou celle du calendrier si elle est
+//           plus tardive : le calendrier fait déjà passer un pivot d'octobre
+//           à N+1, l'y ajouter encore donnerait N+2.
 //     Le TOUT PREMIER ÉVÉNEMENT d'une parcelle — rien du tout avant lui,
 //     pas même une activité non-pivot — n'a rien à clore : il ancre une
 //     campagne par défaut, sans bascule.
@@ -41,7 +44,8 @@
 //   - Toute activité NON pivot hérite de la campagne courante (celle du
 //     dernier pivot rencontré) mais n'ancre jamais elle-même la chaîne.
 //   - Avant le premier pivot d'une parcelle : chaque activité reprend la
-//     règle par défaut (l'année civile de sa propre date, sauf valeur
+//     règle par défaut (le calendrier de campagne de sa propre date — 01/09
+//     et après : année suivante, calendrier-campagne.js —, sauf valeur
 //     imposée par l'appelant) — c'est ce qui fait qu'une luzerne sans jamais
 //     aucun pivot (donc sans bascule) voit quand même ses coupes annuelles
 //     réparties sur la bonne année civile, une par une.
@@ -53,6 +57,8 @@
 // pur (cf. scratchpad/test-campagnes.mjs), sans tirer Firestore/
 // firebase-config.js juste pour vérifier l'algorithme avec des dépendances
 // injectées.
+import { campagneDeDate } from './calendrier-campagne.js';
+
 let modulesReels = null;
 async function chargerModulesReels() {
   if (!modulesReels) {
@@ -69,15 +75,10 @@ export async function preparerCampagnes() {
   await chargerModulesReels();
 }
 
-function anneeDe(dateIso) {
-  const m = String(dateIso || '').match(/^(\d{4})/);
-  return m ? m[1] : null;
-}
-
 function valeurDefaut(defaut, date) {
   if (typeof defaut === 'function') return defaut(date);
   if (defaut != null) return String(defaut);
-  return anneeDe(date);
+  return campagneDeDate(date);
 }
 
 // Repli par défaut si le type n'a pas encore le drapeau explicite (types
@@ -106,7 +107,7 @@ export function estRecolteCampagne(type) {
  * @param {string|number|((date:string)=>string)} [defaut]
  *        Campagne à utiliser tant qu'aucun pivot n'a encore rien ancré.
  *        Une fonction (date -> campagne) est recalculée activité par
- *        activité (c'est le cas par défaut : l'année civile de la date) ;
+ *        activité (c'est le cas par défaut : calendrier-campagne.js) ;
  *        une valeur fixe reste constante pour toutes ces activités-là.
  * @param {{getTypeById?:Function}} [deps]
  *        Dépendances injectables (tests Node purs, sans Firestore) ; les
@@ -131,6 +132,7 @@ export function calculerCampagnes(activitesParcelle, defaut, deps = {}) {
 
   let campagneActuelle = null; // pas encore ancrée par un pivot
   let basculeArmee = false;    // une récolte a eu lieu depuis le dernier pivot
+  let precedente = null;       // campagne de l'activité précédente (non forcée)
   const resultat = new Map();
 
   for (let i = 0; i < tri.length; i++) {
@@ -153,8 +155,10 @@ export function calculerCampagnes(activitesParcelle, defaut, deps = {}) {
         // Une récolte ne bascule jamais elle-même, même si elle est aussi un
         // pivot (moisson) : elle ancre sans progresser.
         campagneActuelle = base;
-      } else if (basculeArmee || (campagneActuelle == null && !estTresPremierEvenement)) {
+      } else if (campagneActuelle != null && basculeArmee) {
         campagneActuelle = String(Number(base) + 1);
+      } else if (campagneActuelle == null && !estTresPremierEvenement) {
+        campagneActuelle = String(Math.max(Number(precedente) + 1, Number(base)));
       } else {
         // Premier pivot d'une parcelle vierge (rien avant lui), ou pivots
         // successifs sans récolte entre deux (ex. déchaumage -> labour) :
@@ -173,6 +177,7 @@ export function calculerCampagnes(activitesParcelle, defaut, deps = {}) {
     }
 
     resultat.set(act.id, valeur);
+    precedente = valeur;
     if (estRecolte) basculeArmee = true;
   }
 

@@ -13,6 +13,7 @@
 // "{parcelleId}_{campagne}" : ressaisir une case la met à jour au lieu de la
 // dupliquer. Préfixe lgs_ : couvert par la règle Firestore générique, rien à
 // publier.
+import { campagneEnCours } from './calendrier-campagne.js';
 import { db, auth } from './firebase-config.js';
 import {
   collection, doc, setDoc, getDocs, onSnapshot, serverTimestamp
@@ -170,7 +171,7 @@ export function prevision(parcelleId, campagne, liste = courants) {
 }
 
 export function campagneCourante() {
-  return String(new Date().getFullYear());
+  return campagneEnCours();
 }
 
 /**

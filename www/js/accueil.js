@@ -10,6 +10,7 @@ import { tracesDeParcelle } from './traces.js';
 import { fourrageDisponible, formatTonnes } from './ui-stocks.js';
 import { CATEGORIES } from './interventions-types.js';
 import { campagneCourante } from './assolement-previsionnel.js';
+import { campagneDeActivite } from './calendrier-campagne.js';
 import { afficherTrace, masquerTrace, estAffichee, definirModeLargeur, getModeLargeur, onTracesAfficheesChange } from './trace-affichage.js';
 
 // Id de l'activité dont le petit formulaire "Corriger avec PS" est déplié
@@ -75,7 +76,7 @@ function renderTuilesFerme() {
   try { fourrage = fourrageDisponible(); } catch (_) { /* stocks pas encore chargés */ }
   // Travaux de la saison : activités réalisées de la campagne culturale en cours.
   const campagne = campagneCourante();
-  const travaux = etat.interventions.filter((i) => i.statut !== 'A_FAIRE' && String(i.campagneId || (i.date || '').slice(0, 4)) === campagne).length;
+  const travaux = etat.interventions.filter((i) => i.statut !== 'A_FAIRE' && campagneDeActivite(i) === campagne).length;
   el.innerHTML = `<div class="tuile vert"><span class="l">Fourrage dispo</span><span class="n">${fourrage == null ? '—' : formatTonnes(fourrage) + ' t'}</span></div>
     <div class="tuile bleu"><span class="l">Travaux saison</span><span class="n">${travaux}</span><span class="s">intervention${travaux > 1 ? 's' : ''} ${campagne}</span></div>`;
 }
