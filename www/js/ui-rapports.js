@@ -19,6 +19,9 @@ import { getCultureById } from './cultures-config.js';
 import { bilanStocksCampagne, recoltesParCoupe } from './ui-stocks.js';
 import { getNomExploitation } from './exploitation.js';
 import { exporterPdf } from './pdf-export.js';
+import { pdfCarnetPaturage, nomFichierCarnet } from './pdf-paturage.js';
+import { donneesCarnet } from './ui-paturage.js';
+import { bornesSaison } from './paturage-calc.js';
 import { pdfPrevisionnel, pdfRealise, nomFichierPdf } from './pdf-rapports.js';
 import { toastSucces, toastErreur } from './toast.js';
 
@@ -28,6 +31,7 @@ const docPrevEl = document.getElementById('rap-doc-previsionnel');
 const docRealEl = document.getElementById('rap-doc-realise');
 const exportStatutEl = document.getElementById('rapports-export-statut');
 const btnTelechargerEl = document.getElementById('rapports-telecharger-pdf');
+const carnetBtnEl = document.getElementById('rap-carnet-pdf');
 
 let parcelles = [];
 let campagneR = Number(campagneCourante());
@@ -76,6 +80,44 @@ export function initRapports() {
   // (dose de fumier ajustée, culture changée...) doit se refléter au prochain
   // coup d'œil, sans revenir en arrière puis rouvrir le hub.
   onPrevisionsChange(() => { if (panelOuvert) render(); });
+
+  // Carnet de pâturage : bornes = saison de l'année en cours (modifiables).
+  carnetBtnEl.addEventListener('click', telechargerCarnet);
+  document.addEventListener('logisol:carnet-paturage', (e) => {
+    document.getElementById('btn-rapports').click();
+    bornesCarnet(e.detail && e.detail.annee);
+    document.getElementById('rap-carnet').scrollIntoView({ block: 'start' });
+  });
+  document.getElementById('btn-rapports').addEventListener('click', () => bornesCarnet());
+}
+
+function bornesCarnet(annee = Number(aujourdhuiIso().slice(0, 4))) {
+  const { ctx } = donneesCarnet();
+  const b = bornesSaison(annee, ctx) || { debut: `${annee}-01-01`, fin: aujourdhuiIso() < `${annee}-12-31` ? aujourdhuiIso() : `${annee}-12-31` };
+  document.getElementById('rap-carnet-du').value = b.debut;
+  document.getElementById('rap-carnet-au').value = b.fin;
+}
+
+async function telechargerCarnet() {
+  const statut = document.getElementById('rap-carnet-statut');
+  const debut = document.getElementById('rap-carnet-du').value;
+  const fin = document.getElementById('rap-carnet-au').value;
+  if (!debut || !fin || fin < debut) { statut.textContent = '⚠️ Choisis une date de début et une date de fin (fin après le début).'; return; }
+  carnetBtnEl.disabled = true;
+  statut.textContent = 'Génération du PDF...';
+  try {
+    const { ctx, parcelles: ps, travaux } = donneesCarnet();
+    const doc = pdfCarnetPaturage({ ctx, parcelles: ps, debut, fin, travaux, exploitation: getNomExploitation(), aujourdhui: aujourdhuiIso() });
+    const nom = nomFichierCarnet(debut, fin);
+    const r = await exporterPdf(doc, nom);
+    if (!r.ok) { statut.textContent = '⚠️ ' + r.erreur; toastErreur('PDF non enregistré : ' + r.erreur); }
+    else if (r.methode === 'annule') statut.textContent = '';
+    else { statut.textContent = r.methode === 'partage' ? '✅ PDF prêt — choisis où l\'enregistrer ou l\'ouvrir.' : '✅ PDF téléchargé (' + nom + ').'; toastSucces('Carnet de pâturage généré.'); }
+  } catch (err) {
+    statut.textContent = '⚠️ Génération impossible : ' + ((err && err.message) || err);
+  } finally {
+    carnetBtnEl.disabled = false;
+  }
 }
 
 function render() {

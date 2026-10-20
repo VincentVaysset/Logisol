@@ -572,6 +572,7 @@
 
     <div class="trp-onglets tabs" id="troupeau-sous-vues">
       <button type="button" data-sousvue="actuel" class="is-active">Distribué</button>
+      <button type="button" data-sousvue="paturage">Pâturage</button>
       <button type="button" data-sousvue="historique">Bilan campagne</button>
       <button type="button" data-sousvue="previsionnel">Prévisionnel</button>
     </div>
@@ -619,6 +620,46 @@
 
     <!-- Distribué : ration en cours de chaque lot (affectations.js), sans
          date de fin ; « Changer la ration » clôt l'ancienne. -->
+    <!-- Pâturage : calendrier (docs/maquettes/maquette-calendrier-paturage.html),
+         www/js/ui-paturage.js. Année civile ; vue Mois (saisie), vue Saison. -->
+    <div id="troupeau-paturage" class="pat" hidden>
+      <div class="pat-row">
+        <div class="tabs pat-onglets" role="tablist">
+          <button type="button" data-patvue="mois" class="is-active">Mois</button>
+          <button type="button" data-patvue="saison">Saison</button>
+        </div>
+        <div class="pat-annee">
+          <button type="button" class="pat-rnd" id="pat-annee-moins" aria-label="Année précédente">‹</button>
+          <b id="pat-annee"></b>
+          <button type="button" class="pat-rnd" id="pat-annee-plus" aria-label="Année suivante">›</button>
+        </div>
+        <span class="pat-sp"></span>
+        <button type="button" class="btn btn-secondary btn-mini" id="pat-carnet">📄 Carnet PDF</button>
+      </div>
+      <div id="pat-kpi"></div>
+      <div id="pat-vue-mois">
+        <div class="pat-row">
+          <div class="pat-mnav">
+            <button type="button" class="pat-rnd" id="pat-mois-moins" aria-label="Mois précédent">‹</button>
+            <b id="pat-mois"></b>
+            <button type="button" class="pat-rnd" id="pat-mois-plus" aria-label="Mois suivant">›</button>
+          </div>
+          <span class="pat-sp"></span>
+          <button type="button" class="btn btn-secondary btn-mini" id="pat-auj">Aujourd'hui</button>
+        </div>
+        <div class="pat-gw" id="pat-grille"></div>
+        <p class="pat-hint">Touchez une case pour faire entrer un lot sur la parcelle ou noter un jour sans sortie.</p>
+      </div>
+      <div id="pat-vue-saison" hidden>
+        <div class="pat-sw" id="pat-saison"></div>
+        <p class="pat-hint">Vue d'ensemble en lecture seule. Touchez un mois pour l'ouvrir et saisir.</p>
+      </div>
+      <div class="pat-leg">
+        <span><i class="sw l"></i>Laitières</span><span><i class="sw a"></i>Agnelles</span><span><i class="sw la"></i>Laitières + agnelles</span>
+        <span><i class="sw np"></i>Lot affecté, pas de sortie</span><span><i class="sw fau"></i>Fauche (F) / broyage (B), journal</span>
+      </div>
+    </div>
+
     <div id="troupeau-actuel">
       <div id="troupeau-alerte" class="stk-bandeau" hidden></div>
       <div id="troupeau-lots" class="trp-lots"></div>
@@ -649,6 +690,11 @@
        aliment (récoltes, achats, ventes, pertes, distributions...), avec
        Modifier/Supprimer par ligne. Ouverte en touchant une carte de
        catégorie dans Stocks. -->
+  <!-- Feuille du calendrier de pâturage (www/js/ui-paturage.js) -->
+  <div id="pat-feuille" class="fiche-overlay" hidden>
+    <div class="fiche-panel pat-feuille" id="pat-feuille-corps" role="dialog" aria-modal="true"></div>
+  </div>
+
   <div id="aliment-panel" class="fiche-overlay" hidden>
     <div class="fiche-panel">
       <h2 id="aliment-nom">Aliment</h2>
@@ -1780,6 +1826,17 @@
       <p id="rapports-export-statut" class="champ-aide"></p>
       <article class="doc" id="rap-doc-previsionnel"></article>
       <article class="doc" id="rap-doc-realise" hidden></article>
+      <!-- Carnet de pâturage (www/js/pdf-paturage.js) : année civile, bornes modifiables. -->
+      <section class="doc rap-carnet" id="rap-carnet">
+        <div class="doc-hd"><h3 class="doc-t">Carnet de pâturage</h3>
+          <p class="note">Traçabilité AOP Roquefort : vue de la saison, périodes de pâturage, jours sans sortie et leurs motifs.</p></div>
+        <div class="rap-carnet-dates">
+          <label for="rap-carnet-du">Du<input type="date" id="rap-carnet-du"></label>
+          <label for="rap-carnet-au">Au<input type="date" id="rap-carnet-au"></label>
+        </div>
+        <button type="button" id="rap-carnet-pdf" class="rap-btn-pdf">Télécharger / partager le carnet PDF</button>
+        <p id="rap-carnet-statut" class="champ-aide"></p>
+      </section>
 
       <div class="fiche-actions no-print">
         <button type="button" id="rapports-fermer" class="btn btn-secondary">Fermer</button>

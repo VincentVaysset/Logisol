@@ -72,11 +72,15 @@ service cloud.firestore {
     match /lgs_mouvements_stock/{docId}            { allow read, write: if request.auth != null; }
     match /lgs_materiel/{docId}                    { allow read, write: if request.auth != null; }
 
+    // ===================== LOGISOL — calendrier de pâturage =============
+    match /lgs_paturage_periodes/{docId}           { allow read, write: if request.auth != null; }
+    match /lgs_paturage_exceptions/{docId}         { allow read, write: if request.auth != null; }
+
     // ===================== COLLECTIONS FUTURES =========================
     // Autorise d'avance toute collection nommée lgs_*, sans rien ouvrir
     // d'autre : les prochains modules n'exigeront plus de passage ici.
     // matches() compare la chaîne ENTIÈRE, d'où 'lgs_.*' et non '^lgs_.*'.
-    // Les cinq lignes explicites ci-dessus suffisent de toute façon : ce
+    // Les lignes explicites ci-dessus suffisent de toute façon : ce
     // joker n'est qu'un confort, jamais un point de passage obligé.
     match /{collection}/{docId} {
       allow read, write: if request.auth != null && collection.matches('lgs_.*');

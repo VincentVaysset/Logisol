@@ -34,6 +34,7 @@ import { aujourdhui } from './implantations.js';
 import { formatTonnes } from './ui-stocks.js';
 import { getBatiments, accepteLots } from './batiments.js';
 import { toastSucces, toastErreur } from './toast.js';
+import { initPaturage, afficherPaturage } from './ui-paturage.js';
 
 const panel = document.getElementById('lot-panel');
 const form = document.getElementById('lot-form');
@@ -59,6 +60,7 @@ const sousVuesEl = document.getElementById('troupeau-sous-vues');
 const vuePrevisionnelEl = document.getElementById('troupeau-previsionnel');
 const vueActuelleEl = document.getElementById('troupeau-actuel');
 const vueHistoriqueEl = document.getElementById('troupeau-historique');
+const vuePaturageEl = document.getElementById('troupeau-paturage');
 
 // « Distribué » : alerte et cartes de lots. « Bilan campagne » : lecture seule
 // (ui-rations.js). « Prévisionnel » : inchangé.
@@ -88,12 +90,17 @@ export function initAlimentation() {
     });
   });
   initTroupeauRations();
+  initPaturage();
 }
 
 function afficherSousVue() {
   vuePrevisionnelEl.hidden = sousVueTroupeau !== 'previsionnel';
   vueActuelleEl.hidden = sousVueTroupeau !== 'actuel';
   vueHistoriqueEl.hidden = sousVueTroupeau !== 'historique';
+  // Pâturage : calendrier pleine largeur (ui-paturage.js).
+  vuePaturageEl.hidden = sousVueTroupeau !== 'paturage';
+  document.getElementById('troupeau-view').classList.toggle('vue-large', sousVueTroupeau === 'paturage');
+  afficherPaturage(sousVueTroupeau === 'paturage');
   sousVuesEl.querySelectorAll('[data-sousvue]').forEach((b) => {
     b.classList.toggle('is-active', b.dataset.sousvue === sousVueTroupeau);
   });

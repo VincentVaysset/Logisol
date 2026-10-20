@@ -84,4 +84,9 @@ non-régression existante avant de pousser.
   `maquette-charte-rapports-realise.html` : vue « Réalisé » des Rapports.
 - `exemple-pdf-realise-2027.pdf` : charte des PDF de rapports (palette
   PDF_CHARTE identique à Ovilog, A4, Helvetica).
+- `maquette-tablette-troupeau.html` : mise en page tablette (≥ 900 px : rail
+  à gauche, conteneur ~1100 px, cartes en grille, onglets + actions sur une
+  ligne), bloc TABLETTE de `www/css/charte.css`.
+- `maquette-calendrier-paturage.html` : Troupeau > Pâturage (vue Mois / Saison,
+  feuille de saisie) et carnet de pâturage PDF.
 Polices locales (`www/fonts/`), jamais le lien Google Fonts des maquettes.

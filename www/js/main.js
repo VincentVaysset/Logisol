@@ -104,6 +104,7 @@ import {
 } from './materiel.js';
 import { initMateriel, renderMateriels } from './ui-materiel.js';
 import { initRapports, setParcellesRapports } from './ui-rapports.js';
+import { setParcellesPaturage } from './ui-paturage.js';
 import { initParametresCultures } from './ui-parametres.js';
 import { preparerCampagnes } from './campagnes.js';
 import { preparerReprise } from './reprise-campagnes.js';
@@ -214,6 +215,7 @@ function recomputeAndRender() {
   setParcellesMouvements(enriched);
   setParcellesAssolement(enriched);
   setParcellesRapports(enriched);
+  setParcellesPaturage(enriched);
   setParcellesReleve(enriched);
   setParcellesCampagnes(enriched);
   setParcellesHistoriquePs(enriched);

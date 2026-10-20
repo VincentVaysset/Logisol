@@ -33,7 +33,7 @@ const TEINTES = {
 // milliers fr-FR), ni vrai signe moins, ni lettres en exposant.
 export function texteWinAnsi(s) {
   return String(s == null ? '' : s).replace(/[  ]/g, ' ').replace(/−/g, '-')
-    .replace(/ʳᵉ/g, 're').replace(/ᵉ/g, 'e');
+    .replace(/ʳᵉ/g, 're').replace(/ᵉ/g, 'e').replace(/→/g, '>').replace(/[‹›]/g, '');
 }
 
 /**
@@ -198,6 +198,54 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
         y += h;
       });
       y += 12;
+    },
+    /**
+     * Bande de saison (calendrier de pâturage) : une ligne par parcelle, un
+     * trait par jour. Jamais coupée : la largeur d'un jour s'adapte à la
+     * période ; l'en-tête des mois est répété à chaque nouvelle page.
+     * @param {object} b
+     * @param {Array<{label:string, n:number}>} b.mois  mois successifs et leur nombre de jours
+     * @param {Array<{nom:string, sous:string, jours:Array<''|'l'|'a'|'la'|'np'|'fau'>}>} b.lignes
+     */
+    bande({ mois, lignes }) {
+      const lab = 118;
+      const x0 = M + lab;
+      const nbJours = mois.reduce((t, m) => t + m.n, 0);
+      const w = (LARG - lab) / Math.max(1, nbJours);
+      const hRang = 18;
+      const tete = () => {
+        police(true, 7.5, C.texte2);
+        let x = x0;
+        mois.forEach((m) => {
+          doc.setDrawColor(C.bord); doc.setLineWidth(0.5); doc.line(x, y, x, y + 14);
+          if (m.n * w > 26) ecrire(ajuster(m.label, m.n * w - 4), x + 2, y + 10);
+          x += m.n * w;
+        });
+        y += 16;
+      };
+      if (!place(16 + hRang * Math.min(3, lignes.length))) nouvellePage();
+      tete();
+      lignes.forEach((l, i) => {
+        if (!place(hRang)) { nouvellePage(); tete(); }
+        if (i % 2 === 0) { doc.setFillColor(LIGNE_PAIRE); doc.rect(M, y, LARG, hRang, 'F'); }
+        police(true, 8, C.vertFonce); ecrire(ajuster(l.nom, lab - 8), M + 4, y + 8);
+        police(false, 6.5, C.texte2); ecrire(ajuster(l.sous, lab - 8), M + 4, y + 15);
+        l.jours.forEach((k, j) => {
+          if (!k) return;
+          const x = x0 + j * w;
+          const haut = y + 4;
+          const h = hRang - 8;
+          if (k === 'la') {
+            doc.setFillColor(C.vert); doc.rect(x, haut, w, h / 2, 'F');
+            doc.setFillColor(C.bleu); doc.rect(x, haut + h / 2, w, h / 2, 'F');
+            return;
+          }
+          doc.setFillColor({ l: C.vert, a: C.bleu, np: C.bord, fau: C.ambre }[k] || C.bord);
+          doc.rect(x, haut, w, h, 'F');
+        });
+        y += hRang;
+      });
+      y += 8;
     },
     note(texte) {
       police(false, 8.5, C.texte2);
