@@ -136,6 +136,7 @@ export function initMap(containerId, opts = {}) {
   legendControl = L.control({ position: 'bottomleft' });
   legendControl.onAdd = () => {
     const div = L.DomUtil.create('div', 'map-legend');
+    L.DomEvent.disableClickPropagation(div);
     renderLegendInto(div, lastLegendItems);
     return div;
   };
@@ -247,7 +248,37 @@ export function getZoom() {
 // pointer-events est désactivé sur .map-legend (cf. style.css, pour ne pas
 // intercepter les boutons flottants derrière elle) : le bouton de bascule le
 // réactive lui-même, seul élément cliquable de la légende.
+// Repliable derrière une pilule « Légende (n) » : repliée par défaut sur
+// mobile, où elle masquait une bonne part des parcelles. L'état est un simple
+// confort d'affichage, mémorisé sur l'appareil (localStorage).
+const CLE_LEGENDE = 'logisol.legendeRepliee';
+function legendeRepliee() {
+  try {
+    const v = localStorage.getItem(CLE_LEGENDE);
+    if (v === '1' || v === '0') return v === '1';
+  } catch (_) { /* stockage indisponible : valeur par défaut */ }
+  return window.innerWidth < 768;
+}
+function memoriserLegende(repliee) {
+  try { localStorage.setItem(CLE_LEGENDE, repliee ? '1' : '0'); } catch (_) { /* sans mémoire */ }
+}
+
 function renderLegendInto(container, items) {
+  const repliee = legendeRepliee();
+  const pilule = `<button type="button" class="legend-pill" data-legend-pill aria-expanded="${!repliee}">Légende (${items.length})</button>`;
+  container.classList.toggle('is-repliee', repliee);
+  if (repliee) {
+    container.innerHTML = pilule;
+  } else {
+    renderLegendCorps(container, items, pilule);
+  }
+  container.querySelector('[data-legend-pill]').addEventListener('click', () => {
+    memoriserLegende(!repliee);
+    renderLegendInto(container, items);
+  });
+}
+
+function renderLegendCorps(container, items, pilule) {
   const mode = getVueLegende();
   const toggle = `<button type="button" class="legend-toggle" data-legend-toggle>` +
     (mode === 'groupe' ? '🌐 Regroupée' : '🔍 Détaillée') + `</button>`;
@@ -259,7 +290,7 @@ function renderLegendInto(container, items) {
         `</div>`
       ).join('')
     : '<div class="legend-item">Aucune parcelle</div>';
-  container.innerHTML = toggle + corps;
+  container.innerHTML = pilule + toggle + corps;
   const btn = container.querySelector('[data-legend-toggle]');
   if (btn) btn.addEventListener('click', toggleVueLegende);
 }

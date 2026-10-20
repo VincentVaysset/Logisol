@@ -126,6 +126,10 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 .parcelle-label-derobee{color:var(--ch-bleu)}
 /* Légende et badge GPS : cartes blanches */
 .map-legend{background:var(--ch-carte);color:var(--ch-texte);border:1px solid var(--ch-bord);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.12);backdrop-filter:none}
+/* Légende repliable : pilule « Légende (n) » (seule, une fois repliée) */
+.map-legend.is-repliee{padding:0;background:none;border:none;box-shadow:none}
+.legend-pill{pointer-events:auto;display:inline-flex;align-items:center;min-height:36px;padding:0 14px;margin-bottom:6px;border:1px solid var(--ch-bord);border-radius:999px;background:var(--ch-carte);color:var(--ch-texte);font:inherit;font-size:13px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12);cursor:pointer}
+.map-legend.is-repliee .legend-pill{margin-bottom:0}
 .legend-toggle{background:var(--ch-onglets);border:none;border-radius:999px;color:var(--ch-texte2);min-height:32px}
 .gps-badge{background:var(--ch-carte);color:var(--ch-texte2);border:1px solid var(--ch-bord);box-shadow:0 1px 3px rgba(0,0,0,.12);backdrop-filter:none;font-weight:500}
 .gps-badge-rtk{background:var(--ch-vert-pastel);color:var(--ch-vert-texte);border-color:var(--ch-vert-pastel)}
