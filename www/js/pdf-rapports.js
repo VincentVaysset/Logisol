@@ -100,17 +100,28 @@ export function pdfRealise({ camp, semis, ferti, stocks, coupes, arreteLe, explo
     { teinte: '', valeur: `${ha2(semis.prevu)} ha`, label: 'Prévu' },
     { teinte: '', valeur: `${ha2(semis.reste)} ha`, label: 'Reste à semer' }
   ]);
-  if (semis.lignes.length || semis.aSemer.length) {
+  const kgTxt = (kg, partiel, est) => entier(kg) + et(est) + (partiel ? ' (partiel)' : '');
+  const gris = (t) => ({ t, cls: 'na' });
+  if (semis.lignes.length) {
     p.tableau({
-      colonnes: [{ label: 'Culture', w: 3.6 }, { label: 'Variété', w: 3.2, align: 'left' }, { label: 'Date', w: 1.1 }, { label: 'ha', w: 1.1 },
-        { label: 'kg/ha', w: 1.1 }, { label: 'kg', w: 1.3 }],
+      colonnes: [{ label: 'Parcelle', w: 3.2 }, { label: 'Culture', w: 3.2, align: 'left' }, { label: 'Date', w: 1.1 }, { label: 'ha', w: 1.1 },
+        { label: 'kg/ha', w: 1.1 }, { label: 'kg', w: 1.6 }],
       lignes: [
-        ...semis.lignes.map((l) => ({ cells: [l.label, l.semence, jourMois(l.date), ha2(l.ha) + et(l.estimee),
-          l.dose == null ? { t: '—', cls: 'na' } : libre(l.dose), l.kg == null ? { t: '—', cls: 'na' } : entier(l.kg) + et(l.estimee)] })),
-        ...semis.aSemer.map((x) => ({ type: 'na', cells: [`${x.label}${x.saison === 'printemps' ? ' (printemps)' : ''}`, `prévu ${ha2(x.ha)} ha`, '', '—', '—', 'À semer'] })),
-        { type: 'tot', cells: ['Total semé', '', '', ha2(semis.seme) + et(semis.estimee), '', semis.kg == null ? '' : entier(semis.kg) + et(semis.estimee)] }
+        ...semis.lignes.map((l) => (l.aSemer
+          ? { cells: [l.parcelle, gris(l.culture), '', gris(ha2(l.ha)), gris('—'), gris('À semer')] }
+          : { cells: [l.parcelle, { t: l.culture, sous: l.semence }, jourMois(l.date), ha2(l.ha) + et(l.estimee),
+            l.dose == null ? gris('—') : libre(l.dose), l.kg == null ? gris('—') : entier(l.kg) + et(l.estimee)] })),
+        { type: 'tot', cells: ['Total semé', '', '', ha2(semis.seme) + et(semis.estimee), '', semis.kg == null ? '' : kgTxt(semis.kg, semis.kgPartiel, semis.estimee)] }
       ]
     });
+    if (semis.sansDose.length) p.note(`Dose non saisie : ${semis.sansDose.join(', ')}.`);
+    if (semis.parCulture.length) {
+      p.tableau({
+        legende: 'Semence par culture',
+        colonnes: [{ label: 'Culture', w: 5 }, { label: 'ha', w: 1.5 }, { label: 'kg', w: 2 }],
+        lignes: semis.parCulture.map((c) => ({ cells: [c.culture, ha2(c.ha), c.kg == null ? gris('—') : kgTxt(c.kg, c.kgPartiel, false)] }))
+      });
+    }
   } else p.note(`Aucun semis enregistré ni prévu pour ${camp}.`);
 
   // 2. Fertilisation réalisée
@@ -145,7 +156,7 @@ export function pdfRealise({ camp, semis, ferti, stocks, coupes, arreteLe, explo
   const { lignes: lst, tot } = syntheseStocks(stocks.groupes);
   p.section(3, 'Bilan stocks', 'Source : journal des mouvements de stock', 63 + 18 + 48);
   p.tuiles([
-    { teinte: 'vert', valeur: `${t1(tot.entrees)} t`, label: 'Entrées' },
+    { teinte: 'vert', valeur: `${t1(tot.entrees)} t`, label: 'Disponible' },
     { teinte: 'ambre', valeur: `${t1(tot.sorties)} t`, label: 'Consommé' },
     { teinte: 'bleu', valeur: `${t1(tot.reste)} t`, label: 'En stock' }
   ]);
@@ -159,7 +170,10 @@ export function pdfRealise({ camp, semis, ferti, stocks, coupes, arreteLe, explo
     const ajust = tot.sorties - tot.conso;
     if (Math.abs(ajust) >= 0.05) p.note(`Sorties : ${t1(tot.conso)} t distribuées aux lots, ${t1(ajust)} t d'ajustements d'inventaire.`);
   } else p.note('Aucun stock ni mouvement sur la campagne.');
-  if (coupes.length) {
+  if (!coupes.length) {
+    p.tableau({ legende: 'Récoltes fourragères par coupe', colonnes: [{ label: 'Culture · coupe', w: 4 }, { label: 'ha', w: 1.4 }, { label: 't/ha', w: 1.4 }, { label: 't', w: 1.4 }],
+      lignes: [{ type: 'vide', cells: ['Aucune récolte enregistrée sur la campagne.'] }] });
+  } else {
     const lignes = [];
     const conflits = [];
     let totalT = 0;

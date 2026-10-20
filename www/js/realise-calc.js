@@ -6,42 +6,66 @@
 const r2 = (v) => Math.round(v * 100) / 100;
 
 /**
- * Semis réalisés de la campagne.
+ * Semis réalisés de la campagne, une ligne par parcelle semée (une par semis
+ * si la parcelle l'a été deux fois), puis les parcelles prévues non semées.
  * @param {object} p
  * @param {Array<{id, nom, surfaceHa}>} p.parcelles
  * @param {Map<string,{code,label,saison}>} p.prevus  parcelleId -> culture prévue semée cette campagne
  * @param {Array<{id, date, parcelleIds, surfaceHa:number|null, surfaceEstimee?, doseKgHa:number|null, semence?, cultureNom?}>} p.semis
- * @returns {{lignes, aSemer, seme, prevu, reste, kg, estimee}}
- *   kg = dose × surface semée, calculé ici, jamais stocké.
+ *   surfaceHa d'un semis sur plusieurs parcelles : répartie au prorata de leur surface.
+ * @returns {{lignes, seme, prevu, reste, kg, kgPartiel, sansDose, parCulture, estimee}}
+ *   kg = dose × surface semée, calculé ici, jamais stocké ; null si aucune dose.
  */
 export function semisRealises({ parcelles, prevus, semis }) {
-  const surf = new Map(parcelles.map((x) => [x.id, Number(x.surfaceHa) || 0]));
+  const parId = new Map(parcelles.map((x) => [x.id, x]));
+  const surf = (id) => Number((parId.get(id) || {}).surfaceHa) || 0;
+  const nomDe = (id) => (parId.get(id) || {}).nom || 'Sans nom';
   const semees = new Set();
-  const lignes = semis.slice().sort((a, b) => (a.date < b.date ? -1 : 1)).map((s) => {
-    const ids = s.parcelleIds || [];
-    ids.forEach((id) => semees.add(id));
+  const faites = [];
+  semis.forEach((s) => {
+    const ids = (s.parcelleIds || []).filter((id) => parId.has(id));
     const declaree = s.surfaceHa != null ? Number(s.surfaceHa) : null;
-    const ha = declaree != null ? declaree : ids.reduce((t, id) => t + (surf.get(id) || 0), 0);
-    const prevu = ids.map((id) => prevus.get(id)).find(Boolean);
-    const dose = s.doseKgHa != null ? Number(s.doseKgHa) : null;
-    return { id: s.id, label: (prevu && prevu.label) || s.cultureNom || 'Semis', semence: String(s.semence || '').trim(), date: s.date,
-      ha: r2(ha), estimee: declaree == null || !!s.surfaceEstimee, dose, kg: dose != null ? Math.round(dose * ha) : null };
+    const somme = ids.reduce((t, id) => t + surf(id), 0);
+    const dose = s.doseKgHa != null && s.doseKgHa !== '' ? Number(s.doseKgHa) : null;
+    ids.forEach((id) => {
+      semees.add(id);
+      const ha = declaree == null ? surf(id) : declaree * (somme > 0 ? surf(id) / somme : 1 / ids.length);
+      const prevu = prevus.get(id);
+      faites.push({ parcelleId: id, parcelle: nomDe(id), culture: (prevu && prevu.label) || s.cultureNom || 'Semis',
+        semence: String(s.semence || '').trim(), date: s.date, ha: r2(ha), estimee: declaree == null || !!s.surfaceEstimee,
+        dose, kg: dose != null ? Math.round(dose * ha) : null, aSemer: false });
+    });
   });
-  const aSemerParCode = new Map();
+  const aSemer = [];
   let prevu = 0;
   prevus.forEach((c, id) => {
-    const ha = surf.get(id) || 0;
-    prevu += ha;
-    if (semees.has(id)) return;
-    const x = aSemerParCode.get(c.code) || { label: c.label, saison: c.saison, ha: 0 };
-    x.ha += ha;
-    aSemerParCode.set(c.code, x);
+    if (!parId.has(id)) return;
+    prevu += surf(id);
+    if (!semees.has(id)) aSemer.push({ parcelleId: id, parcelle: nomDe(id), culture: c.label, saison: c.saison, ha: r2(surf(id)), aSemer: true });
   });
-  const aSemer = Array.from(aSemerParCode.values()).map((x) => ({ ...x, ha: r2(x.ha) })).sort((a, b) => b.ha - a.ha);
-  const seme = r2(lignes.reduce((t, l) => t + l.ha, 0));
-  return { lignes, aSemer, seme, prevu: r2(prevu), reste: r2(aSemer.reduce((t, x) => t + x.ha, 0)),
-    kg: lignes.some((l) => l.kg != null) ? lignes.reduce((t, l) => t + (l.kg || 0), 0) : null,
-    estimee: lignes.some((l) => l.estimee) };
+  const parNom = (a, b) => a.parcelle.localeCompare(b.parcelle, 'fr', { numeric: true }) || (a.date || '').localeCompare(b.date || '');
+  faites.sort(parNom);
+  aSemer.sort(parNom);
+  const sansDose = faites.filter((l) => l.dose == null);
+  const parCulture = new Map();
+  faites.forEach((l) => {
+    const x = parCulture.get(l.culture) || { culture: l.culture, ha: 0, kg: 0, kgPartiel: false, avecDose: false };
+    x.ha += l.ha;
+    if (l.kg != null) { x.kg += l.kg; x.avecDose = true; } else x.kgPartiel = true;
+    parCulture.set(l.culture, x);
+  });
+  return {
+    lignes: [...faites, ...aSemer],
+    seme: r2(faites.reduce((t, l) => t + l.ha, 0)),
+    prevu: r2(prevu),
+    reste: r2(aSemer.reduce((t, x) => t + x.ha, 0)),
+    kg: faites.some((l) => l.kg != null) ? faites.reduce((t, l) => t + (l.kg || 0), 0) : null,
+    kgPartiel: sansDose.length > 0,
+    sansDose: [...new Set(sansDose.map((l) => l.parcelle))],
+    parCulture: Array.from(parCulture.values()).map((x) => ({ culture: x.culture, ha: r2(x.ha), kg: x.avecDose ? x.kg : null, kgPartiel: x.kgPartiel }))
+      .sort((a, b) => a.culture.localeCompare(b.culture, 'fr', { numeric: true })),
+    estimee: faites.some((l) => l.estimee)
+  };
 }
 
 /**

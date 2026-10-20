@@ -278,15 +278,23 @@ function renderRealise() {
   const et = (x) => (x ? '*' : '');
   let estimee = semis.estimee;
 
-  // 1. Semis réalisés
-  const lignesSemis = semis.lignes.map((l) => `<tr><td>${esc(l.label)}<small>${[l.semence, jourMois(l.date)].filter(Boolean).map(esc).join(' · ')}</small></td>
-      <td>${ha2(l.ha)}${et(l.estimee)}</td><td${l.dose == null ? ' class="na"' : ''}>${l.dose == null ? '—' : ha(l.dose)}</td><td${l.kg == null ? ' class="na"' : ''}>${l.kg == null ? '—' : entier(l.kg)}${l.kg == null ? '' : et(l.estimee)}</td></tr>`).join('')
-    + semis.aSemer.map((x) => `<tr><td>${esc(x.label)}<small>prévu ${ha2(x.ha)} ha${x.saison === 'printemps' ? ' · printemps' : ''}</small></td><td class="na">—</td><td class="na">—</td><td class="na">À semer</td></tr>`).join('');
+  // 1. Semis réalisés : une ligne par parcelle, puis le récapitulatif par
+  // culture (achats de semence).
+  const kgTxt = (kg, partiel, est) => (kg == null ? '—' : entier(kg) + et(est) + (partiel ? ' (partiel)' : ''));
+  const na = (t) => `<td class="na">${t}</td>`;
+  const lignesSemis = semis.lignes.map((l) => (l.aSemer
+    ? `<tr><td>${esc(l.parcelle)}</td><td class="na">${esc(l.culture)}</td><td></td>${na(ha2(l.ha))}${na('—')}${na('À semer')}</tr>`
+    : `<tr><td>${esc(l.parcelle)}</td><td class="cult">${esc(l.culture)}${l.semence ? `<small>${esc(l.semence)}</small>` : ''}</td><td>${jourMois(l.date)}</td>
+      <td>${ha2(l.ha)}${et(l.estimee)}</td>${l.dose == null ? na('—') : `<td>${ha(l.dose)}</td>`}${l.kg == null ? na('—') : `<td>${entier(l.kg)}${et(l.estimee)}</td>`}</tr>`)).join('');
   const s1 = kpis([
     kpi('vert', `${ha2(semis.seme)}${et(semis.estimee)} <small>/ ${ha2(semis.prevu)} ha</small>`, 'Surface semée'),
     kpi('', `${ha2(semis.reste)} ha`, 'Reste à semer')
   ]) + (lignesSemis
-    ? tableau('', ['Culture', 'ha', 'kg/ha', 'kg'], lignesSemis + `<tr class="tot"><td>Total semé</td><td>${ha2(semis.seme)}${et(semis.estimee)}</td><td></td><td>${semis.kg == null ? '' : entier(semis.kg) + et(semis.estimee)}</td></tr>`, 'rap-semis-reel')
+    ? tableau('', ['Parcelle', 'Culture', 'Date', 'ha', 'kg/ha', 'kg'], lignesSemis
+      + `<tr class="tot"><td>Total semé</td><td></td><td></td><td>${ha2(semis.seme)}${et(semis.estimee)}</td><td></td><td>${semis.kg == null ? '' : kgTxt(semis.kg, semis.kgPartiel, semis.estimee)}</td></tr>`, 'rap-semis-reel')
+      + (semis.sansDose.length ? note(`Dose non saisie : ${semis.sansDose.map(esc).join(', ')}.`) : '')
+      + (semis.parCulture.length ? tableau('Semence par culture', ['Culture', 'ha', 'kg'],
+        semis.parCulture.map((c) => `<tr><td>${esc(c.culture)}</td><td>${ha2(c.ha)}</td>${c.kg == null ? na('—') : `<td>${kgTxt(c.kg, c.kgPartiel, false)}</td>`}</tr>`).join(''), 'rap-semis-cultures') : '')
     : note(`Aucun semis enregistré ni prévu pour ${camp}.`));
 
   // 2. Fertilisation réalisée
@@ -314,7 +322,7 @@ function renderRealise() {
   }).join('');
   const ajust = tot.sorties - tot.conso;
   let s3 = kpis([
-    kpi('vert', `${t1(tot.entrees)} t`, 'Entrées'),
+    kpi('vert', `${t1(tot.entrees)} t`, 'Disponible'),
     kpi('ambre', `${t1(tot.sorties)} t`, 'Consommé'),
     kpi('bleu', `${t1(tot.reste)} t`, 'En stock')
   ]) + (lignesStock
@@ -322,7 +330,9 @@ function renderRealise() {
     : note('Aucun stock ni mouvement sur la campagne.'))
     + (lignesStock && Math.abs(ajust) >= 0.05 ? note(`Sorties : ${t1(tot.conso)} t distribuées aux lots, ${t1(ajust)} t d'ajustements d'inventaire.`) : '')
     + (lignesStock ? note('Entrées = stock de départ au 01/09 + récoltes + achats. Stock = journal des mouvements rejoué.') : '');
-  if (coupes.length) {
+  if (!coupes.length) s3 += tableau('Récoltes fourragères par coupe', ['Coupe', 'ha', 't/ha', 't'],
+    '<tr><td colspan="4" class="na">Aucune récolte enregistrée sur la campagne.</td></tr>', 'rap-coupes-reel');
+  else {
     const conflits = [];
     let lignesC = '';
     let totalT = 0;

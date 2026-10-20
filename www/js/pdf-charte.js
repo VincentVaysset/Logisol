@@ -124,7 +124,8 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
      * @param {object} t
      * @param {string} [t.legende]
      * @param {Array<{label:string, w:number, align?:'left'|'right'}>} t.colonnes  w relatifs
-     * @param {Array<{type?:'grp'|'tot'|'na', cells:Array<string|{t:string, cls?:'na'|'ec-p'|'ec-m'}>}>} t.lignes
+     * @param {Array<{type?:'grp'|'tot'|'na'|'vide', cells:Array<string|{t:string, sous?:string, cls?:'na'|'ec-p'|'ec-m'}>}>} t.lignes
+     *   `sous` : petite ligne sous la valeur (semence sous la culture) ; la ligne s'agrandit.
      */
     tableau({ legende, colonnes, lignes }) {
       const total = colonnes.reduce((n, c) => n + c.w, 0);
@@ -156,8 +157,15 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
       entete();
       let rang = 0;
       lignes.forEach((l) => {
-        if (!place(H_LIGNE)) { nouvellePage(); entete(); rang = 0; }
+        const h = l.cells.some((c) => c && typeof c === 'object' && c.sous) ? H_LIGNE + 9 : H_LIGNE;
+        if (!place(h)) { nouvellePage(); entete(); rang = 0; }
         const type = l.type || '';
+        if (type === 'vide') {
+          doc.setFillColor(LIGNE_PAIRE); doc.rect(M, y, LARG, H_LIGNE, 'F');
+          police(false, 9, C.icone); ecrire(ajuster(l.cells[0], LARG - 12), M + 6, y + 11.5);
+          y += H_LIGNE;
+          return;
+        }
         if (type === 'grp') {
           police(true, 7.5, C.texte2);
           ecrire(ajuster(String(l.cells[0]).toUpperCase(), LARG - 12), M + 6, y + 12);
@@ -170,7 +178,7 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
           doc.rect(M, y, LARG, H_LIGNE - 5, 'F');
         } else {
           doc.setFillColor(rang % 2 === 0 ? LIGNE_PAIRE : BLANC);
-          doc.rect(M, y, LARG, H_LIGNE, 'F');
+          doc.rect(M, y, LARG, h, 'F');
           rang++;
         }
         l.cells.forEach((cell, i) => {
@@ -184,8 +192,9 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
           if (c.cls === 'ec-m') couleur = C.ambre;
           police(gras, 9, couleur);
           ecrire(ajuster(c.t, ws[i] - 12), xTexte(i), y + 11.5, { align: align(i) });
+          if (c.sous) { police(false, 7.5, C.texte2); ecrire(ajuster(c.sous, ws[i] - 12), xTexte(i), y + 20.5, { align: align(i) }); }
         });
-        y += H_LIGNE;
+        y += h;
       });
       y += 12;
     },
