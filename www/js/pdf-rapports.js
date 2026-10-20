@@ -2,7 +2,7 @@
 // pdf-charte.js. Mêmes données que l'écran (ui-rapports.js) ; le papier a la
 // largeur d'en dire plus par ligne (variété, date, t/ha réel en colonnes).
 import { creerPdfCharte } from './pdf-charte.js';
-import { syntheseStocks } from './realise-calc.js';
+import { syntheseStocks, noteAVerifier } from './realise-calc.js';
 import { culturePrev } from './assolement-previsionnel.js';
 
 const fixe = (d) => (v) => Number(v).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -102,18 +102,25 @@ export function pdfRealise({ camp, semis, ferti, stocks, coupes, arreteLe, explo
   ]);
   const kgTxt = (kg, partiel, est) => entier(kg) + et(est) + (partiel ? ' (partiel)' : '');
   const gris = (t) => ({ t, cls: 'na' });
-  if (semis.lignes.length) {
-    p.tableau({
-      colonnes: [{ label: 'Parcelle', w: 3.2 }, { label: 'Culture', w: 3.2, align: 'left' }, { label: 'Date', w: 1.1 }, { label: 'ha', w: 1.1 },
-        { label: 'kg/ha', w: 1.1 }, { label: 'kg', w: 1.6 }],
+  const semee = (l) => ({ cells: [l.parcelle, { t: l.culture, sous: [l.semence, l.prevuDifferent ? `prévu : ${l.prevuDifferent}` : ''].filter(Boolean).join(' · ') },
+    jourMois(l.date), ha2(l.ha) + et(l.estimee), l.dose == null ? gris('—') : libre(l.dose), l.kg == null ? gris('—') : entier(l.kg) + et(l.estimee)] });
+  const colonnesSemis = [{ label: 'Parcelle', w: 3.2 }, { label: 'Culture', w: 3.2, align: 'left' }, { label: 'Date', w: 1.1 }, { label: 'ha', w: 1.1 },
+    { label: 'kg/ha', w: 1.1 }, { label: 'kg', w: 1.6 }];
+  if (semis.lignes.length || semis.derobees.length) {
+    if (semis.lignes.length) p.tableau({
+      colonnes: colonnesSemis,
       lignes: [
         ...semis.lignes.map((l) => (l.aSemer
           ? { cells: [l.parcelle, gris(l.culture), '', gris(ha2(l.ha)), gris('—'), gris('À semer')] }
-          : { cells: [l.parcelle, { t: l.culture, sous: l.semence }, jourMois(l.date), ha2(l.ha) + et(l.estimee),
-            l.dose == null ? gris('—') : libre(l.dose), l.kg == null ? gris('—') : entier(l.kg) + et(l.estimee)] })),
+          : semee(l))),
         { type: 'tot', cells: ['Total semé', '', '', ha2(semis.seme) + et(semis.estimee), '', semis.kg == null ? '' : kgTxt(semis.kg, semis.kgPartiel, semis.estimee)] }
       ]
     });
+    if (semis.derobees.length) {
+      p.tableau({ legende: 'Dérobées et couverts', colonnes: colonnesSemis, lignes: [...semis.derobees.map(semee),
+        { type: 'tot', cells: ['Total', '', '', ha2(semis.derobeesHa), '', semis.derobeesKg == null ? '' : kgTxt(semis.derobeesKg, semis.derobeesKgPartiel, false)] }] });
+      p.note('Hors total semé et hors reste à semer.');
+    }
     if (semis.sansDose.length) p.note(`Dose non saisie : ${semis.sansDose.join(', ')}.`);
     if (semis.parCulture.length) {
       p.tableau({
@@ -135,21 +142,24 @@ export function pdfRealise({ camp, semis, ferti, stocks, coupes, arreteLe, explo
   ferti.forEach((pr) => {
     const nom = pr.produit === 'fumier' ? 'Fumier' : 'Chaux';
     if (!pr.lignes.length) { p.note(`${nom} : aucune parcelle prévue, rien d'épandu sur la campagne.`); return; }
-    const avecPrevu = pr.lignes.some((l) => l.prevu != null);
+    const comptees = pr.lignes.filter((l) => !l.aVerifier);
+    const avecPrevu = comptees.some((l) => l.prevu != null);
     p.tableau({
       legende: `${nom}${pr.doseUnique != null ? ` · dose prévue ${libre(pr.doseUnique)} t/ha` : ''}`,
       colonnes: [{ label: 'Parcelle', w: 3.6 }, { label: 'ha', w: 1 }, { label: 'Date', w: 1.1 }, { label: 't/ha réel', w: 1.3 },
         { label: 'Prévu (t)', w: 1.3 }, { label: 'Réalisé (t)', w: 1.4 }, { label: 'Écart (t)', w: 1.3 }],
       lignes: [
-        ...pr.lignes.map((l) => ({ cells: [l.nom, l.aFaire ? { t: ha2(l.ha), cls: 'na' } : ha2(l.ha), jourMois(l.date),
+        ...pr.lignes.map((l) => (l.aVerifier ? { type: 'rouge', cells: [l.nom, ha2(l.ha), jourMois(l.date), t1(l.tHaReel),
+          l.prevu == null ? '—' : ha2(l.prevu), ha2(l.realise), 'à vérifier'] } : { cells: [l.nom, l.aFaire ? { t: ha2(l.ha), cls: 'na' } : ha2(l.ha), jourMois(l.date),
           l.tHaReel == null ? '' : t1(l.tHaReel),
           l.prevu == null ? { t: '—', cls: 'na' } : (l.aFaire ? { t: ha2(l.prevu), cls: 'na' } : ha2(l.prevu)),
           l.realise == null ? { t: '—', cls: 'na' } : ha2(l.realise),
           l.aFaire ? { t: 'À faire', cls: 'na' } : { t: signe(l.ecart), cls: l.ecart >= 0 ? 'ec-p' : 'ec-m' }] })),
-        { type: 'tot', cells: [`Total · ${pr.lignes.length} parcelle${pr.lignes.length > 1 ? 's' : ''}`, ha2(pr.lignes.reduce((n, l) => n + l.ha, 0)), '', '',
+        { type: 'tot', cells: [`Total · ${comptees.length} parcelle${comptees.length > 1 ? 's' : ''}`, ha2(comptees.reduce((n, l) => n + l.ha, 0)), '', '',
           avecPrevu ? ha2(pr.prevuT) : '—', ha2(pr.realiseT), signe(pr.ecartT)] }
       ]
     });
+    if (pr.aVerifier.length) p.note(noteAVerifier(nom, pr.aVerifier));
   });
 
   // 3. Bilan stocks

@@ -17,6 +17,7 @@ import {
   effetCultureDe, addType, TYPE_NOTE
 } from './interventions-types.js';
 import { campagneDeDate } from './calendrier-campagne.js';
+import { SEUILS_EPANDAGE_T_HA } from './realise-calc.js';
 import { getMaterielById, getMateriels, onMaterielsChange, materielsPourAction } from './materiel.js';
 import {
   createIntervention, updateIntervention, deleteIntervention, quantiteDeSaisie, getInterventions,
@@ -1913,8 +1914,24 @@ el.cancel.addEventListener('click', () => {
 // --- Enregistrement -------------------------------------------------------
 const TIMEOUT_MS = 8000;
 
+// Une dose hors norme est presque toujours une erreur d'unité (kg tapés en
+// t) : confirmation avec la valeur en t/ha avant d'enregistrer.
+function alerteDoseEpandage() {
+  const f = formulaireDe(typeCourant());
+  if (f !== 'FUMIER' && f !== 'CHAULAGE') return null;
+  const s = lireSaisie();
+  const ha = surfaceSelectionnee();
+  const tHa = f === 'CHAULAGE' ? Number(s.doseTonnesHa) || 0 : (ha > 0 ? (quantiteDeSaisie('FUMIER', s) || 0) / ha : 0);
+  const seuil = SEUILS_EPANDAGE_T_HA[f === 'FUMIER' ? 'fumier' : 'chaux'];
+  if (!(tHa > seuil)) return null;
+  const v = tHa.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+  return `${f === 'FUMIER' ? 'Fumier' : 'Chaux'} : ${v} t/ha, au-delà de ${seuil} t/ha.\nVérifie l'unité (t, pas kg). Enregistrer quand même ?`;
+}
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
+  const alerte = alerteDoseEpandage();
+  if (alerte && !confirm(alerte)) return;
   const monToken = ++saveToken;
   hideError();
   el.save.disabled = true; el.save.textContent = 'Enregistrement...';

@@ -12,7 +12,7 @@ import {
   getPrevisions, onPrevisionsChange, campagneCourante, prevision, culturePrev, estSemisDeLAnnee
 } from './assolement-previsionnel.js';
 import { campagneDeActivite } from './calendrier-campagne.js';
-import { semisRealises, fertilisationRealisee, syntheseStocks } from './realise-calc.js';
+import { semisRealises, fertilisationRealisee, syntheseStocks, noteAVerifier } from './realise-calc.js';
 import { getInterventions, quantiteDeSaisie } from './interventions.js';
 import { getTypeById, formulaireDe } from './interventions-types.js';
 import { getCultureById } from './cultures-config.js';
@@ -250,12 +250,13 @@ export function donneesRealise(camp = String(campagneR)) {
     const pv = prevision(p.id, camp, liste);
     const c = pv && pv.cultureCode ? culturePrev(pv.cultureCode) : null;
     if (!c || !estSemisDeLAnnee(c.code) || !SAISON_PAR_FAMILLE[c.famille]) return;
-    prevus.set(p.id, { code: c.code, label: c.label, saison: SAISON_PAR_FAMILLE[c.famille] });
+    prevus.set(p.id, { code: c.code, label: c.label, saison: SAISON_PAR_FAMILLE[c.famille], famille: c.famille, grain: c.grain });
   });
   const semis = semisRealises({ parcelles, prevus, semis: acts.filter((a) => a.f === 'SEMIS').map(({ i, s }) => {
     const culture = s.cultureId ? getCultureById(s.cultureId) : null;
     return { id: i.id, date: i.date, parcelleIds: i.parcelleIds || [], surfaceHa: s.surfaceHa != null ? s.surfaceHa : null,
-      surfaceEstimee: !!s.surfaceEstimee, doseKgHa: s.doseKgHa, semence: s.semence, cultureNom: culture && culture.nom };
+      surfaceEstimee: !!s.surfaceEstimee, doseKgHa: s.doseKgHa, semence: s.semence, cultureNom: culture && culture.nom,
+      derobee: !!culture && culture.famille === 'derobee' };
   }) });
 
   const prevu = new Map(parcelles.map((p) => [p.id, prevision(p.id, camp, liste) || {}]));
@@ -283,16 +284,20 @@ function renderRealise() {
   // culture (achats de semence).
   const kgTxt = (kg, partiel, est) => (kg == null ? '—' : entier(kg) + et(est) + (partiel ? ' (partiel)' : ''));
   const na = (t) => `<td class="na">${t}</td>`;
+  const ligneSemee = (l) => `<tr><td>${esc(l.parcelle)}</td><td class="cult">${esc(l.culture)}${l.semence ? `<small>${esc(l.semence)}</small>` : ''}${l.prevuDifferent ? `<small>prévu : ${esc(l.prevuDifferent)}</small>` : ''}</td><td>${jourMois(l.date)}</td>
+      <td>${ha2(l.ha)}${et(l.estimee)}</td>${l.dose == null ? na('—') : `<td>${ha(l.dose)}</td>`}${l.kg == null ? na('—') : `<td>${entier(l.kg)}${et(l.estimee)}</td>`}</tr>`;
   const lignesSemis = semis.lignes.map((l) => (l.aSemer
     ? `<tr><td>${esc(l.parcelle)}</td><td class="na">${esc(l.culture)}</td><td></td>${na(ha2(l.ha))}${na('—')}${na('À semer')}</tr>`
-    : `<tr><td>${esc(l.parcelle)}</td><td class="cult">${esc(l.culture)}${l.semence ? `<small>${esc(l.semence)}</small>` : ''}</td><td>${jourMois(l.date)}</td>
-      <td>${ha2(l.ha)}${et(l.estimee)}</td>${l.dose == null ? na('—') : `<td>${ha(l.dose)}</td>`}${l.kg == null ? na('—') : `<td>${entier(l.kg)}${et(l.estimee)}</td>`}</tr>`)).join('');
+    : ligneSemee(l))).join('');
   const s1 = kpis([
     kpi('vert', `${ha2(semis.seme)}${et(semis.estimee)} <small>/ ${ha2(semis.prevu)} ha</small>`, 'Surface semée'),
     kpi('', `${ha2(semis.reste)} ha`, 'Reste à semer')
-  ]) + (lignesSemis
-    ? tableau('', ['Parcelle', 'Culture', 'Date', 'ha', 'kg/ha', 'kg'], lignesSemis
-      + `<tr class="tot"><td>Total semé</td><td></td><td></td><td>${ha2(semis.seme)}${et(semis.estimee)}</td><td></td><td>${semis.kg == null ? '' : kgTxt(semis.kg, semis.kgPartiel, semis.estimee)}</td></tr>`, 'rap-semis-reel')
+  ]) + (lignesSemis || semis.derobees.length
+    ? (lignesSemis ? tableau('', ['Parcelle', 'Culture', 'Date', 'ha', 'kg/ha', 'kg'], lignesSemis
+      + `<tr class="tot"><td>Total semé</td><td></td><td></td><td>${ha2(semis.seme)}${et(semis.estimee)}</td><td></td><td>${semis.kg == null ? '' : kgTxt(semis.kg, semis.kgPartiel, semis.estimee)}</td></tr>`, 'rap-semis-reel') : '')
+      + (semis.derobees.length ? tableau('Dérobées et couverts', ['Parcelle', 'Culture', 'Date', 'ha', 'kg/ha', 'kg'], semis.derobees.map(ligneSemee).join('')
+        + `<tr class="tot"><td>Total</td><td></td><td></td><td>${ha2(semis.derobeesHa)}</td><td></td><td>${semis.derobeesKg == null ? '' : kgTxt(semis.derobeesKg, semis.derobeesKgPartiel, false)}</td></tr>`, 'rap-semis-derobees')
+        + note('Hors total semé et hors reste à semer.') : '')
       + (semis.sansDose.length ? note(`Dose non saisie : ${semis.sansDose.map(esc).join(', ')}.`) : '')
       + (semis.parCulture.length ? tableau('Semence par culture', ['Culture', 'ha', 'kg'],
         semis.parCulture.map((c) => `<tr><td>${esc(c.culture)}</td><td>${ha2(c.ha)}</td>${c.kg == null ? na('—') : `<td>${kgTxt(c.kg, c.kgPartiel, false)}</td>`}</tr>`).join(''), 'rap-semis-cultures') : '')
@@ -309,10 +314,12 @@ function renderRealise() {
     if (!pr.lignes.length) return note(`${nom} : rien de prévu, rien d'épandu.`);
     const cap = `${nom}${pr.doseUnique != null ? ` · prévu ${ha(pr.doseUnique)} t/ha` : ''}`;
     const ecart = (v) => (v == null ? '<td class="na">À faire</td>' : `<td class="${v >= 0 ? 'ec-p' : 'ec-m'}">${v > 0 ? '+' : v < 0 ? '−' : ''}${ha2(Math.abs(v))}</td>`);
-    const lignes = pr.lignes.map((l) => `<tr><td>${esc(l.nom)}<small>${[`${ha2(l.ha)} ha`, jourMois(l.date), l.tHaReel != null ? `${ha(Math.round(l.tHaReel * 10) / 10)} t/ha` : ''].filter(Boolean).join(' · ')}</small></td>
-      <td${l.prevu == null ? ' class="na"' : ''}>${l.prevu == null ? '—' : ha2(l.prevu)}</td><td${l.realise == null ? ' class="na"' : ''}>${l.realise == null ? '—' : ha2(l.realise)}</td>${ecart(l.aFaire ? null : l.ecart)}</tr>`).join('');
+    const lignes = pr.lignes.map((l) => (l.aVerifier ? `<tr class="a-verifier"><td>${esc(l.nom)}<small>${ha2(l.ha)} ha · ${jourMois(l.date)} · ${ha(Math.round(l.tHaReel * 10) / 10)} t/ha</small></td>
+      <td>${l.prevu == null ? '—' : ha2(l.prevu)}</td><td>${ha2(l.realise)}</td><td>valeur à vérifier</td></tr>` : `<tr><td>${esc(l.nom)}<small>${[`${ha2(l.ha)} ha`, jourMois(l.date), l.tHaReel != null ? `${ha(Math.round(l.tHaReel * 10) / 10)} t/ha` : ''].filter(Boolean).join(' · ')}</small></td>
+      <td${l.prevu == null ? ' class="na"' : ''}>${l.prevu == null ? '—' : ha2(l.prevu)}</td><td${l.realise == null ? ' class="na"' : ''}>${l.realise == null ? '—' : ha2(l.realise)}</td>${ecart(l.aFaire ? null : l.ecart)}</tr>`)).join('');
     const tot = `<tr class="tot"><td>Total</td><td>${pr.lignes.some((l) => l.prevu != null) ? ha2(pr.prevuT) : '—'}</td><td>${ha2(pr.realiseT)}</td><td>${pr.ecartT > 0 ? '+' : pr.ecartT < 0 ? '−' : ''}${ha2(Math.abs(pr.ecartT))}</td></tr>`;
-    return tableau(cap, ['Parcelle', 'Prévu', 'Réalisé', 'Écart'], lignes + tot, `rap-ferti-reel-${pr.produit}`);
+    return tableau(cap, ['Parcelle', 'Prévu', 'Réalisé', 'Écart'], lignes + tot, `rap-ferti-reel-${pr.produit}`)
+      + (pr.aVerifier.length ? note(noteAVerifier(nom, pr.aVerifier)) : '');
   }).join('');
 
   // 3. Bilan stocks : dérivé du journal de mouvements, jamais saisi.

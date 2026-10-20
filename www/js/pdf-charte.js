@@ -124,7 +124,7 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
      * @param {object} t
      * @param {string} [t.legende]
      * @param {Array<{label:string, w:number, align?:'left'|'right'}>} t.colonnes  w relatifs
-     * @param {Array<{type?:'grp'|'tot'|'na'|'vide', cells:Array<string|{t:string, sous?:string, cls?:'na'|'ec-p'|'ec-m'}>}>} t.lignes
+     * @param {Array<{type?:'grp'|'tot'|'na'|'vide'|'rouge', cells:Array<string|{t:string, sous?:string, cls?:'na'|'ec-p'|'ec-m'}>}>} t.lignes
      *   `sous` : petite ligne sous la valeur (semence sous la culture) ; la ligne s'agrandit.
      */
     tableau({ legende, colonnes, lignes }) {
@@ -188,6 +188,7 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
           let gras = type === 'tot';
           if (i === 0 && type !== 'tot') { gras = true; couleur = C.vertFonce; }
           if (type === 'na' || c.cls === 'na') couleur = C.icone;
+          if (type === 'rouge') couleur = C.rouge;
           if (c.cls === 'ec-p') couleur = C.vertFonce;
           if (c.cls === 'ec-m') couleur = C.ambre;
           police(gras, 9, couleur);

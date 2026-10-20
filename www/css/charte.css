@@ -316,6 +316,8 @@ button.cl{width:100%;font:inherit;color:var(--ch-texte);text-align:left;cursor:p
 #rapports-panel td:first-child{text-align:left;white-space:normal}
 #rapports-panel td small{display:block;font-size:12px;color:var(--ch-texte2);font-weight:400}
 #rapports-panel td.na{color:var(--ch-icone)}
+#rapports-panel tr.a-verifier td{color:var(--ch-rouge);font-weight:600}
+#rapports-panel tr.a-verifier td small{color:var(--ch-rouge)}
 #rapports-panel td.cult{text-align:left;white-space:normal}
 #rap-semis-reel th:nth-child(2){text-align:left}
 #rapports-panel .ec-p{color:var(--ch-vert-texte);font-weight:600}
