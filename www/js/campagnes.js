@@ -147,6 +147,13 @@ export function calculerCampagnes(activitesParcelle, defaut, deps = {}) {
     } else {
       valeur = maxi(herite, cal);
     }
+    // Plafond : une activité n'appartient jamais au-delà de la campagne
+    // « année civile + 1 ». Sans lui, une récolte d'automne déjà en N+1
+    // (pressage de paille après déchaumage, coupe d'une dérobée) réarmait le
+    // « +1 » et le pivot suivant partait en N+2 (bug 2028), propagé ensuite
+    // à toutes les activités de la parcelle.
+    const plafond = Number(String(act.date).slice(0, 4)) + 1;
+    if (Number(valeur) > plafond) valeur = String(plafond);
     sansForcage.set(act.id, valeur);
     if (act.forcerCampagne) {
       resultat.set(act.id, String(act.forcerCampagne));
