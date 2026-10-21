@@ -3,6 +3,7 @@
 // largeur d'en dire plus par ligne (variété, date, t/ha réel en colonnes).
 import { creerPdfCharte } from './pdf-charte.js';
 import { syntheseStocks } from './realise-calc.js';
+import { noteTardives } from './syntheses-calc.js';
 import { culturePrev } from './assolement-previsionnel.js';
 
 const fixe = (d) => (v) => Number(v).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -112,7 +113,7 @@ export function pdfRealise({ camp, syn, stocks, arreteLe, exploitation, aujourdh
     semis: (n) => {
     // 1. Semis : par culture, parcelles en détail
     p.section(n, 'Semis', 'Source : activités de semis', SUITE);
-    if (se.groupes.length) {
+    if (se.groupes.length || se.derobees.length) {
       p.tuiles([
         { teinte: 'vert', valeur: `${ha2(se.ha)}${et(se.estimee)} ha`, label: 'Surface semée' },
         { teinte: '', valeur: se.kg == null ? '—' : `${entier(se.kg)} kg`, label: se.kgPartiel && se.kg != null ? 'Semence (partiel)' : 'Semence' }
@@ -126,6 +127,17 @@ export function pdfRealise({ camp, syn, stocks, arreteLe, exploitation, aujourdh
       lignes.push({ type: 'tot', cells: ['Total', '', '', ha2(se.ha) + et(se.estimee), '', se.kg == null ? '' : entier(se.kg) + (se.kgPartiel ? ' (partiel)' : '')] });
       p.tableau({ colonnes: [{ label: 'Culture / parcelle', w: 3.4 }, { label: 'Date', w: 1 }, { label: 'Variété', w: 2.6, align: 'left' },
         { label: 'ha', w: 1.1 }, { label: 'kg/ha', w: 1.1 }, { label: 'kg', w: 1.3 }], lignes });
+      if (se.derobees.length) {
+        const ld = [];
+        se.derobees.forEach((g) => {
+          ld.push({ type: 'sstot', cells: [g.nom, '', '', ha2(g.ha), g.dose == null ? '' : libre(g.dose), g.kg == null ? '' : entier(g.kg)] });
+          g.lignes.forEach((l) => ld.push({ type: 'det', cells: [l.parcelle, jourMois(l.date), l.semence || '', ha2(l.ha),
+            l.dose == null ? gris('—') : libre(l.dose), l.kg == null ? gris('—') : entier(l.kg)] }));
+        });
+        p.tableau({ legende: `Dérobées · ${ha2(se.derobeesHa)} ha (hors total : la parcelle garde sa culture principale)`,
+          colonnes: [{ label: 'Culture / parcelle', w: 3.4 }, { label: 'Date', w: 1 }, { label: 'Variété', w: 2.6, align: 'left' },
+            { label: 'ha', w: 1.1 }, { label: 'kg/ha', w: 1.1 }, { label: 'kg', w: 1.3 }], lignes: ld });
+      }
       p.note('Dose d\'une culture affichée seulement si identique sur toutes ses parcelles (pas de moyenne).');
     } else p.note(`Aucun semis enregistré pour ${camp}.`);
     },
@@ -229,6 +241,8 @@ export function pdfRealise({ camp, syn, stocks, arreteLe, exploitation, aujourdh
       const ajust = tot.sorties - tot.conso;
       if (Math.abs(ajust) >= 0.05) p.note(`Sorties : ${t1(tot.conso)} t distribuées aux lots, ${t1(ajust)} t d'ajustements d'inventaire.`);
     } else p.note('Aucun stock ni mouvement sur la campagne.');
+      const tard = noteTardives(syn.tardives, camp);
+      if (tard) p.note(tard);
     },
   };
   const choisis = THEMES_REALISE.map((t) => t.id).filter((id) => themes.includes(id));

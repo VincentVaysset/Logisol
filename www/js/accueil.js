@@ -188,7 +188,7 @@ function carteIntervention(itv) {
   } else {
     resumeSaisie(itv).forEach((d) => details.push(escapeHtml(d)));
   }
-  if (itv.materielNom) details.push('🛠️ ' + escapeHtml(itv.materielNom));
+  if (itv.materielNom) details.push('🛠️ ' + escapeHtml([itv.materielNom, itv.materiel2Nom].filter(Boolean).join(' + ')));
   if (itv.materiel) details.push(escapeHtml(itv.materiel));
   if (itv.chauffeur) details.push('👤 ' + escapeHtml(itv.chauffeur));
   if (itv.dureeHeures != null) details.push(itv.dureeHeures + ' h');

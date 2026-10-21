@@ -15,10 +15,10 @@ export function divergencesMultiParcelles(interventions, deps) {
   const parParcelle = new Map();
   interventions.forEach((i) => (i.parcelleIds || []).forEach((id) => {
     if (!parParcelle.has(id)) parParcelle.set(id, []);
-    parParcelle.get(id).push({ id: i.id, date: i.date, typeId: i.typeId, forcerCampagne: i.forcerCampagne || null });
+    parParcelle.get(id).push({ id: i.id, date: i.date, typeId: i.typeId, forcerCampagne: i.forcerCampagne || null, saisie: i.saisie || null });
   }));
   const calcul = new Map();
-  parParcelle.forEach((acts, id) => calcul.set(id, calculerCampagnes(acts, undefined, deps)));
+  parParcelle.forEach((acts, id) => calcul.set(id, calculerCampagnes(acts, undefined, deps, id)));
   return interventions.filter((i) => (i.parcelleIds || []).length > 1).map((i) => {
     const parCampagne = new Map(i.parcelleIds.map((id) => [id, calcul.get(id).get(i.id) || null]));
     return { itv: i, parCampagne };

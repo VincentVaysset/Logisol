@@ -16,13 +16,10 @@ const BLANC = '#ffffff';
 const LIGNE_PAIRE = '#fbf8f1';
 const SOUS_TOTAL = '#f6f1e4';
 
-const PAGE_L = 595.28;
-const PAGE_H = 841.89;
+const PAGE_L_A4 = 595.28;
+const PAGE_H_A4 = 841.89;
 const M = 36;
 const BAS = 56;
-const LARG = PAGE_L - 2 * M;
-const DROITE = PAGE_L - M;
-const LIMITE = PAGE_H - BAS;
 const H_TUILE = 50;
 const H_ENTETE = 18;
 const H_LIGNE = 16;
@@ -45,9 +42,16 @@ export function texteWinAnsi(s) {
  * @param {string} o.exploitation  nom de la ferme (vide : rien)
  * @param {string} o.edition       « Édité le 19/10/2026 »
  * @param {string} o.pied          « Logisol — Bilan réalisé · Campagne 2027 »
+ * @param {boolean} [o.paysage]     A4 à l'italienne (carnet de pâturage)
  */
-export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition, pied }) {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition, pied, paysage = false }) {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: paysage ? 'landscape' : 'portrait' });
+  // Dimensions de la page : masquent celles du module (portrait) en paysage.
+  const PAGE_L = paysage ? PAGE_H_A4 : PAGE_L_A4;
+  const PAGE_H = paysage ? PAGE_L_A4 : PAGE_H_A4;
+  const LARG = PAGE_L - 2 * M;
+  const DROITE = PAGE_L - M;
+  const LIMITE = PAGE_H - BAS;
   let y = 0;
 
   const police = (gras, taille, couleur) => {
@@ -218,7 +222,7 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
      * @param {Array<{label:string, n:number}>} b.mois  mois successifs et leur nombre de jours
      * @param {Array<{nom:string, sous:string, jours:Array<''|'l'|'a'|'la'|'np'|'fau'>}>} b.lignes
      */
-    bande({ mois, lignes }) {
+    bande({ mois, lignes, numeros = null }) {
       const lab = 118;
       const x0 = M + lab;
       const nbJours = mois.reduce((t, m) => t + m.n, 0);
@@ -233,13 +237,25 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
           x += m.n * w;
         });
         y += 16;
+        // Numéros de jour (vue d'un mois) : un repère par case, week-ends grisés.
+        if (numeros) {
+          police(false, 6.5, C.texte2);
+          numeros.forEach((n, j) => {
+            const xj = x0 + j * w;
+            if (n.we) { doc.setFillColor(C.ligneAlt); doc.rect(xj, y, w, 11, 'F'); }
+            ecrire(String(n.j), xj + w / 2, y + 8, { align: 'center' });
+          });
+          y += 12;
+        }
       };
       if (!place(16 + hRang * Math.min(3, lignes.length))) nouvellePage();
       tete();
       lignes.forEach((l, i) => {
         if (!place(hRang)) { nouvellePage(); tete(); }
-        if (i % 2 === 0) { doc.setFillColor(LIGNE_PAIRE); doc.rect(M, y, LARG, hRang, 'F'); }
-        police(true, 8, C.vertFonce); ecrire(ajuster(l.nom, lab - 8), M + 4, y + 8);
+        if (l.lot) { doc.setFillColor(C.ligneAlt); doc.rect(M, y, LARG, hRang, 'F'); }
+        else if (i % 2 === 0) { doc.setFillColor(LIGNE_PAIRE); doc.rect(M, y, LARG, hRang, 'F'); }
+        if (l.separe) { doc.setDrawColor(C.vert); doc.setLineWidth(0.8); doc.line(M, y + hRang, DROITE, y + hRang); }
+        police(true, 8, l.lot ? C.texte : C.vertFonce); ecrire(ajuster(l.nom, lab - 8), M + 4, y + 8);
         police(false, 6.5, C.texte2); ecrire(ajuster(l.sous, lab - 8), M + 4, y + 15);
         l.jours.forEach((k, j) => {
           if (!k) return;
@@ -249,6 +265,14 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
           if (k === 'la') {
             doc.setFillColor(C.vert); doc.rect(x, haut, w, h / 2, 'F');
             doc.setFillColor(C.bleu); doc.rect(x, haut + h / 2, w, h / 2, 'F');
+            return;
+          }
+          if (k === 'x') {
+            // Jour sans sortie (exception) : croix ambre, lisible au contrôle.
+            doc.setDrawColor(C.ambre); doc.setLineWidth(0.9);
+            const c = Math.min(w, h) / 2 - 0.5;
+            doc.line(x + w / 2 - c, haut + h / 2 - c, x + w / 2 + c, haut + h / 2 + c);
+            doc.line(x + w / 2 - c, haut + h / 2 + c, x + w / 2 + c, haut + h / 2 - c);
             return;
           }
           doc.setFillColor({ l: C.vert, a: C.bleu, np: C.bord, fau: C.ambre }[k] || C.bord);
@@ -268,9 +292,9 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
       y += 6;
     },
     espace(h) { y += h; },
-    /** Pied de chaque page (Page n/N) puis renvoie le document jsPDF. */
     /** Page suivante, sauf si on est déjà en haut d'une page (thème suivant du bilan complet). */
     saut() { if (y > 100) nouvellePage(); },
+    /** Pied de chaque page (Page n/N) puis renvoie le document jsPDF. */
     terminer() {
       const n = doc.internal.getNumberOfPages();
       for (let p = 1; p <= n; p++) {

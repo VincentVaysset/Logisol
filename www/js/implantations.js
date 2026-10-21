@@ -151,15 +151,15 @@ const SEMIS_SYNTHETIQUE = '__semis_en_cours__';
 // retombe dans le bug d'origine (deux logiques qui divergent). Un semis
 // synthétique, typé pivot, est ajouté à l'historique réel de la parcelle
 // pour lire la valeur que la fonction unique lui attribuerait.
-async function campagneViseeDe(parcelleId, dateSemis) {
+async function campagneViseeDe(parcelleId, dateSemis, cultureId = null) {
   const { getInterventions, getTypeById } = await chargerModulesReels();
   const historique = (getInterventions() || [])
     .filter((i) => Array.isArray(i.parcelleIds) && i.parcelleIds.includes(parcelleId));
-  const synthetique = { id: SEMIS_SYNTHETIQUE, date: dateSemis, typeId: SEMIS_SYNTHETIQUE, forcerCampagne: null };
+  const synthetique = { id: SEMIS_SYNTHETIQUE, date: dateSemis, typeId: SEMIS_SYNTHETIQUE, forcerCampagne: null, saisie: { cultureId } };
   const deps = {
-    getTypeById: (id) => (id === SEMIS_SYNTHETIQUE ? { pivotCampagne: true, recolteCampagne: false } : getTypeById(id))
+    getTypeById: (id) => (id === SEMIS_SYNTHETIQUE ? { pivotCampagne: true, recolteCampagne: false, effetCulture: 'IMPLANTE' } : getTypeById(id))
   };
-  const map = calculerCampagnes(historique.concat([synthetique]), undefined, deps);
+  const map = calculerCampagnes(historique.concat([synthetique]), undefined, deps, parcelleId);
   return map.get(SEMIS_SYNTHETIQUE) || null;
 }
 
@@ -193,7 +193,7 @@ export async function setImplantation(
     }
   }
 
-  const campagne = campagneVisee !== undefined ? campagneVisee : await campagneViseeDe(parcelleId, dateSemis);
+  const campagne = campagneVisee !== undefined ? campagneVisee : await campagneViseeDe(parcelleId, dateSemis, cultureId);
 
   const id = implantationId(parcelleId, dateSemis);
   const ref = doc(db, COL_NAME, id);

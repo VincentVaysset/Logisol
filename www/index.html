@@ -1403,6 +1403,12 @@
             <select id="itv-tracteur-id"></select>
             <label for="itv-materiel-id">Matériel utilisé</label>
             <select id="itv-materiel-id"></select>
+            <!-- 2ᵉ outil attelé (ex. semoir + herse rotative) : facultatif. -->
+            <div id="itv-materiel2-wrap" hidden>
+              <label for="itv-materiel2-id">2ᵉ outil</label>
+              <div class="itv-outil2"><select id="itv-materiel2-id"></select><button type="button" id="itv-materiel2-retirer" class="btn btn-secondary btn-mini" aria-label="Retirer le 2ᵉ outil">✕</button></div>
+            </div>
+            <button type="button" id="itv-materiel2-ajouter" class="lien-discret">＋ Ajouter un outil</button>
             <input type="text" id="itv-materiel" placeholder="Précision libre (réglage, attelage...)">
             <!-- Tracé GPS du chantier, pour toute activité de parcelle : la
                  largeur vient du matériel choisi juste au-dessus. -->

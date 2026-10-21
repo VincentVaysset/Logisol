@@ -81,6 +81,9 @@ function nettoyer(data) {
     materiel: data.materiel || '',
     materielId: data.materielId || null,
     materielNom: data.materielNom || '',
+    // 2ᵉ outil attelé (semoir + herse...) : facultatif.
+    materiel2Id: data.materiel2Id || null,
+    materiel2Nom: data.materiel2Nom || '',
     // Tracteur attelé à l'outil : absent d'ici jusqu'au 06/10/2026, il était
     // retiré à chaque enregistrement (aucune activité n'en a en base).
     tracteurId: data.tracteurId || null,

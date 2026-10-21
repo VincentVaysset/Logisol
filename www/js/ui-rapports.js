@@ -13,8 +13,9 @@ import {
 } from './assolement-previsionnel.js';
 import { campagneDeActivite } from './calendrier-campagne.js';
 import { syntheseStocks } from './realise-calc.js';
-import { calculerSyntheses } from './syntheses-calc.js';
+import { calculerSyntheses, noteTardives } from './syntheses-calc.js';
 import { implantationEnCours } from './implantations.js';
+import { estActiviteDerobee } from './campagnes.js';
 import { getInterventions } from './interventions.js';
 import { getTypeById, formulaireDe } from './interventions-types.js';
 import { getCultureById } from './cultures-config.js';
@@ -309,7 +310,8 @@ export function donneesRealise(camp = String(campagneR)) {
     const culture = s.cultureId ? getCultureById(s.cultureId) : null;
     return { id: i.id, date: i.date, typeNom: i.typeNom || (t && t.nom) || '', formulaire: formulaireDe(t),
       categorie: t ? t.categorie : null, parcelleIds: i.parcelleIds || [], s, cultureNom: culture ? culture.nom : null,
-      tracteurNom: i.tracteurNom || '', materielNom: i.materielNom || i.materiel || '', chauffeur: i.chauffeur || '' };
+      derobee: estActiviteDerobee({ ...i, saisie: s }, t, (i.parcelleIds || [])[0], { getCultureById, implantationEnCours }),
+      tracteurNom: i.tracteurNom || '', materielNom: [i.materielNom || i.materiel || '', i.materiel2Nom || ''].filter(Boolean).join(' + '), chauffeur: i.chauffeur || '' };
   });
   const syn = calculerSyntheses({ parcelles, activites, cultureA });
   // Campagne culturale N = campagne de stock (N-1)-N (01/09 → 31/08).
@@ -345,13 +347,15 @@ function renderRealise() {
   const vide = (t) => note(t);
 
   // 1. Semis : par culture
-  const s1 = se.groupes.length ? kpis([
-    kpi('vert', `${ha2(se.ha)}${et(se.estimee)} <small>ha</small>`, 'Surface semée'),
-    kpi('', se.kg == null ? '—' : `${entier(se.kg)} <small>kg</small>`, se.kgPartiel && se.kg != null ? 'Semence (partiel)' : 'Semence utilisée')
-  ]) + se.groupes.map((g, i) => repli(g.nom, pluriel(g.nbParcelles, 'parcelle'), `${ha2(g.ha)} ha`,
+  const groupeSemis = (g, i) => repli(g.nom, pluriel(g.nbParcelles, 'parcelle'), `${ha2(g.ha)} ha`,
     sep(g.dose != null ? `${ha(g.dose)} kg/ha` : '', g.kg != null ? `${entier(g.kg)} kg` : ''),
     g.lignes.map((l) => ln(l.parcelle, sep(jourMois(l.date), l.semence), `${ha2(l.ha)}${et(l.estimee)} ha`,
-      sep(l.dose != null ? `${ha(l.dose)} kg/ha` : 'dose non saisie', l.kg != null ? `${entier(l.kg)} kg` : ''))).join(''), i === 0)).join('')
+      sep(l.dose != null ? `${ha(l.dose)} kg/ha` : 'dose non saisie', l.kg != null ? `${entier(l.kg)} kg` : ''))).join(''), i === 0);
+  const s1 = se.groupes.length || se.derobees.length ? kpis([
+    kpi('vert', `${ha2(se.ha)}${et(se.estimee)} <small>ha</small>`, 'Surface semée'),
+    kpi('', se.kg == null ? '—' : `${entier(se.kg)} <small>kg</small>`, se.kgPartiel && se.kg != null ? 'Semence (partiel)' : 'Semence utilisée')
+  ]) + se.groupes.map(groupeSemis).join('')
+    + (se.derobees.length ? `<h5 class="syn-sous">🟣 Dérobées · ${ha2(se.derobeesHa)} ha <small>hors total</small></h5>` + se.derobees.map((g) => groupeSemis(g, 1)).join('') : '')
     : vide(`Aucun semis enregistré pour ${camp}.`);
 
   // 2. Épandages : par parcelle + totaux exploitation par produit
@@ -417,7 +421,8 @@ function renderRealise() {
   ]) + (lignesStock
     ? tableau('', ['Catégorie', 'Entrées', 'Sorties', 'Stock'], lignesStock + `<tr class="tot"><td>Total (t)</td><td>${t1(tot.entrees)}</td><td>${t1(tot.sorties)}</td><td>${t1(tot.reste)}</td></tr>`, 'rap-stocks-reel')
     : note('Aucun stock ni mouvement sur la campagne.'))
-    + (lignesStock && Math.abs(ajust) >= 0.05 ? note(`Sorties : ${t1(tot.conso)} t distribuées aux lots, ${t1(ajust)} t d'ajustements d'inventaire.`) : '');
+    + (lignesStock && Math.abs(ajust) >= 0.05 ? note(`Sorties : ${t1(tot.conso)} t distribuées aux lots, ${t1(ajust)} t d'ajustements d'inventaire.`) : '')
+    + (noteTardives(syn.tardives, camp) ? note(esc(noteTardives(syn.tardives, camp))) : '');
 
   const corps = { semis: ['Semis', s1], epandages: ['Épandages', s2], fourrages: ['Fourrages récoltés', s3],
     cereales: ['Céréales & paille', s4], travaux: ['Travaux', s5], stocks: ['Bilan stocks', s6] };

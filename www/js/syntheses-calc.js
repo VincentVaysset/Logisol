@@ -55,15 +55,29 @@ export function calculerSyntheses({ parcelles, activites, cultureA }) {
   // Culture de la campagne d'une parcelle : celle semée dans la campagne
   // (un épandage avant semis concerne la culture à venir), sinon celle en place.
   const semeeCampagne = new Map();
-  acts.filter((a) => a.formulaire === 'SEMIS' && a.cultureNom).forEach((a) => a.ids.forEach((id) => semeeCampagne.set(id, a.cultureNom)));
+  acts.filter((a) => a.formulaire === 'SEMIS' && a.cultureNom && !a.derobee).forEach((a) => a.ids.forEach((id) => semeeCampagne.set(id, a.cultureNom)));
   const cultureCampagne = (id, date) => semeeCampagne.get(id) || (cultureA && cultureA(id, date)) || null;
-  return {
+  const res = {
     semis: semis(acts.filter((a) => a.formulaire === 'SEMIS'), surfaceDe, nomDe),
     epandages: epandages(acts.filter((a) => a.formulaire === 'FUMIER' || a.formulaire === 'CHAULAGE'), surfaceDe, nomDe, cultureCampagne),
     fourrages: fourrages(acts.filter((a) => (a.formulaire === 'PRESSAGE' && a.s.produitRecolte !== 'PAILLE') || a.formulaire === 'SECHAGE'), surfaceDe, nomDe, cultureA),
     cereales: cereales(acts, surfaceDe, nomDe, cultureA),
     travaux: travaux(acts, surfaceDe, nomDe, cultureCampagne)
   };
+  res.tardives = recoltesTardives(res);
+  return res;
+}
+
+/**
+ * Récoltes de la campagne faites après le 31/08 (regain, dernière coupe) :
+ * comptées dans les récoltes de leur campagne, mais entrées au stock de la
+ * campagne de stock suivante (inventaire comptable au 31/08 inchangé).
+ */
+function recoltesTardives(res) {
+  const lignes = [];
+  res.fourrages.parCoupe.forEach((g) => g.lignes.forEach((l) => lignes.push({ date: l.date, t: l.t || 0, quoi: `${g.fourrage} · ${g.coupe == null ? 'coupe ?' : g.coupe + 'e coupe'}`, parcelle: l.parcelle })));
+  res.cereales.groupes.forEach((g) => g.lignes.forEach((l) => { if (l.date && l.grainT) lignes.push({ date: l.date, t: l.grainT, quoi: g.nom, parcelle: l.parcelle }); }));
+  return lignes;
 }
 
 // --- 1. Semis : par culture -------------------------------------------------
@@ -74,7 +88,7 @@ function semis(acts, surfaceDe, nomDe) {
     const dose = num(a.s.doseKgHa);
     const culture = a.cultureNom || 'Culture non renseignée';
     repartir(a.ids, surfaceDe, declaree).forEach(({ id, ha }) => {
-      const g = groupes.get(culture) || { nom: culture, lignes: [] };
+      const g = groupes.get(culture) || { nom: culture, derobee: !!a.derobee, lignes: [] };
       g.lignes.push({ parcelleId: id, parcelle: nomDe(id), date: a.date, ha: r2(ha), dose,
         kg: dose != null ? Math.round(dose * ha) : null, semence: String(a.s.semence || '').trim(),
         materiel: a.materielNom || '', estimee: declaree == null || !!a.s.surfaceEstimee });
@@ -88,11 +102,16 @@ function semis(acts, surfaceDe, nomDe) {
       kgPartiel: g.lignes.some((l) => l.kg == null), dose: doseUnique(g.lignes),
       nbParcelles: new Set(g.lignes.map((l) => l.parcelleId)).size, estimee: g.lignes.some((l) => l.estimee) };
   }).sort((x, y) => fr(x.nom, y.nom));
+  // Dérobées : à part et hors total (la parcelle garde sa culture principale).
+  const princ = liste.filter((g) => !g.derobee);
+  const derobees = liste.filter((g) => g.derobee);
   return {
-    groupes: liste,
-    ha: r2(liste.reduce((t, g) => t + g.ha, 0)),
-    kg: liste.some((g) => g.kg != null) ? liste.reduce((t, g) => t + (g.kg || 0), 0) : null,
-    kgPartiel: liste.some((g) => g.kgPartiel),
+    groupes: princ,
+    derobees,
+    derobeesHa: r2(derobees.reduce((t, g) => t + g.ha, 0)),
+    ha: r2(princ.reduce((t, g) => t + g.ha, 0)),
+    kg: princ.some((g) => g.kg != null) ? princ.reduce((t, g) => t + (g.kg || 0), 0) : null,
+    kgPartiel: princ.some((g) => g.kgPartiel),
     estimee: liste.some((g) => g.estimee)
   };
 }
@@ -142,7 +161,8 @@ function fourrages(acts, surfaceDe, nomDe, cultureA) {
     const declaree = num(a.s.surfaceHa);
     const seche = a.formulaire === 'SECHAGE';
     repartir(a.ids, surfaceDe, declaree).forEach(({ id, ha, part }) => {
-      const fourrage = String(a.s.typeFourrage || '').trim() || (cultureA && cultureA(id, a.date)) || 'Fourrage';
+      const base = String(a.s.typeFourrage || '').trim() || (cultureA && cultureA(id, a.date)) || 'Fourrage';
+      const fourrage = a.derobee ? `${base} (dérobée)` : base;
       const unites = seche ? num(a.s.nbRemorques) : num(a.s.nbBottes);
       lignes.push({ parcelleId: id, parcelle: nomDe(id), culture: (cultureA && cultureA(id, a.date)) || '',
         parcelleHa: r2(surfaceDe(id)), date: a.date, fourrage, coupe: num(a.s.numeroCoupe), seche,
@@ -279,4 +299,14 @@ function travaux(acts, surfaceDe, nomDe, cultureA) {
     return { ...g, culture: (cultureA && cultureA(g.parcelleId, derniere.date)) || '' };
   }).sort((a, b) => fr(a.parcelle, b.parcelle));
   return { parType, parParcelle };
+}
+
+/** Note du bilan stocks : récoltes de la campagne faites après le 31/08 (null si aucune). */
+export function noteTardives(tardives, camp) {
+  const apres = (tardives || []).filter((l) => l.date > `${camp}-08-31`);
+  if (!apres.length) return null;
+  const t = apres.reduce((x, l) => x + l.t, 0);
+  const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString('fr-FR');
+  return `Récoltes ${camp} faites après le 31/08 : ${fmt(t)} t (${apres.map((l) => `${l.quoi}, ${l.parcelle}`).join(' ; ')}). `
+    + `Comptées dans les récoltes ${camp}, elles entrent au stock ${camp}-${Number(camp) + 1} pour l'hiver ; l'inventaire comptable reste au 31/08.`;
 }

@@ -25,7 +25,7 @@ export function pdfCarnetPaturage({ ctx, parcelles, debut, fin, travaux = new Ma
   if (!window.jspdf || !window.jspdf.jsPDF) throw new Error('Générateur PDF indisponible (jsPDF non chargé).');
   const annee = debut.slice(0, 4);
   const p = creerPdfCharte({ jsPDF: window.jspdf.jsPDF, titre: 'Carnet de pâturage', sousTitre: `Du ${dateFr(debut)} au ${dateFr(fin)}`,
-    exploitation, edition: `Édité le ${dateFr(aujourdhui)}`, pied: `Logisol — Carnet de pâturage · ${annee}` });
+    exploitation, edition: `Édité le ${dateFr(aujourdhui)}`, pied: `Logisol — Carnet de pâturage · ${annee}`, paysage: true });
   const dansPeriode = { ...ctx, aujourdhui: fin < ctx.aujourdhui ? fin : ctx.aujourdhui };
   const lotDe = new Map(ctx.lots.map((l) => [l.id, l]));
   const nomParcelle = new Map(parcelles.map((x) => [x.id, x.nom || 'Sans nom']));
@@ -50,15 +50,40 @@ export function pdfCarnetPaturage({ ctx, parcelles, debut, fin, travaux = new Ma
     { teinte: 'bleu', valeur: `${sorties.AGNELLES} j`, label: 'Jours avec sortie · agnelles' },
     { teinte: 'ambre', valeur: `${joursSans.size} j`, label: 'Jours sans sortie' }
   ]);
-  if (paturees.length) {
+  // Ligne de contrôle par type de lot : sortie (couleur) ou jour sans sortie (croix).
+  const ligneLot = (type, nom, js) => {
+    const lotsT = ctx.lots.filter((l) => l.type === type);
+    if (!lotsT.length) return null;
+    let n = 0;
+    const cases = js.map((d) => {
+      if (d > dansPeriode.aujourdhui) return '';
+      const etats = lotsT.map((l) => jourLot(l.id, d, ctx)).filter(Boolean);
+      if (etats.some((j) => j.sorti)) { n++; return type === 'AGNELLES' ? 'a' : 'l'; }
+      return etats.some((j) => j.exception && j.exception.type === 'SANS_SORTIE') ? 'x' : '';
+    });
+    return { nom, sous: `${n} j avec sortie`, jours: cases, lot: true };
+  };
+  const lignesBande = (js, debutB, finB) => {
+    const lots = [ligneLot('BREBIS', 'Laitières', js), ligneLot('AGNELLES', 'Agnelles', js)].filter(Boolean);
+    if (lots.length) lots[lots.length - 1].separe = true;
+    const parc = parcelles.filter((x) => ctx.periodes.some((q) => q.parcelleId === x.id && q.debut <= finB && (q.fin || ctx.aujourdhui) >= debutB))
+      .sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr', { numeric: true }))
+      .map((x) => {
+        const b = bilanParcelle(x.id, debutB, finB, ctx);
+        return { nom: x.nom || 'Sans nom', sous: `${hFr(b.heures)} h · ${b.passages} passage${b.passages > 1 ? 's' : ''}`,
+          jours: js.map((d) => (travaux.get(`${x.id}|${d}`) ? 'fau' : d <= ctx.aujourdhui ? caseParcelle(x.id, d, ctx).k : '')) };
+      });
+    return lots.concat(parc);
+  };
+  const LEGENDE = 'Vert : laitières · bleu : agnelles · vert et bleu : ensemble · gris : lot affecté, pas de sortie · croix ambre : jour sans sortie (motif en 3) · ambre : fauche ou broyage (journal).';
+  const moisDe = (js) => {
     const mois = [];
-    jours.forEach((d) => { const m = Number(d.slice(5, 7)) - 1; if (!mois.length || mois[mois.length - 1].m !== m) mois.push({ m, label: MOIS[m], n: 0 }); mois[mois.length - 1].n++; });
-    p.bande({ mois, lignes: paturees.map((x) => {
-      const b = bilanParcelle(x.id, debut, fin, ctx);
-      return { nom: x.nom || 'Sans nom', sous: `${hFr(b.heures)} h · ${b.passages} passage${b.passages > 1 ? 's' : ''}`,
-        jours: jours.map((d) => (travaux.get(`${x.id}|${d}`) ? 'fau' : d <= ctx.aujourdhui ? caseParcelle(x.id, d, ctx).k : '')) };
-    }) });
-    p.note('Vert : laitières · bleu : agnelles · vert et bleu : ensemble · gris : lot affecté, pas de sortie · ambre : fauche ou broyage (journal).');
+    js.forEach((d) => { const m = Number(d.slice(5, 7)) - 1; if (!mois.length || mois[mois.length - 1].m !== m) mois.push({ m, label: MOIS[m], n: 0 }); mois[mois.length - 1].n++; });
+    return mois;
+  };
+  if (paturees.length) {
+    p.bande({ mois: moisDe(jours), lignes: lignesBande(jours, debut, fin) });
+    p.note(LEGENDE);
   } else p.note('Aucune période de pâturage sur ces dates.');
 
   // 2. Périodes de pâturage
@@ -89,5 +114,21 @@ export function pdfCarnetPaturage({ ctx, parcelles, debut, fin, travaux = new Ma
         e.motif || '—', e.meteo ? resumeMeteo(e.meteo) : '—'] }))
     });
   } else p.note('Aucun jour sans sortie ni horaire différent sur ces dates.');
+
+  // 4. Détail mois par mois : une page par mois pâturé, jours numérotés.
+  const parMois = new Map();
+  jours.forEach((d) => { const k = d.slice(0, 7); if (!parMois.has(k)) parMois.set(k, []); parMois.get(k).push(d); });
+  let k = 0;
+  parMois.forEach((js) => {
+    const lignes = lignesBande(js, js[0], js[js.length - 1]);
+    if (!lignes.some((l) => !l.lot)) return;
+    k++;
+    p.saut();
+    const m = Number(js[0].slice(5, 7)) - 1;
+    p.section(`4.${k}`, `Détail — ${MOIS[m]} ${js[0].slice(0, 4)}`, 'Une case par jour', 60);
+    const numeros = js.map((d) => { const wd = new Date(`${d}T12:00:00`).getDay(); return { j: Number(d.slice(8, 10)), we: wd === 0 || wd === 6 }; });
+    p.bande({ mois: moisDe(js), lignes, numeros });
+    p.note(LEGENDE);
+  });
   return p.terminer();
 }

@@ -127,6 +127,34 @@ export function planEntree({ periodes, lotId, parcelleId, date, heures, dansLaJo
     modifier, supprimer, memeParcelle: false };
 }
 
+/**
+ * Supprimer une entrée saisie par erreur : la période disparaît et la période
+ * du lot qu'elle avait close (la veille, ou le jour même pour un changement
+ * dans la journée) reprend sa fin d'avant — l'inverse exact de planEntree.
+ * @returns {{supprimer:string[], modifier:Array<{id, champs}>, rouverte:object|null}}
+ */
+export function planSuppression({ periodes, id }) {
+  const p = periodes.find((x) => x.id === id);
+  if (!p) return { supprimer: [], modifier: [], rouverte: null };
+  const veille = ajouterJours(p.debut, -1);
+  const precedente = periodes.filter((x) => x.id !== id && x.lotId === p.lotId
+    && (x.fin === veille || (x.fin === p.debut && x.heuresDernierJour)))
+    .sort((a, b) => (a.debut < b.debut ? 1 : -1))[0] || null;
+  return {
+    supprimer: [id],
+    modifier: precedente ? [{ id: precedente.id, champs: { fin: p.fin ?? null, heuresDernierJour: p.fin ? (p.heuresDernierJour || null) : null } }] : [],
+    rouverte: precedente
+  };
+}
+
+/** Arrêter un lot sur une parcelle : la période se termine ce jour-là (rentrée définitive, erreur sur la suite). */
+export function planArret({ periodes, id, date }) {
+  const p = periodes.find((x) => x.id === id);
+  if (!p) return { supprimer: [], modifier: [] };
+  if (date < p.debut) return planSuppression({ periodes, id });
+  return { supprimer: [], modifier: [{ id, champs: { fin: date, heuresDernierJour: null } }] };
+}
+
 /** Jours de l'année (≤ aujourd'hui) avec au moins une sortie, par type de lot. */
 export function joursAvecSortie(annee, ctx) {
   const res = { BREBIS: 0, AGNELLES: 0 };

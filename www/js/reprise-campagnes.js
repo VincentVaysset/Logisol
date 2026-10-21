@@ -72,8 +72,8 @@ function saisieManuellePossible(itv) {
 export function calculerReprise(interventions, deps = {}) {
   const calcul = new Map();   // activiteId -> Map(parcelleId -> { valeur, sansForcage })
   for (const [parcelleId, activites] of parParcelle(interventions)) {
-    const items = activites.map((a) => ({ id: a.id, date: a.date, typeId: a.typeId, forcerCampagne: a.forcerCampagne || null }));
-    const r = calculerCampagnes(items, campagneDeDate, deps);
+    const items = activites.map((a) => ({ id: a.id, date: a.date, typeId: a.typeId, forcerCampagne: a.forcerCampagne || null, saisie: a.saisie || null }));
+    const r = calculerCampagnes(items, campagneDeDate, deps, parcelleId);
     for (const a of activites) {
       if (!calcul.has(a.id)) calcul.set(a.id, new Map());
       calcul.get(a.id).set(parcelleId, { valeur: r.get(a.id), sansForcage: r.sansForcage.get(a.id) });

@@ -56,7 +56,9 @@ let modulesReels = null;
 async function chargerModulesReels() {
   if (!modulesReels) {
     const typesM = await import('./interventions-types.js');
-    modulesReels = { getTypeById: typesM.getTypeById };
+    const implM = await import('./implantations.js');
+    const cultM = await import('./cultures-config.js');
+    modulesReels = { getTypeById: typesM.getTypeById, implantationEnCours: implM.implantationEnCours, getCultureById: cultM.getCultureById };
   }
   return modulesReels;
 }
@@ -92,6 +94,28 @@ export function estRecolteCampagne(type) {
   return type.flux === 'ENTREE_STOCK';
 }
 
+// Dérobée (colza fourrager entre une céréale et la culture suivante) : rattachée
+// à la campagne de la récolte qui la précède (N), sans la faire basculer — ni
+// elle, ni le travail du sol qui la prépare. C'est la destruction de la dérobée
+// (ou le semis de la culture suivante) qui ouvre N+1. Est « dérobée » : le
+// semis d'une culture de famille dérobée, et les récoltes / fauches / pâturages
+// faits pendant qu'une dérobée est en place sur la parcelle.
+const CATEGORIES_SUR_DEROBEE = ['FOURRAGES', 'RECOLTE_FOURRAGE', 'TROUPEAU'];
+export function estSemis(type) {
+  return !!type && (type.effetCulture === 'IMPLANTE' || type.formulaire === 'SEMIS');
+}
+export function estActiviteDerobee(act, type, parcelleId, deps = {}) {
+  if (!act || !type) return false;
+  if (typeof act.derobee === 'boolean') return act.derobee;
+  const { getCultureById, implantationEnCours } = deps;
+  if (!getCultureById) return false;
+  const famille = (id) => ((id && getCultureById(id)) || {}).famille;
+  if (estSemis(type)) return famille((act.saisie || {}).cultureId) === 'derobee';
+  if (!parcelleId || !implantationEnCours || !CATEGORIES_SUR_DEROBEE.includes(type.categorie)) return false;
+  const impl = implantationEnCours(parcelleId, act.date);
+  return !!impl && famille(impl.cultureId) === 'derobee';
+}
+
 /**
  * Calcule la campagne de chaque activité d'UNE parcelle.
  * @param {Array<{id, date, typeId, forcerCampagne?}>} activitesParcelle
@@ -105,9 +129,10 @@ export function estRecolteCampagne(type) {
  * @param {{getTypeById?:Function}} [deps]
  *        Dépendances injectables (tests Node purs, sans Firestore) ; les
  *        implémentations réelles sont utilisées par défaut.
+ * @param {string} [parcelleId]  pour reconnaître une récolte faite sur une dérobée en place
  * @returns {Map<string, string>} id d'activité -> campagne
  */
-export function calculerCampagnes(activitesParcelle, defaut, deps = {}) {
+export function calculerCampagnes(activitesParcelle, defaut, deps = {}, parcelleId = null) {
   // Repli sur les modules réels seulement s'ils ont déjà été chargés (cf.
   // preparerCampagnes(), appelée au bootstrap) : un appel sans deps ni
   // préparation préalable échouerait clairement plutôt que de tirer
@@ -123,19 +148,46 @@ export function calculerCampagnes(activitesParcelle, defaut, deps = {}) {
     .slice()
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
+  const depsDerobee = {
+    getCultureById: deps.getCultureById || reels.getCultureById,
+    implantationEnCours: deps.implantationEnCours || reels.implantationEnCours
+  };
+  const infos = tri.map((act) => {
+    const type = getTypeById(act.typeId);
+    return { type, derobee: estActiviteDerobee(act, type, parcelleId, depsDerobee) };
+  });
+  // Pivot qui prépare une dérobée : le premier semis qui le suit (avant toute
+  // autre récolte) est celui d'une dérobée.
+  const prepareDerobee = (i) => {
+    for (let j = i + 1; j < tri.length; j++) {
+      const { type, derobee } = infos[j];
+      if (estSemis(type)) return derobee;
+      if (!derobee && estRecolteCampagne(type)) return false;
+    }
+    return false;
+  };
+
   let herite = null;          // campagne du dernier pivot
+  let campagneDerobee = null; // campagne de la dérobée en place (N)
   let campagneRecolte = null; // campagne de la dernière récolte depuis ce pivot (« +1 » armé)
   const resultat = new Map();
   const sansForcage = new Map();
   const maxi = (...v) => String(Math.max(...v.filter((x) => x != null && x !== '').map(Number)));
 
-  for (const act of tri) {
-    const type = getTypeById(act.typeId);
+  for (let i = 0; i < tri.length; i++) {
+    const act = tri[i];
+    const { type, derobee } = infos[i];
     const estPivot = estPivotCampagne(type);
     const estRecolte = estRecolteCampagne(type);
     const cal = valeurDefaut(defaut, act.date);
     let valeur;
-    if (estRecolte) {
+    let chaine = true; // l'activité fait-elle avancer la chaîne (pivot / récolte) ?
+    const preparation = !derobee && estPivot && !estRecolte && prepareDerobee(i);
+    if (derobee || preparation) {
+      if (campagneDerobee == null) campagneDerobee = campagneRecolte != null ? campagneRecolte : (herite != null ? herite : cal);
+      valeur = campagneDerobee;
+      chaine = false;
+    } else if (estRecolte) {
       const automne = Number(String(act.date).slice(5, 7)) >= 9;
       // Semis / travail du sol depuis la dernière récolte : c'est sa culture
       // qu'on récolte (dérobée semée fin août, fauchée en novembre).
@@ -160,6 +212,8 @@ export function calculerCampagnes(activitesParcelle, defaut, deps = {}) {
       continue; // n'affecte jamais la chaîne pour les activités suivantes
     }
     resultat.set(act.id, valeur);
+    if (!chaine) continue;
+    if (estPivot) campagneDerobee = null;
     if (estRecolte) {
       if (estPivot) herite = valeur;
       campagneRecolte = valeur;

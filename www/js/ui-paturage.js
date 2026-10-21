@@ -6,9 +6,9 @@
 // du journal d'interventions s'affichent en lecture seule.
 import {
   jourLot, caseParcelle, heuresLot, derniereSortie, joursAvecSortie, bornesSaison, bilanParcelle,
-  ajouterJours, ecartJours, melangeAutorise, heureDecimale, HEURES_DEFAUT, MOTIFS
+  ajouterJours, ecartJours, melangeAutorise, heureDecimale, HEURES_DEFAUT, MOTIFS, planSuppression, planArret
 } from './paturage-calc.js';
-import { getPeriodes, getExceptions, onPaturageChange, watchPaturage, entrerLot, noterException, retirerException, rattacherMeteo } from './paturage.js';
+import { getPeriodes, getExceptions, onPaturageChange, watchPaturage, entrerLot, noterException, retirerException, rattacherMeteo, appliquerPlanPaturage } from './paturage.js';
 import { getLotsActifs, onLotsChange, typeAnimauxDe } from './lots.js';
 import { getInterventions } from './interventions.js';
 import { getTypeById } from './interventions-types.js';
@@ -286,6 +286,16 @@ function dessinerFeuille() {
       ${exs.length ? `<button type="button" class="pat-lnk" data-act="retirer">Retirer l'exception du ${jjmm(d)} (${esc(exs[0].motif.toLowerCase())})</button>` : ''}
       ${exs.length && exs[0].meteo ? `<p class="pat-hint">Météo : ${esc(resumeMeteo(exs[0].meteo))}</p>` : ''}</div>`;
   }
+  // Corriger une erreur : supprimer l'entrée du lot sur cette parcelle (la
+  // période précédente est rouverte) ou l'arrêter à ce jour.
+  const ouvertes = c.periodes.filter((q) => q.parcelleId === F.parcelleId && q.debut <= d && (q.fin == null || q.fin >= d))
+    .map((q) => ({ q, lot: c.lots.find((l) => l.id === q.lotId) })).filter((x) => x.lot);
+  if (ouvertes.length) {
+    h += `<div class="pat-blk"><h3>Erreur de saisie ?</h3>${ouvertes.map(({ q, lot }) =>
+      `<p class="pat-hint">${esc(lot.nom)} sur ${esc(p.nom || 'la parcelle')} du ${jjmm(q.debut)}${q.fin ? ` au ${jjmm(q.fin)}` : ' (en cours)'}</p>
+      <button type="button" class="pat-lnk" data-act="suppr" data-periode="${esc(q.id)}">Supprimer cette sortie (toute la période)</button>
+      ${q.fin !== d ? `<button type="button" class="pat-lnk" data-act="arreter" data-periode="${esc(q.id)}">Arrêter au ${jjmm(d)} (plus de sortie ici après)</button>` : ''}`).join('')}</div>`;
+  }
   el['pat-feuille-corps'].innerHTML = h;
 }
 
@@ -326,6 +336,21 @@ async function clicFeuille(e) {
       fermerFeuille();
       toastSucces(F.mode === 'HORAIRE' ? `Horaire ${heures.debut}–${heures.fin} noté le ${jjmm(d)}.` : `Pas de sortie le ${jjmm(d)} (${F.motif.toLowerCase()}).`);
       meteoDuJour(d, concernes.map((l) => l.id));
+    }
+    if (act === 'suppr' || act === 'arreter') {
+      const q = c.periodes.find((x) => x.id === b.dataset.periode);
+      if (!q) return;
+      const lot = c.lots.find((l) => l.id === q.lotId) || { nom: 'Le lot' };
+      const nomP = (parcelles.find((x) => x.id === q.parcelleId) || {}).nom || 'la parcelle';
+      const plan = act === 'suppr' ? planSuppression({ periodes: c.periodes, id: q.id }) : planArret({ periodes: c.periodes, id: q.id, date: d });
+      const avant = plan.rouverte ? `\n${lot.nom} retournera sur ${(parcelles.find((x) => x.id === plan.rouverte.parcelleId) || {}).nom || 'sa parcelle précédente'}, comme avant cette entrée.` : '';
+      const msg = act === 'suppr'
+        ? `Supprimer la sortie de ${lot.nom} sur ${nomP} à partir du ${jjmm(q.debut)} ?${avant}`
+        : `${lot.nom} ne sortira plus sur ${nomP} après le ${jjmm(d)}.`;
+      if (!confirm(msg)) return;
+      await appliquerPlanPaturage(plan, act === 'suppr' ? 'Suppression de sortie' : 'Arrêt de sortie');
+      fermerFeuille();
+      toastSucces(act === 'suppr' ? `Sortie de ${lot.nom} supprimée.` : `${lot.nom} arrêté sur ${nomP} au ${jjmm(d)}.`);
     }
     if (act === 'retirer') {
       const exs = c.exceptions.filter((x) => x.date === d && c.lots.some((l) => l.id === x.lotId));

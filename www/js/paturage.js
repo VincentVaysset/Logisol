@@ -53,6 +53,20 @@ export async function entrerLot({ lotId, parcelleId, date, heures, dansLaJournee
   return plan;
 }
 
+/** Applique un plan de planSuppression / planArret (paturage-calc.js). */
+export async function appliquerPlanPaturage(plan, libelle) {
+  const taches = [];
+  plan.supprimer.forEach((id) => {
+    const ref = doc(COL_PERIODES, id);
+    taches.push(ecrire(ref, deleteDoc(ref), 'Pâturage', `${libelle} : période ${id} supprimée`));
+  });
+  plan.modifier.forEach(({ id, champs }) => {
+    const ref = doc(COL_PERIODES, id);
+    taches.push(ecrire(ref, updateDoc(ref, { ...champs, majLe: serverTimestamp() }), 'Pâturage', `${libelle} : période ${id}`));
+  });
+  await Promise.all(taches);
+}
+
 const idException = (lotId, date) => `${lotId}_${date}`;
 
 /** Exception du jour pour un lot : « Pas de sortie » ou « Horaire différent », avec un motif. */

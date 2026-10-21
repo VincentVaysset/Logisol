@@ -74,7 +74,7 @@ const el = {};
   'campagne-forcer-toggle','campagne-forcer-wrap','campagne-forcer','campagne-forcer-valider','campagne-forcer-annuler',
   'chauffeur','chauffeurs','statut',
   'notes','details','details-toggle',
-  'champ-produit','produit','quantite','unite','champ-materiel','materiel','materiel-id','tracteur-id','champ-duree',
+  'champ-produit','produit','quantite','unite','champ-materiel','materiel','materiel-id','materiel2-id','materiel2-wrap','materiel2-ajouter','materiel2-retirer','tracteur-id','champ-duree',
   'newtype','newtype-toggle','newtype-nom','newtype-icone','newtype-cat','newtype-add',
   'duree','champ-meteo','meteo-text','meteo-refresh','photo-btn','photo-clear','photo-input',
   'photo-preview','photo-info',
@@ -180,7 +180,7 @@ el['materiel-id'].addEventListener('change', preRemplirTracteur);
 // fanage, la pirouette est le premier choix. Rien n'est filtré pour autant —
 // un chantier sort souvent de l'usage prévu, et masquer le reste du parc
 // obligerait à ressortir du formulaire pour saisir la réalité.
-function peuplerMateriels(valeur) {
+function peuplerMateriels(valeur, valeur2) {
   const t = typeCourant();
   const { conseilles, autres } = materielsPourAction(t ? t.nom : '');
   const opt = (m) => `<option value="${escapeAttr(m.id)}">${escapeHtml(m.nom)}${m.largeurTravailMetres ? ' (' + m.largeurTravailMetres + ' m)' : ''}</option>`;
@@ -194,7 +194,19 @@ function peuplerMateriels(valeur) {
   el['materiel-id'].innerHTML = html;
   const tous = conseilles.concat(autres);
   if (valeur && tous.some((m) => m.id === valeur)) el['materiel-id'].value = valeur;
+  const v2 = valeur2 === undefined ? el['materiel2-id'].value : valeur2;
+  el['materiel2-id'].innerHTML = html;
+  if (v2 && tous.some((m) => m.id === v2)) el['materiel2-id'].value = v2;
 }
+
+// 2ᵉ outil : caché tant qu'on ne l'ajoute pas ; un outil déjà enregistré le rouvre.
+function montrerOutil2(visible) {
+  el['materiel2-wrap'].hidden = !visible;
+  el['materiel2-ajouter'].hidden = visible;
+  if (!visible) el['materiel2-id'].value = '';
+}
+el['materiel2-ajouter'].addEventListener('click', () => { montrerOutil2(true); el['materiel2-id'].focus(); });
+el['materiel2-retirer'].addEventListener('click', () => montrerOutil2(false));
 
 // --- Action sur mesure ----------------------------------------------------
 // Un chantier inhabituel ne doit pas obliger à se rabattre sur « Autre » :
@@ -1630,7 +1642,8 @@ function reinitialiser() {
     .forEach((k) => { el[k].value = ''; });
   ecrireSaisie(null);
   appliquerGroupe();
-  peuplerMateriels('');
+  peuplerMateriels('', '');
+  montrerOutil2(false);
   peuplerTracteurs('');
   el.newtype.hidden = true;
   el['newtype-toggle'].textContent = '＋ Action sur mesure';
@@ -1672,13 +1685,14 @@ function campagneCalculee() {
     id: editingId || '__en_cours__',
     date: el.date.value || aujourdhui(),
     typeId: typeChoisiId,
-    forcerCampagne: null
+    forcerCampagne: null,
+    saisie: lireSaisie()
   };
   const activites = historiqueCampagne(parcelleId).concat([courante]);
   // getTypeById passé explicitement (import statique, lu depuis le cache des
   // types) : ouvrir ou modifier une activité ne dépend plus de l'ordre du
   // démarrage de main.js, ni du réseau.
-  const map = calculerCampagnes(activites, () => campagneParDefaut(), { getTypeById });
+  const map = calculerCampagnes(activites, () => campagneParDefaut(), { getTypeById, getCultureById, implantationEnCours }, parcelleId);
   return map.get(courante.id) || campagneParDefaut();
 }
 
@@ -1799,7 +1813,8 @@ export function openEditIntervention(itv) {
     el.quantite.value = itv.quantite != null ? itv.quantite : '';
     el.unite.value = itv.unite || '';
     el.materiel.value = itv.materiel || '';
-    peuplerMateriels(itv.materielId || '');
+    peuplerMateriels(itv.materielId || '', itv.materiel2Id || '');
+    montrerOutil2(!!itv.materiel2Id);
     peuplerTracteurs(itv.tracteurId || '');
     el.duree.value = itv.dureeHeures != null ? itv.dureeHeures : '';
     el.notes.value = itv.notes || '';
@@ -1972,6 +1987,8 @@ form.addEventListener('submit', async (e) => {
       // Nom figé : le fil reste lisible même si le matériel est renommé ou
       // sorti du parc plus tard.
       materielNom: el['champ-materiel'].hidden ? '' : nomMateriel(el['materiel-id'].value),
+      materiel2Id: el['champ-materiel'].hidden ? null : (el['materiel2-id'].value || null),
+      materiel2Nom: el['champ-materiel'].hidden ? '' : nomMateriel(el['materiel2-id'].value),
       tracteurId: el['champ-materiel'].hidden ? null : (el['tracteur-id'].value || null),
       tracteurNom: el['champ-materiel'].hidden ? '' : nomMateriel(el['tracteur-id'].value),
       dureeHeures: el['champ-duree'].hidden ? null : el.duree.value,
