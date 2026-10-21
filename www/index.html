@@ -207,6 +207,7 @@
       <div class="parametres-bloc">
         <div class="parametres-label">Configuration</div>
         <button type="button" id="btn-cultures-panel" class="btn btn-secondary" style="margin-top:8px">🌾 Gérer le référentiel Cultures</button>
+        <button type="button" id="btn-melanges-panel" class="btn btn-secondary" style="margin-top:8px">🌱 Mélanges de semis</button>
         <button type="button" id="btn-campagnes-panel" class="btn btn-secondary" style="margin-top:8px">📅 Campagnes agricoles</button>
         <button type="button" id="btn-historique-ps-panel" class="btn btn-secondary" style="margin-top:8px">⚖️ Historique PS (moissons)</button>
       </div>
@@ -237,6 +238,20 @@
       </div>
       <div class="fiche-actions">
         <button type="button" id="cultures-panel-fermer" class="btn btn-secondary">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mélanges de semis (www/js/ui-melanges.js) : composition enregistrée
+       une fois, proposée à chaque Semis. -->
+  <div id="melanges-panel" class="fiche-overlay" hidden>
+    <div class="fiche-panel">
+      <h2>Mélanges de semis</h2>
+      <p class="apercu-sous-titre">Composition enregistrée une fois, proposée à chaque semis. Modifier ou supprimer un mélange ne change pas les semis déjà saisis.</p>
+      <div id="melanges-liste"></div>
+      <button type="button" id="melanges-nouveau" class="btn btn-secondary btn-mini">➕ Nouveau mélange</button>
+      <div class="fiche-actions">
+        <button type="button" id="melanges-panel-fermer" class="btn btn-secondary">Fermer</button>
       </div>
     </div>
   </div>
@@ -1442,12 +1457,15 @@
                 <button type="button" id="itv-culture-add" class="btn btn-secondary btn-mini">Créer</button>
               </div>
               <label for="itv-semence">Semence / mélange</label>
-              <input type="text" id="itv-semence" placeholder="ex: RGI + TV, Luzerne + Dactyle, Triticale Ramdam">
+              <input type="text" id="itv-semence" list="itv-melanges-liste" autocomplete="off" placeholder="ex: RGI + TV, Luzerne + Dactyle, Triticale Ramdam">
+              <datalist id="itv-melanges-liste"></datalist>
+              <p id="itv-melange-aide" class="champ-aide" hidden></p>
               <button type="button" id="itv-melange-toggle" class="lien-section">＋ Détailler un mélange (%)</button>
               <div id="itv-melange" hidden>
                 <div id="itv-melange-rows"></div>
                 <div class="melange-pied">
                   <button type="button" id="itv-melange-add" class="btn btn-secondary btn-mini">➕ Composant</button>
+                  <button type="button" id="itv-melange-enregistrer" class="btn btn-secondary btn-mini">💾 Enregistrer ce mélange</button>
                   <span id="itv-melange-total" class="champ-aide"></span>
                 </div>
               </div>

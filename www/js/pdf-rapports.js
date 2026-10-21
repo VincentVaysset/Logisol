@@ -138,6 +138,7 @@ export function pdfRealise({ camp, syn, stocks, arreteLe, exploitation, aujourdh
           colonnes: [{ label: 'Culture / parcelle', w: 3.4 }, { label: 'Date', w: 1 }, { label: 'Variété', w: 2.6, align: 'left' },
             { label: 'ha', w: 1.1 }, { label: 'kg/ha', w: 1.1 }, { label: 'kg', w: 1.3 }], lignes: ld });
       }
+      if (se.compositions.length) p.note(`Mélanges : ${se.compositions.map((m) => `${m.nom} = ${m.comp}`).join(' ; ')}.`);
       p.note('Dose d\'une culture affichée seulement si identique sur toutes ses parcelles (pas de moyenne).');
     } else p.note(`Aucun semis enregistré pour ${camp}.`);
     },

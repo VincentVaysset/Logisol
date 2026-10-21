@@ -83,7 +83,12 @@ function recoltesTardives(res) {
 // --- 1. Semis : par culture -------------------------------------------------
 function semis(acts, surfaceDe, nomDe) {
   const groupes = new Map();
+  const compositions = new Map(); // nom de semence -> « RGI 60 % · TV 40 % » (PDF : une ligne par mélange)
   acts.forEach((a) => {
+    const nomSem = String(a.s.semence || '').trim();
+    const comp = (Array.isArray(a.s.melange) ? a.s.melange : []).filter((x) => x && x.nom)
+      .map((x) => `${x.nom}${x.pourcentage ? ` ${x.pourcentage} %` : ''}`).join(' · ');
+    if (nomSem && comp && !compositions.has(nomSem)) compositions.set(nomSem, comp);
     const declaree = num(a.s.surfaceHa);
     const dose = num(a.s.doseKgHa);
     const culture = a.cultureNom || 'Culture non renseignée';
@@ -107,6 +112,7 @@ function semis(acts, surfaceDe, nomDe) {
   const derobees = liste.filter((g) => g.derobee);
   return {
     groupes: princ,
+    compositions: Array.from(compositions, ([nom, comp]) => ({ nom, comp })).sort((x, y) => fr(x.nom, y.nom)),
     derobees,
     derobeesHa: r2(derobees.reduce((t, g) => t + g.ha, 0)),
     ha: r2(princ.reduce((t, g) => t + g.ha, 0)),

@@ -106,6 +106,8 @@ import { initMateriel, renderMateriels } from './ui-materiel.js';
 import { initRapports, setParcellesRapports } from './ui-rapports.js';
 import { setParcellesPaturage } from './ui-paturage.js';
 import { initParametresCultures } from './ui-parametres.js';
+import { initMelanges } from './ui-melanges.js';
+import { watchMelanges } from './melanges.js';
 import { preparerCampagnes } from './campagnes.js';
 import { preparerReprise } from './reprise-campagnes.js';
 import { initParametresCampagnes, setParcellesCampagnes } from './ui-campagnes.js';
@@ -715,6 +717,7 @@ function initParametres() {
   document.getElementById('btn-parametres').addEventListener('click', () => { panel.hidden = false; });
   document.getElementById('parametres-fermer').addEventListener('click', () => { panel.hidden = true; });
   initParametresCultures();
+  initMelanges();
   initParametresCampagnes();
   initHistoriquePs();
 }
@@ -956,6 +959,7 @@ async function boot() {
     // lieu d'attendre la fin de tout.
     onCulturesChange((cultures) => { latestCultures = cultures; recomputeAndRender(); });
     watchCultures();
+    watchMelanges();
     // Bascule Détaillée/Regroupée : partagée avec le bouton de la légende
     // carte (map.js) et celui du tableau d'assolement (ui-assolement.js) —
     // où qu'elle soit actionnée, la carte ET la légende doivent suivre.

@@ -572,6 +572,8 @@ table.pat-g { border-collapse:separate; border-spacing:0; font-variant-numeric:t
 /* Synthèses Réalisé — maquette-syntheses-app.html : totaux repliables, détail au toucher. */
 #rapports-panel .syn-chips{display:flex;gap:6px;flex-wrap:wrap}
 #rapports-panel .syn-themes{gap:6px}
+#melanges-liste .mel-edit{flex-direction:column;align-items:stretch;gap:8px}
+#melanges-liste .cat-card-detail{white-space:normal}
 .itv-coche{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--ch-texte2);margin:6px 0}
 .itv-coche input{width:auto;margin-top:2px}
 #rapports-panel .syn-sous{margin:10px 0 0;font-size:13px;font-weight:700;color:var(--ch-texte2)}

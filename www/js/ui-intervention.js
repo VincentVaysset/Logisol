@@ -58,6 +58,7 @@ import {
   implantationEnCours, historiqueParcelle, setImplantation, cloturerImplantation, deleteImplantation
 } from './implantations.js';
 import { getCultureById, getCultures, onCulturesChange, addCulture } from './cultures-config.js';
+import { onMelangesChange, trouverMelange, enregistrerMelange, texteComposition, nettoyerComposition } from './melanges.js';
 import { COUPES, FOURRAGES, cleFoin, labelFoin, cleCereale, labelCereale, clePaille, labelPaille } from './stocks.js';
 import { conservationDuContenant } from './fourrages.js';
 import { prevision, culturePrev } from './assolement-previsionnel.js';
@@ -80,7 +81,7 @@ const el = {};
   'photo-preview','photo-info',
   'groupe','groupe-titre','groupe-total',
   'g-semis','culture','derobee','culture-aide','culture-toggle','culture-new','culture-nom','culture-add',
-  'semence','melange','melange-toggle','melange-rows','melange-add','melange-total',
+  'semence','melange','melange-toggle','melange-rows','melange-add','melange-total','melanges-liste','melange-aide','melange-enregistrer',
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
   'g-surface','surface','surface-tout','surface-tracer','surface-aide',
   'trace-commun','trace-lancer','trace-resume','trace-voir',
@@ -904,6 +905,7 @@ function ecrireSaisie(s) {
   delete el.fourrage.dataset.saisi;
   if (s.typeFourrage) el.fourrage.dataset.saisi = '1';
   ecrireMelange(Array.isArray(s.melange) ? s.melange : []);
+  majAideMelange();
 }
 
 // --- Effet sur la culture en place ----------------------------------------
@@ -1185,6 +1187,34 @@ el['melange-toggle'].addEventListener('click', () => {
 });
 el['melange-add'].addEventListener('click', () => ajouterLigneMelange());
 
+// Mélanges enregistrés : proposés sous le champ Semence ; en choisir un
+// remplit sa composition (copiée dans le semis, jamais liée).
+onMelangesChange((liste) => {
+  el['melanges-liste'].innerHTML = liste.map((m) => `<option value="${escapeAttr(m.nom)}">${escapeHtml(texteComposition(m.composants))}</option>`).join('');
+  majAideMelange();
+});
+el.semence.addEventListener('input', () => {
+  const m = trouverMelange(el.semence.value);
+  if (m) ecrireMelange(m.composants || []);
+  majAideMelange();
+});
+el['melange-enregistrer'].addEventListener('click', async () => {
+  try {
+    const existant = trouverMelange(el.semence.value);
+    await enregistrerMelange({ nom: el.semence.value, composants: lireMelange() });
+    toastSucces(existant ? `Mélange « ${existant.nom} » mis à jour.` : 'Mélange enregistré : il sera proposé aux prochains semis.');
+  } catch (err) { showError((err && err.message) || String(err)); }
+});
+function majAideMelange() {
+  const m = trouverMelange(el.semence.value);
+  const comp = nettoyerComposition(lireMelange());
+  const differe = m && JSON.stringify(nettoyerComposition(m.composants)) !== JSON.stringify(comp);
+  el['melange-aide'].hidden = !m;
+  el['melange-aide'].textContent = !m ? '' : differe
+    ? 'Composition modifiée pour ce semis — « Enregistrer ce mélange » pour mettre à jour le mélange enregistré.'
+    : `Mélange enregistré : ${texteComposition(m.composants)}`;
+}
+
 function ajouterLigneMelange(nom = '', pourcentage = '') {
   const ligne = document.createElement('div');
   ligne.className = 'melange-ligne';
@@ -1192,8 +1222,8 @@ function ajouterLigneMelange(nom = '', pourcentage = '') {
     <input type="text" class="melange-nom" placeholder="Espèce / variété" value="${escapeAttr(nom)}">
     <input type="number" class="melange-pct" step="1" min="0" max="100" inputmode="numeric" placeholder="%" value="${escapeAttr(pourcentage)}">
     <button type="button" class="btn btn-secondary btn-mini melange-del" aria-label="Retirer">✕</button>`;
-  ligne.querySelector('.melange-del').addEventListener('click', () => { ligne.remove(); majTotalMelange(); });
-  ligne.querySelectorAll('input').forEach((i) => i.addEventListener('input', majTotalMelange));
+  ligne.querySelector('.melange-del').addEventListener('click', () => { ligne.remove(); majTotalMelange(); majAideMelange(); });
+  ligne.querySelectorAll('input').forEach((i) => i.addEventListener('input', () => { majTotalMelange(); majAideMelange(); }));
   el['melange-rows'].appendChild(ligne);
   majTotalMelange();
 }

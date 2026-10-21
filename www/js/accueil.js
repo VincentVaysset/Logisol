@@ -383,9 +383,9 @@ function resumeSaisie(itv) {
   if (!s) return [];
   const out = [];
   if (s.semence) out.push('🌱 ' + s.semence);
-  if (Array.isArray(s.melange) && s.melange.length) {
-    out.push(s.melange.map((m) => `${m.nom}${m.pourcentage ? ' ' + m.pourcentage + ' %' : ''}`).join(' / '));
-  }
+  // Mélange : son nom suffit dans le fil ; la composition se consulte dans
+  // le semis lui-même ou dans Paramètres > Mélanges de semis.
+  if (!s.semence && Array.isArray(s.melange) && s.melange.length) out.push('🌱 Mélange ' + s.melange.length + ' espèces');
   if (s.doseKgHa != null) out.push(s.doseKgHa + ' kg/ha');
   if (s.doseTonnesHa != null) out.push(s.doseTonnesHa + ' t/ha');
   if (s.surfaceHa != null) out.push(s.surfaceHa + ' ha travaillés');
