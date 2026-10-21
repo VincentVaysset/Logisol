@@ -14,6 +14,7 @@ export const PDF_CHARTE = {
 const C = PDF_CHARTE;
 const BLANC = '#ffffff';
 const LIGNE_PAIRE = '#fbf8f1';
+const SOUS_TOTAL = '#f6f1e4';
 
 const PAGE_L = 595.28;
 const PAGE_H = 841.89;
@@ -124,7 +125,7 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
      * @param {object} t
      * @param {string} [t.legende]
      * @param {Array<{label:string, w:number, align?:'left'|'right'}>} t.colonnes  w relatifs
-     * @param {Array<{type?:'grp'|'tot'|'na'|'vide'|'rouge', cells:Array<string|{t:string, sous?:string, cls?:'na'|'ec-p'|'ec-m'}>}>} t.lignes
+     * @param {Array<{type?:'grp'|'sstot'|'det'|'tot'|'na'|'vide'|'rouge', cells:Array<string|{t:string, sous?:string, cls?:'na'|'ec-p'|'ec-m'}>}>} t.lignes
      *   `sous` : petite ligne sous la valeur (semence sous la culture) ; la ligne s'agrandit.
      */
     tableau({ legende, colonnes, lignes }) {
@@ -176,6 +177,13 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
           doc.setFillColor(C.vertPastel);
           doc.roundedRect(M, y, LARG, H_LIGNE, 5, 5, 'F');
           doc.rect(M, y, LARG, H_LIGNE - 5, 'F');
+        } else if (type === 'sstot') {
+          // Sous-total d'un groupe (culture, parcelle...) : fond crème, filet dessus.
+          doc.setFillColor(SOUS_TOTAL); doc.rect(M, y, LARG, h, 'F');
+          doc.setDrawColor(C.bord || '#e6ddc9'); doc.setLineWidth(0.6); doc.line(M, y, DROITE, y);
+          rang = 0;
+        } else if (type === 'det') {
+          doc.setFillColor(BLANC); doc.rect(M, y, LARG, h, 'F');
         } else {
           doc.setFillColor(rang % 2 === 0 ? LIGNE_PAIRE : BLANC);
           doc.rect(M, y, LARG, h, 'F');
@@ -185,15 +193,18 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
           const c = typeof cell === 'object' && cell ? cell : { t: cell };
           if (c.t == null || c.t === '') return;
           let couleur = C.texte;
-          let gras = type === 'tot';
-          if (i === 0 && type !== 'tot') { gras = true; couleur = C.vertFonce; }
+          let gras = type === 'tot' || type === 'sstot';
+          let x = xTexte(i);
+          if (i === 0 && type !== 'tot' && type !== 'det') { gras = true; couleur = C.vertFonce; }
+          if (type === 'sstot' && i === 0) couleur = C.texte;
+          if (type === 'det' && i === 0) { couleur = C.texte2; x += 10; }
           if (type === 'na' || c.cls === 'na') couleur = C.icone;
           if (type === 'rouge') couleur = C.rouge;
           if (c.cls === 'ec-p') couleur = C.vertFonce;
           if (c.cls === 'ec-m') couleur = C.ambre;
           police(gras, 9, couleur);
-          ecrire(ajuster(c.t, ws[i] - 12), xTexte(i), y + 11.5, { align: align(i) });
-          if (c.sous) { police(false, 7.5, C.texte2); ecrire(ajuster(c.sous, ws[i] - 12), xTexte(i), y + 20.5, { align: align(i) }); }
+          ecrire(ajuster(c.t, ws[i] - 12 - (x - xTexte(i))), x, y + 11.5, { align: align(i) });
+          if (c.sous) { police(false, 7.5, C.texte2); ecrire(ajuster(c.sous, ws[i] - 12), x, y + 20.5, { align: align(i) }); }
         });
         y += h;
       });

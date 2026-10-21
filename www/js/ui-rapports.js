@@ -7,16 +7,18 @@
 //    prévu ne se mélangent jamais).
 // Auto-suffisant : s'abonne lui-même aux previsions plutôt que de dépendre
 // d'un câblage supplémentaire dans main.js, à l'image de sync-status.js.
-import { calendrierSemis, syntheseCategories, planFertilisation, SAISON_PAR_FAMILLE } from './rapports.js';
+import { calendrierSemis, syntheseCategories, planFertilisation } from './rapports.js';
 import {
-  getPrevisions, onPrevisionsChange, campagneCourante, prevision, culturePrev, estSemisDeLAnnee
+  getPrevisions, onPrevisionsChange, campagneCourante, culturePrev
 } from './assolement-previsionnel.js';
 import { campagneDeActivite } from './calendrier-campagne.js';
-import { semisRealises, fertilisationRealisee, syntheseStocks, noteAVerifier } from './realise-calc.js';
-import { getInterventions, quantiteDeSaisie } from './interventions.js';
+import { syntheseStocks } from './realise-calc.js';
+import { calculerSyntheses } from './syntheses-calc.js';
+import { implantationEnCours } from './implantations.js';
+import { getInterventions } from './interventions.js';
 import { getTypeById, formulaireDe } from './interventions-types.js';
 import { getCultureById } from './cultures-config.js';
-import { bilanStocksCampagne, recoltesParCoupe } from './ui-stocks.js';
+import { bilanStocksCampagne } from './ui-stocks.js';
 import { getNomExploitation } from './exploitation.js';
 import { exporterPdf } from './pdf-export.js';
 import { pdfCarnetPaturage, nomFichierCarnet } from './pdf-paturage.js';
@@ -74,6 +76,13 @@ export function initRapports() {
     if (!b) return;
     filtreFerti = b.dataset.filtre;
     renderPrevisionnel();
+  });
+  docRealEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-synvue]');
+    if (!b) return;
+    const [cle, v] = b.dataset.synvue.split(':');
+    vuesRealise[cle] = v;
+    renderRealise();
   });
 
   // Rapport auto-alimenté : toute modification de l'assolement prévisionnel
@@ -278,133 +287,139 @@ function renderPrevisionnel() {
 }
 
 // --- Réalisé --------------------------------------------------------------------
+// maquette-syntheses-app.html : totaux par groupe, détail au toucher (<details>) ;
+// fourrages et travaux basculent entre deux vues (chips). Le PDF (pdf-rapports.js)
+// reprend les mêmes données, tout déplié.
 function activitesCampagne(camp) {
-  return getInterventions().filter((i) => i.statut !== 'A_FAIRE' && campagneDeActivite(i) === camp)
-    .map((i) => ({ i, f: formulaireDe(getTypeById(i.typeId)), s: i.saisie || {} }));
+  return getInterventions().filter((i) => i.statut !== 'A_FAIRE' && campagneDeActivite(i) === camp && (i.cibleType || 'PARCELLE') !== 'BERGERIE');
+}
+
+function cultureA(parcelleId, date) {
+  const impl = implantationEnCours(parcelleId, date);
+  const c = impl && impl.cultureId ? getCultureById(impl.cultureId) : null;
+  return c ? c.nom : null;
 }
 
 export function donneesRealise(camp = String(campagneR)) {
-  const liste = getPrevisions();
-  const acts = activitesCampagne(camp);
-
-  const prevus = new Map();
-  parcelles.forEach((p) => {
-    const pv = prevision(p.id, camp, liste);
-    const c = pv && pv.cultureCode ? culturePrev(pv.cultureCode) : null;
-    if (!c || !estSemisDeLAnnee(c.code) || !SAISON_PAR_FAMILLE[c.famille]) return;
-    prevus.set(p.id, { code: c.code, label: c.label, saison: SAISON_PAR_FAMILLE[c.famille], famille: c.famille, grain: c.grain });
-  });
-  const semis = semisRealises({ parcelles, prevus, semis: acts.filter((a) => a.f === 'SEMIS').map(({ i, s }) => {
+  const activites = activitesCampagne(camp).map((i) => {
+    const t = getTypeById(i.typeId);
+    const s = i.saisie || {};
     const culture = s.cultureId ? getCultureById(s.cultureId) : null;
-    return { id: i.id, date: i.date, parcelleIds: i.parcelleIds || [], surfaceHa: s.surfaceHa != null ? s.surfaceHa : null,
-      surfaceEstimee: !!s.surfaceEstimee, doseKgHa: s.doseKgHa, semence: s.semence, cultureNom: culture && culture.nom,
-      derobee: !!culture && culture.famille === 'derobee' };
-  }) });
-
-  const prevu = new Map(parcelles.map((p) => [p.id, prevision(p.id, camp, liste) || {}]));
-  const epandages = acts.filter((a) => a.f === 'FUMIER' || a.f === 'CHAULAGE').map(({ i, f, s }) => (f === 'FUMIER'
-    ? { date: i.date, parcelleIds: i.parcelleIds || [], produit: 'fumier', tonnes: quantiteDeSaisie('FUMIER', s) || 0 }
-    : { date: i.date, parcelleIds: i.parcelleIds || [], produit: 'chaux', doseTHa: s.doseTonnesHa }));
-  const ferti = fertilisationRealisee({ parcelles, prevu, epandages });
-
+    return { id: i.id, date: i.date, typeNom: i.typeNom || (t && t.nom) || '', formulaire: formulaireDe(t),
+      categorie: t ? t.categorie : null, parcelleIds: i.parcelleIds || [], s, cultureNom: culture ? culture.nom : null,
+      tracteurNom: i.tracteurNom || '', materielNom: i.materielNom || i.materiel || '', chauffeur: i.chauffeur || '' };
+  });
+  const syn = calculerSyntheses({ parcelles, activites, cultureA });
   // Campagne culturale N = campagne de stock (N-1)-N (01/09 → 31/08).
   const stocks = bilanStocksCampagne(`${Number(camp) - 1}-${camp}`);
-  const coupes = recoltesParCoupe(stocks.b);
-  return { camp, semis, ferti, stocks, coupes };
+  return { camp, syn, stocks };
 }
 
 // Arrêté au : aujourd'hui, ou le 31/08 d'une campagne terminée.
 const arreteAu = (stocks) => (stocks.dateRef < stocks.b.debut ? aujourdhuiIso() : stocks.dateRef);
-const ORDINAL = (n) => (n === 1 ? '1ʳᵉ coupe' : `${n}ᵉ coupe`);
+const ORDINAL = (n) => (n == null ? 'coupe ?' : n === 1 ? '1ʳᵉ coupe' : `${n}ᵉ coupe`);
+const vuesRealise = { fourrages: 'coupe', travaux: 'type' };
+
+// Une ligne repliable : nom + sous-titre à gauche, valeur + sous-valeur à droite.
+const repli = (nom, sousNom, val, sousVal, detail, ouvert = false) =>
+  `<details class="syn"${ouvert ? ' open' : ''}><summary><span class="syn-nm">${esc(nom)}${sousNom ? `<small>${esc(sousNom)}</small>` : ''}</span>`
+  + `<span class="syn-val">${val}${sousVal ? `<small>${sousVal}</small>` : ''}</span></summary><div class="syn-det">${detail}</div></details>`;
+const ln = (g, gs, d, ds) => `<div class="syn-ln"><span>${esc(g)}${gs ? `<small>${esc(gs)}</small>` : ''}</span><span>${d}${ds ? `<small>${ds}</small>` : ''}</span></div>`;
+const chips = (cle, options) => `<div class="syn-chips">${options.map(([v, l]) =>
+  `<button type="button" class="chip${vuesRealise[cle] === v ? ' on' : ''}" data-synvue="${cle}:${v}">${l}</button>`).join('')}</div>`;
+const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+const sep = (...xs) => xs.filter((x) => x != null && x !== '').join(' · ');
 
 function renderRealise() {
-  const { camp, semis, ferti, stocks, coupes } = donneesRealise();
+  const { camp, syn, stocks } = donneesRealise();
+  const { semis: se, epandages: ep, fourrages: fo, cereales: ce, travaux: tr } = syn;
   const et = (x) => (x ? '*' : '');
-  let estimee = semis.estimee;
+  const vide = (t) => note(t);
 
-  // 1. Semis réalisés : une ligne par parcelle, puis le récapitulatif par
-  // culture (achats de semence).
-  const kgTxt = (kg, partiel, est) => (kg == null ? '—' : entier(kg) + et(est) + (partiel ? ' (partiel)' : ''));
-  const na = (t) => `<td class="na">${t}</td>`;
-  const ligneSemee = (l) => `<tr><td>${esc(l.parcelle)}</td><td class="cult">${esc(l.culture)}${l.semence ? `<small>${esc(l.semence)}</small>` : ''}${l.prevuDifferent ? `<small>prévu : ${esc(l.prevuDifferent)}</small>` : ''}</td><td>${jourMois(l.date)}</td>
-      <td>${ha2(l.ha)}${et(l.estimee)}</td>${l.dose == null ? na('—') : `<td>${ha(l.dose)}</td>`}${l.kg == null ? na('—') : `<td>${entier(l.kg)}${et(l.estimee)}</td>`}</tr>`;
-  const lignesSemis = semis.lignes.map((l) => (l.aSemer
-    ? `<tr><td>${esc(l.parcelle)}</td><td class="na">${esc(l.culture)}</td><td></td>${na(ha2(l.ha))}${na('—')}${na('À semer')}</tr>`
-    : ligneSemee(l))).join('');
-  const s1 = kpis([
-    kpi('vert', `${ha2(semis.seme)}${et(semis.estimee)} <small>/ ${ha2(semis.prevu)} ha</small>`, 'Surface semée'),
-    kpi('', `${ha2(semis.reste)} ha`, 'Reste à semer')
-  ]) + (lignesSemis || semis.derobees.length
-    ? (lignesSemis ? tableau('', ['Parcelle', 'Culture', 'Date', 'ha', 'kg/ha', 'kg'], lignesSemis
-      + `<tr class="tot"><td>Total semé</td><td></td><td></td><td>${ha2(semis.seme)}${et(semis.estimee)}</td><td></td><td>${semis.kg == null ? '' : kgTxt(semis.kg, semis.kgPartiel, semis.estimee)}</td></tr>`, 'rap-semis-reel') : '')
-      + (semis.derobees.length ? tableau('Dérobées et couverts', ['Parcelle', 'Culture', 'Date', 'ha', 'kg/ha', 'kg'], semis.derobees.map(ligneSemee).join('')
-        + `<tr class="tot"><td>Total</td><td></td><td></td><td>${ha2(semis.derobeesHa)}</td><td></td><td>${semis.derobeesKg == null ? '' : kgTxt(semis.derobeesKg, semis.derobeesKgPartiel, false)}</td></tr>`, 'rap-semis-derobees')
-        + note('Hors total semé et hors reste à semer.') : '')
-      + (semis.sansDose.length ? note(`Dose non saisie : ${semis.sansDose.map(esc).join(', ')}.`) : '')
-      + (semis.parCulture.length ? tableau('Semence par culture', ['Culture', 'ha', 'kg'],
-        semis.parCulture.map((c) => `<tr><td>${esc(c.culture)}</td><td>${ha2(c.ha)}</td>${c.kg == null ? na('—') : `<td>${kgTxt(c.kg, c.kgPartiel, false)}</td>`}</tr>`).join(''), 'rap-semis-cultures') : '')
-    : note(`Aucun semis enregistré ni prévu pour ${camp}.`));
+  // 1. Semis : par culture
+  const s1 = se.groupes.length ? kpis([
+    kpi('vert', `${ha2(se.ha)}${et(se.estimee)} <small>ha</small>`, 'Surface semée'),
+    kpi('', se.kg == null ? '—' : `${entier(se.kg)} <small>kg</small>`, se.kgPartiel && se.kg != null ? 'Semence (partiel)' : 'Semence utilisée')
+  ]) + se.groupes.map((g, i) => repli(g.nom, pluriel(g.nbParcelles, 'parcelle'), `${ha2(g.ha)} ha`,
+    sep(g.dose != null ? `${ha(g.dose)} kg/ha` : '', g.kg != null ? `${entier(g.kg)} kg` : ''),
+    g.lignes.map((l) => ln(l.parcelle, sep(jourMois(l.date), l.semence), `${ha2(l.ha)}${et(l.estimee)} ha`,
+      sep(l.dose != null ? `${ha(l.dose)} kg/ha` : 'dose non saisie', l.kg != null ? `${entier(l.kg)} kg` : ''))).join(''), i === 0)).join('')
+    : vide(`Aucun semis enregistré pour ${camp}.`);
 
-  // 2. Fertilisation réalisée
-  const [fu] = ferti;
-  const s2 = kpis([
-    kpi('ambre', `${ha(fu.realiseT)} t`, 'Fumier épandu'),
-    kpi('', `${ha(fu.prevuT)} t`, 'Prévu'),
-    kpi('', fu.pct == null ? '—' : `${fu.pct} %`, 'Réalisé')
-  ]) + ferti.map((pr) => {
-    const nom = pr.produit === 'fumier' ? 'Fumier' : 'Chaux';
-    if (!pr.lignes.length) return note(`${nom} : rien de prévu, rien d'épandu.`);
-    const cap = `${nom}${pr.doseUnique != null ? ` · prévu ${ha(pr.doseUnique)} t/ha` : ''}`;
-    const ecart = (v) => (v == null ? '<td class="na">À faire</td>' : `<td class="${v >= 0 ? 'ec-p' : 'ec-m'}">${v > 0 ? '+' : v < 0 ? '−' : ''}${ha2(Math.abs(v))}</td>`);
-    const lignes = pr.lignes.map((l) => (l.aVerifier ? `<tr class="a-verifier"><td>${esc(l.nom)}<small>${ha2(l.ha)} ha · ${jourMois(l.date)} · ${ha(Math.round(l.tHaReel * 10) / 10)} t/ha</small></td>
-      <td>${l.prevu == null ? '—' : ha2(l.prevu)}</td><td>${ha2(l.realise)}</td><td>valeur à vérifier</td></tr>` : `<tr><td>${esc(l.nom)}<small>${[`${ha2(l.ha)} ha`, jourMois(l.date), l.tHaReel != null ? `${ha(Math.round(l.tHaReel * 10) / 10)} t/ha` : ''].filter(Boolean).join(' · ')}</small></td>
-      <td${l.prevu == null ? ' class="na"' : ''}>${l.prevu == null ? '—' : ha2(l.prevu)}</td><td${l.realise == null ? ' class="na"' : ''}>${l.realise == null ? '—' : ha2(l.realise)}</td>${ecart(l.aFaire ? null : l.ecart)}</tr>`)).join('');
-    const tot = `<tr class="tot"><td>Total</td><td>${pr.lignes.some((l) => l.prevu != null) ? ha2(pr.prevuT) : '—'}</td><td>${ha2(pr.realiseT)}</td><td>${pr.ecartT > 0 ? '+' : pr.ecartT < 0 ? '−' : ''}${ha2(Math.abs(pr.ecartT))}</td></tr>`;
-    return tableau(cap, ['Parcelle', 'Prévu', 'Réalisé', 'Écart'], lignes + tot, `rap-ferti-reel-${pr.produit}`)
-      + (pr.aVerifier.length ? note(noteAVerifier(nom, pr.aVerifier)) : '');
-  }).join('');
+  // 2. Épandages : par parcelle + totaux exploitation par produit
+  const s2 = ep.parcelles.length ? kpis([
+    ...ep.parProduit.map((p) => kpi('ambre', `${t1(p.t)} <small>t</small>`, p.produit)),
+    kpi('', `${ha2(ep.ha)} <small>ha</small>`, 'Épandus')
+  ].slice(0, 3)) + ep.parcelles.map((p, i) => repli(p.parcelle, sep(`${ha2(p.ha)} ha`, p.culture), `${t1(p.t)} t`,
+    p.lignes.length > 1 ? `${p.lignes.length} apports` : (p.tHa != null ? `${t1(p.tHa)} t/ha` : ''),
+    p.lignes.map((l) => ln(l.produit, jourMois(l.date), l.t == null ? '—' : `${t1(l.t)} t`, l.tHa != null ? `${t1(l.tHa)} t/ha` : '')).join(''), i === 0)).join('')
+    : vide(`Aucun épandage enregistré pour ${camp}.`);
 
-  // 3. Bilan stocks : dérivé du journal de mouvements, jamais saisi.
+  // 3. Fourrages : par fourrage · coupe ↔ par parcelle
+  let s3 = vide(`Aucune récolte de fourrage enregistrée pour ${camp}.`);
+  if (fo.parCoupe.length) {
+    const vueA = fo.parCoupe.map((g, i) => repli(`${g.fourrage} · ${ORDINAL(g.coupe)}`,
+      sep(g.mode, g.bottes ? `${entier(g.bottes)} bottes` : '', pluriel(g.nbParcelles, 'parcelle')), `${t1(g.t)} t`,
+      sep(`${ha2(g.ha)}${et(g.estimee)} ha`, g.tHa != null ? `${t1(g.tHa)} t/ha` : ''),
+      g.lignes.map((l) => ln(l.parcelle, sep(jourMois(l.date), l.unites != null ? `${ha(l.unites)} ${l.seche ? 'remorques' : 'bottes'}` : ''),
+        l.t == null ? '—' : `${t1(l.t)} t`, l.ha > 0 && l.t != null ? `${t1(l.t / l.ha)} t/ha` : '')).join(''), i === 0)).join('');
+    const vueB = fo.parParcelle.map((p, i) => repli(p.parcelle, sep(`${ha2(p.ha)} ha`, p.culture), `${t1(p.t)} t`,
+      sep(p.tHa != null ? `${t1(p.tHa)} t/ha` : '', pluriel(p.nbCoupes, 'coupe')),
+      p.lignes.map((l) => ln(`${ORDINAL(l.coupe)} · ${l.mode}`, sep(jourMois(l.date), l.fourrage), l.t == null ? '—' : `${t1(l.t)} t`, '')).join(''), i === 0)).join('');
+    s3 = kpis([
+      kpi('vert', `${t1(fo.t)} <small>t</small>`, 'Récolté'),
+      kpi('', `${t1(fo.tSeche)} <small>t</small>`, 'Séché grange'),
+      kpi('', `${t1(fo.tBottes)} <small>t</small>`, fo.nbBottes ? `En bottes · ${entier(fo.nbBottes)}` : 'En bottes')
+    ]) + chips('fourrages', [['coupe', 'Par fourrage · coupe'], ['parcelle', 'Par parcelle']])
+      + (vuesRealise.fourrages === 'coupe' ? vueA : vueB);
+  }
+
+  // 4. Céréales & paille : par culture
+  const s4 = ce.groupes.length ? kpis([
+    kpi('bleu', ce.grainT == null ? '—' : `${t1(ce.grainT)} <small>t</small>`, 'Grain'),
+    kpi('ambre', ce.pailleT == null ? '—' : `${t1(ce.pailleT)} <small>t</small>`, ce.bottes ? `Paille · ${entier(ce.bottes)} bottes` : 'Paille')
+  ]) + ce.groupes.map((g, i) => repli(g.nom, `${ha2(g.ha)} ha`, g.grainT == null ? 'paille seule' : `${t1(g.grainT)} t grain`,
+    sep(g.qHa != null ? `${ha(Math.round(g.qHa))} q/ha` : '', g.pailleT != null ? `paille ${t1(g.pailleT)} t` : ''),
+    g.lignes.map((l) => ln(l.parcelle, l.date ? `moisson ${jourMois(l.date)}` : '', l.grainT == null ? '—' : `${t1(l.grainT)} t`,
+      sep(l.qHa != null ? `${ha(Math.round(l.qHa))} q/ha` : '', l.bottes != null ? `${entier(l.bottes)} bottes` : ''))).join(''), i === 0)).join('')
+    : vide(`Aucune moisson ni paille enregistrée pour ${camp}.`);
+
+  // 5. Travaux : par type ↔ par parcelle
+  let s5 = vide(`Aucun travail enregistré pour ${camp}.`);
+  if (tr.parParcelle.length) {
+    const vueA = tr.parType.length ? tr.parType.map((g, i) => repli(g.type, pluriel(g.nbParcelles, 'parcelle'), `${ha2(g.ha)} ha`, '',
+      g.lignes.map((l) => ln(l.parcelle, '', jourMois(l.date), `${ha2(l.ha)} ha`)).join(''), i === 0)).join('')
+      : note('Pas d\'autre travail que semis, épandages et récoltes.');
+    const vueB = tr.parParcelle.map((p, i) => repli(p.parcelle, sep(`${ha2(p.ha)} ha`, p.culture), pluriel(p.lignes.length, 'travail').replace('travails', 'travaux'), '',
+      p.lignes.map((l) => ln(l.type, sep(l.tracteur, l.outil, l.chauffeur), jourMois(l.date), '')).join(''), i === 0)).join('');
+    s5 = chips('travaux', [['type', 'Par type'], ['parcelle', 'Par parcelle']]) + (vuesRealise.travaux === 'type' ? vueA : vueB);
+  }
+
+  // 6. Bilan stocks : dérivé du journal de mouvements, jamais saisi.
   const { lignes: lst, tot } = syntheseStocks(stocks.groupes);
   const lignesStock = lst.map((g) => {
     const origine = [g.depart > 0 ? 'départ' : '', g.recolte > 0 ? 'récolte' : '', g.achat > 0 ? 'achats' : ''].filter(Boolean).join(' + ');
     return `<tr><td>${esc(g.nom)}${origine ? `<small>${origine}</small>` : ''}</td><td>${t1(g.entrees)}</td><td>${t1(g.sorties)}</td><td>${t1(g.reste)}</td></tr>`;
   }).join('');
   const ajust = tot.sorties - tot.conso;
-  let s3 = kpis([
+  const s6 = kpis([
     kpi('vert', `${t1(tot.entrees)} t`, 'Disponible'),
     kpi('ambre', `${t1(tot.sorties)} t`, 'Consommé'),
     kpi('bleu', `${t1(tot.reste)} t`, 'En stock')
   ]) + (lignesStock
     ? tableau('', ['Catégorie', 'Entrées', 'Sorties', 'Stock'], lignesStock + `<tr class="tot"><td>Total (t)</td><td>${t1(tot.entrees)}</td><td>${t1(tot.sorties)}</td><td>${t1(tot.reste)}</td></tr>`, 'rap-stocks-reel')
     : note('Aucun stock ni mouvement sur la campagne.'))
-    + (lignesStock && Math.abs(ajust) >= 0.05 ? note(`Sorties : ${t1(tot.conso)} t distribuées aux lots, ${t1(ajust)} t d'ajustements d'inventaire.`) : '')
-    + (lignesStock ? note('Entrées = stock de départ au 01/09 + récoltes + achats. Stock = journal des mouvements rejoué.') : '');
-  if (!coupes.length) s3 += tableau('Récoltes fourragères par coupe', ['Coupe', 'ha', 't/ha', 't'],
-    '<tr><td colspan="4" class="na">Aucune récolte enregistrée sur la campagne.</td></tr>', 'rap-coupes-reel');
-  else {
-    const conflits = [];
-    let lignesC = '';
-    let totalT = 0;
-    coupes.forEach((c) => {
-      lignesC += `<tr class="grp"><td colspan="4">${esc(c.culture)}</td></tr>`;
-      c.coupes.forEach((cp) => {
-        if (cp.estimee) estimee = true;
-        totalT += cp.tonnes;
-        cp.conflits.forEach((k) => conflits.push(`${esc(k.nom)} (${ORDINAL(cp.numero)} ${esc(c.culture.toLowerCase())}) : ${k.valeurs.map(ha2).join(' / ')} ha, ${ha2(k.valeurs[0])} ha retenus`));
-        lignesC += `<tr><td>${ORDINAL(cp.numero)}</td><td>${t1(cp.surfaceHa)}${et(cp.estimee)}</td><td>${cp.tHa == null ? '—' : t1(cp.tHa) + et(cp.estimee)}</td><td>${t1(cp.tonnes)}</td></tr>`;
-      });
-    });
-    s3 += tableau('Récoltes fourragères par coupe', ['Coupe', 'ha', 't/ha', 't'],
-      lignesC + `<tr class="tot"><td>Total récolté</td><td></td><td></td><td>${t1(totalT)}</td></tr>`, 'rap-coupes-reel')
-      + (conflits.length ? note('Surfaces différentes déclarées pour une même coupe : ' + conflits.join(' ; ') + '.') : '');
-  }
+    + (lignesStock && Math.abs(ajust) >= 0.05 ? note(`Sorties : ${t1(tot.conso)} t distribuées aux lots, ${t1(ajust)} t d'ajustements d'inventaire.`) : '');
 
+  const estimee = se.estimee || fo.estimee;
   docRealEl.innerHTML = entete(`Bilan réalisé — campagne ${camp}`, `Arrêté au ${dateFr(arreteAu(stocks))}`,
-    'Source : activités enregistrées et mouvements de stock. Comparé au prévisionnel de la campagne.')
-    + section(1, 'Semis réalisés', s1)
-    + section(2, 'Fertilisation réalisée', s2)
-    + section(3, 'Bilan stocks', s3)
+    'Source : activités enregistrées (campagne de chaque activité) et mouvements de stock. Toucher une ligne pour le détail.')
+    + section(1, 'Semis', s1, 'rap-syn-semis')
+    + section(2, 'Épandages', s2, 'rap-syn-epandages')
+    + section(3, 'Fourrages récoltés', s3, 'rap-syn-fourrages')
+    + section(4, 'Céréales & paille', s4, 'rap-syn-cereales')
+    + section(5, 'Travaux', s5, 'rap-syn-travaux')
+    + section(6, 'Bilan stocks', s6, 'rap-syn-stocks')
     + (estimee ? NOTE_ESTIMEE : '')
     + pied(`Logisol · Réalisé ${camp}`);
 }

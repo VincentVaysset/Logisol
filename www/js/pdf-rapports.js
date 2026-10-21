@@ -2,7 +2,7 @@
 // pdf-charte.js. Mêmes données que l'écran (ui-rapports.js) ; le papier a la
 // largeur d'en dire plus par ligne (variété, date, t/ha réel en colonnes).
 import { creerPdfCharte } from './pdf-charte.js';
-import { syntheseStocks, noteAVerifier } from './realise-calc.js';
+import { syntheseStocks } from './realise-calc.js';
 import { culturePrev } from './assolement-previsionnel.js';
 
 const fixe = (d) => (v) => Number(v).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -87,84 +87,119 @@ export function pdfPrevisionnel({ camp, cal, cat, plan, exploitation, aujourdhui
 }
 
 // --- Réalisé --------------------------------------------------------------------
-export function pdfRealise({ camp, semis, ferti, stocks, coupes, arreteLe, exploitation, aujourdhui }) {
+// maquette-syntheses-pdf.html : tout déplié — une ligne de sous-total par
+// groupe (culture, fourrage · coupe, parcelle), le détail en dessous.
+const ORD = (n) => (n == null ? 'coupe ?' : ORDINAL(n));
+const sepP = (...xs) => xs.filter((x) => x != null && x !== '').join(' · ');
+const nb = (v, f = t1) => (v == null ? '' : f(v));
+
+export function pdfRealise({ camp, syn, stocks, arreteLe, exploitation, aujourdhui }) {
   const p = creerPdfCharte({ jsPDF: jsPDFCharge(), titre: 'Bilan réalisé', sousTitre: `Campagne ${camp} · arrêté au ${dateFr(arreteLe)}`,
     exploitation, edition: `Édité le ${dateFr(aujourdhui)}`, pied: `Logisol — Bilan réalisé · Campagne ${camp}` });
+  const { semis: se, epandages: ep, fourrages: fo, cereales: ce, travaux: tr } = syn;
   const et = (x) => (x ? '*' : '');
-  let estimee = semis.estimee;
-
-  // 1. Semis réalisés
-  p.section(1, 'Semis réalisés', 'Source : activités de semis', 63 + 18 + 48);
-  p.tuiles([
-    { teinte: 'vert', valeur: `${ha2(semis.seme)}${et(semis.estimee)} ha`, label: 'Surface semée' },
-    { teinte: '', valeur: `${ha2(semis.prevu)} ha`, label: 'Prévu' },
-    { teinte: '', valeur: `${ha2(semis.reste)} ha`, label: 'Reste à semer' }
-  ]);
-  const kgTxt = (kg, partiel, est) => entier(kg) + et(est) + (partiel ? ' (partiel)' : '');
   const gris = (t) => ({ t, cls: 'na' });
-  const semee = (l) => ({ cells: [l.parcelle, { t: l.culture, sous: [l.semence, l.prevuDifferent ? `prévu : ${l.prevuDifferent}` : ''].filter(Boolean).join(' · ') },
-    jourMois(l.date), ha2(l.ha) + et(l.estimee), l.dose == null ? gris('—') : libre(l.dose), l.kg == null ? gris('—') : entier(l.kg) + et(l.estimee)] });
-  const colonnesSemis = [{ label: 'Parcelle', w: 3.2 }, { label: 'Culture', w: 3.2, align: 'left' }, { label: 'Date', w: 1.1 }, { label: 'ha', w: 1.1 },
-    { label: 'kg/ha', w: 1.1 }, { label: 'kg', w: 1.6 }];
-  if (semis.lignes.length || semis.derobees.length) {
-    if (semis.lignes.length) p.tableau({
-      colonnes: colonnesSemis,
-      lignes: [
-        ...semis.lignes.map((l) => (l.aSemer
-          ? { cells: [l.parcelle, gris(l.culture), '', gris(ha2(l.ha)), gris('—'), gris('À semer')] }
-          : semee(l))),
-        { type: 'tot', cells: ['Total semé', '', '', ha2(semis.seme) + et(semis.estimee), '', semis.kg == null ? '' : kgTxt(semis.kg, semis.kgPartiel, semis.estimee)] }
-      ]
-    });
-    if (semis.derobees.length) {
-      p.tableau({ legende: 'Dérobées et couverts', colonnes: colonnesSemis, lignes: [...semis.derobees.map(semee),
-        { type: 'tot', cells: ['Total', '', '', ha2(semis.derobeesHa), '', semis.derobeesKg == null ? '' : kgTxt(semis.derobeesKg, semis.derobeesKgPartiel, false)] }] });
-      p.note('Hors total semé et hors reste à semer.');
-    }
-    if (semis.sansDose.length) p.note(`Dose non saisie : ${semis.sansDose.join(', ')}.`);
-    if (semis.parCulture.length) {
-      p.tableau({
-        legende: 'Semence par culture',
-        colonnes: [{ label: 'Culture', w: 5 }, { label: 'ha', w: 1.5 }, { label: 'kg', w: 2 }],
-        lignes: semis.parCulture.map((c) => ({ cells: [c.culture, ha2(c.ha), c.kg == null ? gris('—') : kgTxt(c.kg, c.kgPartiel, false)] }))
-      });
-    }
-  } else p.note(`Aucun semis enregistré ni prévu pour ${camp}.`);
+  const SUITE = 63 + 18 + 48;
 
-  // 2. Fertilisation réalisée
-  const fu = ferti[0];
-  p.section(2, 'Fertilisation réalisée', 'Source : activités d\'épandage', 63 + 18 + 48);
-  p.tuiles([
-    { teinte: 'ambre', valeur: `${ha2(fu.realiseT)} t`, label: 'Fumier épandu' },
-    { teinte: '', valeur: `${ha2(fu.prevuT)} t`, label: 'Prévu' },
-    { teinte: '', valeur: fu.pct == null ? '—' : `${fu.pct} %`, label: 'Réalisé' }
-  ]);
-  ferti.forEach((pr) => {
-    const nom = pr.produit === 'fumier' ? 'Fumier' : 'Chaux';
-    if (!pr.lignes.length) { p.note(`${nom} : aucune parcelle prévue, rien d'épandu sur la campagne.`); return; }
-    const comptees = pr.lignes.filter((l) => !l.aVerifier);
-    const avecPrevu = comptees.some((l) => l.prevu != null);
-    p.tableau({
-      legende: `${nom}${pr.doseUnique != null ? ` · dose prévue ${libre(pr.doseUnique)} t/ha` : ''}`,
-      colonnes: [{ label: 'Parcelle', w: 3.6 }, { label: 'ha', w: 1 }, { label: 'Date', w: 1.1 }, { label: 't/ha réel', w: 1.3 },
-        { label: 'Prévu (t)', w: 1.3 }, { label: 'Réalisé (t)', w: 1.4 }, { label: 'Écart (t)', w: 1.3 }],
-      lignes: [
-        ...pr.lignes.map((l) => (l.aVerifier ? { type: 'rouge', cells: [l.nom, ha2(l.ha), jourMois(l.date), t1(l.tHaReel),
-          l.prevu == null ? '—' : ha2(l.prevu), ha2(l.realise), 'à vérifier'] } : { cells: [l.nom, l.aFaire ? { t: ha2(l.ha), cls: 'na' } : ha2(l.ha), jourMois(l.date),
-          l.tHaReel == null ? '' : t1(l.tHaReel),
-          l.prevu == null ? { t: '—', cls: 'na' } : (l.aFaire ? { t: ha2(l.prevu), cls: 'na' } : ha2(l.prevu)),
-          l.realise == null ? { t: '—', cls: 'na' } : ha2(l.realise),
-          l.aFaire ? { t: 'À faire', cls: 'na' } : { t: signe(l.ecart), cls: l.ecart >= 0 ? 'ec-p' : 'ec-m' }] })),
-        { type: 'tot', cells: [`Total · ${comptees.length} parcelle${comptees.length > 1 ? 's' : ''}`, ha2(comptees.reduce((n, l) => n + l.ha, 0)), '', '',
-          avecPrevu ? ha2(pr.prevuT) : '—', ha2(pr.realiseT), signe(pr.ecartT)] }
-      ]
+  // 1. Semis : par culture, parcelles en détail
+  p.section(1, 'Semis', 'Source : activités de semis', SUITE);
+  if (se.groupes.length) {
+    p.tuiles([
+      { teinte: 'vert', valeur: `${ha2(se.ha)}${et(se.estimee)} ha`, label: 'Surface semée' },
+      { teinte: '', valeur: se.kg == null ? '—' : `${entier(se.kg)} kg`, label: se.kgPartiel && se.kg != null ? 'Semence (partiel)' : 'Semence' }
+    ]);
+    const lignes = [];
+    se.groupes.forEach((g) => {
+      lignes.push({ type: 'sstot', cells: [g.nom, '', '', ha2(g.ha) + et(g.estimee), g.dose == null ? '' : libre(g.dose), g.kg == null ? '' : entier(g.kg)] });
+      g.lignes.forEach((l) => lignes.push({ type: 'det', cells: [l.parcelle, jourMois(l.date), l.semence || '', ha2(l.ha) + et(l.estimee),
+        l.dose == null ? gris('—') : libre(l.dose), l.kg == null ? gris('—') : entier(l.kg)] }));
     });
-    if (pr.aVerifier.length) p.note(noteAVerifier(nom, pr.aVerifier));
-  });
+    lignes.push({ type: 'tot', cells: ['Total', '', '', ha2(se.ha) + et(se.estimee), '', se.kg == null ? '' : entier(se.kg) + (se.kgPartiel ? ' (partiel)' : '')] });
+    p.tableau({ colonnes: [{ label: 'Culture / parcelle', w: 3.4 }, { label: 'Date', w: 1 }, { label: 'Variété', w: 2.6, align: 'left' },
+      { label: 'ha', w: 1.1 }, { label: 'kg/ha', w: 1.1 }, { label: 'kg', w: 1.3 }], lignes });
+    p.note('Dose d\'une culture affichée seulement si identique sur toutes ses parcelles (pas de moyenne).');
+  } else p.note(`Aucun semis enregistré pour ${camp}.`);
 
-  // 3. Bilan stocks
+  // 2. Épandages : totaux par produit, puis détail par parcelle
+  p.section(2, 'Épandages', 'Source : activités d\'épandage', SUITE);
+  if (ep.parcelles.length) {
+    p.tableau({ legende: 'Totaux exploitation par produit',
+      colonnes: [{ label: 'Produit', w: 3 }, { label: 'Parcelles', w: 1.4 }, { label: 'ha', w: 1.4 }, { label: 'Quantité (t)', w: 1.6 }],
+      lignes: ep.parProduit.map((x) => ({ cells: [x.produit, String(x.nbParcelles), ha2(x.ha), t1(x.t)] })) });
+    const lignes = [];
+    ep.parcelles.forEach((x) => {
+      lignes.push({ type: 'sstot', cells: [sepP(x.parcelle, x.culture), '', ha2(x.ha), '', t1(x.t)] });
+      x.lignes.forEach((l) => lignes.push({ type: 'det', cells: [l.produit, jourMois(l.date), '', l.tHa == null ? gris('—') : `${t1(l.tHa)} t`, l.t == null ? gris('—') : t1(l.t)] }));
+    });
+    p.tableau({ legende: 'Détail par parcelle',
+      colonnes: [{ label: 'Parcelle / produit', w: 4 }, { label: 'Date', w: 1 }, { label: 'ha', w: 1 }, { label: 'Dose /ha', w: 1.3 }, { label: 'Quantité (t)', w: 1.5 }], lignes });
+  } else p.note(`Aucun épandage enregistré pour ${camp}.`);
+
+  // 3. Fourrages : par fourrage · coupe, puis par parcelle
+  p.section(3, 'Fourrages récoltés', 'Source : pressages et séchages', SUITE);
+  if (fo.parCoupe.length) {
+    p.tuiles([
+      { teinte: 'vert', valeur: `${t1(fo.t)} t`, label: 'Récolté' },
+      { teinte: '', valeur: `${t1(fo.tSeche)} t`, label: 'Séché grange' },
+      { teinte: '', valeur: `${t1(fo.tBottes)} t`, label: fo.nbBottes ? `En bottes · ${entier(fo.nbBottes)}` : 'En bottes' }
+    ]);
+    const lA = [];
+    fo.parCoupe.forEach((g) => {
+      lA.push({ type: 'sstot', cells: [`${g.fourrage} · ${ORD(g.coupe)}`, '', g.mode, ha2(g.ha) + et(g.estimee), nb(g.tHa), t1(g.t)] });
+      g.lignes.forEach((l) => lA.push({ type: 'det', cells: [l.parcelle, jourMois(l.date),
+        l.unites == null ? l.mode : `${libre(l.unites)} ${l.seche ? 'remorques' : 'bottes'}`, ha2(l.ha) + et(l.estimee),
+        l.t != null && l.ha > 0 ? t1(l.t / l.ha) : '', l.t == null ? gris('—') : t1(l.t)] }));
+    });
+    lA.push({ type: 'tot', cells: ['Total', '', '', '', '', t1(fo.t)] });
+    p.tableau({ legende: 'Par fourrage et coupe',
+      colonnes: [{ label: 'Fourrage · coupe / parcelle', w: 3.6 }, { label: 'Date', w: 1 }, { label: 'Mode', w: 1.6, align: 'left' },
+        { label: 'ha', w: 1 }, { label: 't/ha', w: 1 }, { label: 't', w: 1.1 }], lignes: lA });
+    const lB = [];
+    fo.parParcelle.forEach((x) => {
+      lB.push({ type: 'sstot', cells: [sepP(x.parcelle, x.culture, `${ha2(x.ha)} ha`), '', '', t1(x.t), nb(x.tHa)] });
+      x.lignes.forEach((l) => lB.push({ type: 'det', cells: [sepP(ORD(l.coupe), l.fourrage), jourMois(l.date), l.mode, l.t == null ? gris('—') : t1(l.t),
+        l.t != null && l.ha > 0 ? t1(l.t / l.ha) : ''] }));
+    });
+    p.tableau({ legende: 'Par parcelle',
+      colonnes: [{ label: 'Parcelle / coupe', w: 4.4 }, { label: 'Date', w: 1 }, { label: 'Mode', w: 1.2, align: 'left' }, { label: 't', w: 1.1 }, { label: 't/ha', w: 1 }], lignes: lB });
+  } else p.note(`Aucune récolte de fourrage enregistrée pour ${camp}.`);
+
+  // 4. Céréales & paille : par culture
+  p.section(4, 'Céréales & paille', 'Source : moissons et pressages de paille', SUITE);
+  if (ce.groupes.length) {
+    p.tuiles([
+      { teinte: 'bleu', valeur: ce.grainT == null ? '—' : `${t1(ce.grainT)} t`, label: 'Grain' },
+      { teinte: 'ambre', valeur: ce.pailleT == null ? '—' : `${t1(ce.pailleT)} t`, label: ce.bottes ? `Paille · ${entier(ce.bottes)} bottes` : 'Paille' }
+    ]);
+    const lignes = [];
+    ce.groupes.forEach((g) => {
+      lignes.push({ type: 'sstot', cells: [g.nom, '', ha2(g.ha), nb(g.grainT), g.qHa == null ? '' : entier(g.qHa), nb(g.bottes, entier), nb(g.pailleT)] });
+      g.lignes.forEach((l) => lignes.push({ type: 'det', cells: [l.parcelle, jourMois(l.date), ha2(l.ha), l.grainT == null ? gris('—') : t1(l.grainT),
+        l.qHa == null ? '' : entier(l.qHa), nb(l.bottes, entier), nb(l.pailleT)] }));
+    });
+    lignes.push({ type: 'tot', cells: ['Total', '', ha2(ce.ha), nb(ce.grainT), '', nb(ce.bottes, entier), nb(ce.pailleT)] });
+    p.tableau({ colonnes: [{ label: 'Culture / parcelle', w: 3.4 }, { label: 'Moisson', w: 1.1 }, { label: 'ha', w: 1 }, { label: 'Grain t', w: 1.1 },
+      { label: 'q/ha', w: 0.9 }, { label: 'Bottes', w: 1 }, { label: 'Paille t', w: 1.1 }], lignes });
+  } else p.note(`Aucune moisson ni paille enregistrée pour ${camp}.`);
+
+  // 5. Travaux : par type, puis par parcelle
+  p.section(5, 'Travaux', 'Source : journal des activités', SUITE);
+  if (tr.parParcelle.length) {
+    if (tr.parType.length) p.tableau({ legende: 'Par type',
+      colonnes: [{ label: 'Travail', w: 2.4 }, { label: 'Parcelles', w: 5.2, align: 'left' }, { label: 'ha', w: 1 }],
+      lignes: tr.parType.map((g) => ({ cells: [g.type, g.parcellesNoms.join(', '), ha2(g.ha)] })) });
+    const lignes = [];
+    tr.parParcelle.forEach((x) => {
+      lignes.push({ type: 'sstot', cells: [sepP(x.parcelle, `${ha2(x.ha)} ha`, x.culture), '', '', ''] });
+      x.lignes.forEach((l) => lignes.push({ type: 'det', cells: [l.type, jourMois(l.date), sepP(l.tracteur, l.outil) || gris('—'), l.chauffeur || gris('—')] }));
+    });
+    p.tableau({ legende: 'Par parcelle',
+      colonnes: [{ label: 'Parcelle / travail', w: 3.6 }, { label: 'Date', w: 1 }, { label: 'Tracteur · outil', w: 3, align: 'left' }, { label: 'Chauffeur', w: 1.4, align: 'left' }], lignes });
+  } else p.note(`Aucun travail enregistré pour ${camp}.`);
+
+  // 6. Bilan stocks
   const { lignes: lst, tot } = syntheseStocks(stocks.groupes);
-  p.section(3, 'Bilan stocks', 'Source : journal des mouvements de stock', 63 + 18 + 48);
+  p.section(6, 'Bilan stocks', 'Source : journal des mouvements de stock', SUITE);
   p.tuiles([
     { teinte: 'vert', valeur: `${t1(tot.entrees)} t`, label: 'Disponible' },
     { teinte: 'ambre', valeur: `${t1(tot.sorties)} t`, label: 'Consommé' },
@@ -180,26 +215,6 @@ export function pdfRealise({ camp, semis, ferti, stocks, coupes, arreteLe, explo
     const ajust = tot.sorties - tot.conso;
     if (Math.abs(ajust) >= 0.05) p.note(`Sorties : ${t1(tot.conso)} t distribuées aux lots, ${t1(ajust)} t d'ajustements d'inventaire.`);
   } else p.note('Aucun stock ni mouvement sur la campagne.');
-  if (!coupes.length) {
-    p.tableau({ legende: 'Récoltes fourragères par coupe', colonnes: [{ label: 'Culture · coupe', w: 4 }, { label: 'ha', w: 1.4 }, { label: 't/ha', w: 1.4 }, { label: 't', w: 1.4 }],
-      lignes: [{ type: 'vide', cells: ['Aucune récolte enregistrée sur la campagne.'] }] });
-  } else {
-    const lignes = [];
-    const conflits = [];
-    let totalT = 0;
-    coupes.forEach((c) => {
-      lignes.push({ type: 'grp', cells: [c.culture] });
-      c.coupes.forEach((cp) => {
-        if (cp.estimee) estimee = true;
-        totalT += cp.tonnes;
-        cp.conflits.forEach((k) => conflits.push(`${k.nom} (${ORDINAL(cp.numero)} ${c.culture.toLowerCase()}) : ${k.valeurs.map(ha2).join(' / ')} ha, ${ha2(k.valeurs[0])} ha retenus`));
-        lignes.push({ cells: [ORDINAL(cp.numero), t1(cp.surfaceHa) + et(cp.estimee), cp.tHa == null ? '—' : t1(cp.tHa) + et(cp.estimee), t1(cp.tonnes)] });
-      });
-    });
-    lignes.push({ type: 'tot', cells: ['Total récolté', '', '', t1(totalT)] });
-    p.tableau({ legende: 'Récoltes fourragères par coupe', colonnes: [{ label: 'Culture · coupe', w: 4 }, { label: 'ha', w: 1.4 }, { label: 't/ha', w: 1.4 }, { label: 't', w: 1.4 }], lignes });
-    if (conflits.length) p.note(`Surfaces différentes déclarées pour une même coupe : ${conflits.join(' ; ')}.`);
-  }
-  if (estimee) p.note(NOTE_ESTIMEE);
+  if (se.estimee || fo.estimee) p.note(NOTE_ESTIMEE);
   return p.terminer();
 }
