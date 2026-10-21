@@ -571,6 +571,9 @@ table.pat-g { border-collapse:separate; border-spacing:0; font-variant-numeric:t
 #rapports-panel .rap-carnet-dates input { width:auto; min-width:150px; }
 /* Synthèses Réalisé — maquette-syntheses-app.html : totaux repliables, détail au toucher. */
 #rapports-panel .syn-chips{display:flex;gap:6px;flex-wrap:wrap}
+#rapports-panel .syn-themes{gap:6px}
+#rapports-panel .syn-pdf{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--ch-texte2)}
+#rapports-panel .syn-pdf .chip{min-height:30px;font-size:12px;padding:0 10px}
 #rapports-panel details.syn{border-bottom:1px solid var(--ch-separateur)}
 #rapports-panel details.syn:last-of-type{border-bottom:none}
 #rapports-panel details.syn summary{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;font-variant-numeric:tabular-nums}

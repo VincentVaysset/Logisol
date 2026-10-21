@@ -269,6 +269,8 @@ export function creerPdfCharte({ jsPDF, titre, sousTitre, exploitation, edition,
     },
     espace(h) { y += h; },
     /** Pied de chaque page (Page n/N) puis renvoie le document jsPDF. */
+    /** Page suivante, sauf si on est déjà en haut d'une page (thème suivant du bilan complet). */
+    saut() { if (y > 100) nouvellePage(); },
     terminer() {
       const n = doc.internal.getNumberOfPages();
       for (let p = 1; p <= n; p++) {

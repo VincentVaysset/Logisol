@@ -24,7 +24,7 @@ import { exporterPdf } from './pdf-export.js';
 import { pdfCarnetPaturage, nomFichierCarnet } from './pdf-paturage.js';
 import { donneesCarnet } from './ui-paturage.js';
 import { bornesSaison } from './paturage-calc.js';
-import { pdfPrevisionnel, pdfRealise, nomFichierPdf } from './pdf-rapports.js';
+import { pdfPrevisionnel, pdfRealise, nomFichierPdf, THEMES_REALISE } from './pdf-rapports.js';
 import { toastSucces, toastErreur } from './toast.js';
 
 const panelEl = document.getElementById('rapports-panel');
@@ -82,6 +82,7 @@ export function initRapports() {
     if (!b) return;
     const [cle, v] = b.dataset.synvue.split(':');
     vuesRealise[cle] = v;
+    memoriserVues();
     renderRealise();
   });
 
@@ -158,13 +159,14 @@ async function telechargerPdf() {
     let doc;
     if (vue === 'realise') {
       const d = donneesRealise(camp);
-      doc = pdfRealise({ ...commun, ...d, arreteLe: arreteAu(d.stocks) });
+      const themes = vuesRealise.pdf === 'theme' ? [vuesRealise.theme] : undefined;
+      doc = pdfRealise({ ...commun, ...d, arreteLe: arreteAu(d.stocks), themes });
     } else {
       const liste = getPrevisions();
       doc = pdfPrevisionnel({ ...commun, cal: calendrierSemis(parcelles, camp, liste), cat: syntheseCategories(parcelles, camp, liste),
         plan: planFertilisation(parcelles, camp, liste) });
     }
-    const nomFichier = nomFichierPdf(vue, camp, jour);
+    const nomFichier = nomFichierPdf(vue, camp, jour, vue === 'realise' && vuesRealise.pdf === 'theme' ? vuesRealise.theme : '');
     const resultat = await exporterPdf(doc, nomFichier);
     if (!resultat.ok) {
       exportStatutEl.textContent = '⚠️ ' + resultat.erreur;
@@ -318,7 +320,13 @@ export function donneesRealise(camp = String(campagneR)) {
 // Arrêté au : aujourd'hui, ou le 31/08 d'une campagne terminée.
 const arreteAu = (stocks) => (stocks.dateRef < stocks.b.debut ? aujourdhuiIso() : stocks.dateRef);
 const ORDINAL = (n) => (n == null ? 'coupe ?' : n === 1 ? '1ʳᵉ coupe' : `${n}ᵉ coupe`);
-const vuesRealise = { fourrages: 'coupe', travaux: 'type' };
+// Thème affiché et contenu du PDF : retenus d'une ouverture à l'autre (confort
+// par appareil, cf. CLAUDE.md : jamais pour des données à conserver).
+const CLE_VUES = 'logisol.rapports.realise';
+const vuesRealise = { fourrages: 'coupe', travaux: 'type', theme: 'semis', pdf: 'complet' };
+try { Object.assign(vuesRealise, JSON.parse(localStorage.getItem(CLE_VUES) || '{}')); } catch (e) { /* stockage indisponible */ }
+if (!THEMES_REALISE.some((t) => t.id === vuesRealise.theme)) vuesRealise.theme = 'semis';
+function memoriserVues() { try { localStorage.setItem(CLE_VUES, JSON.stringify(vuesRealise)); } catch (e) { /* ignoré */ } }
 
 // Une ligne repliable : nom + sous-titre à gauche, valeur + sous-valeur à droite.
 const repli = (nom, sousNom, val, sousVal, detail, ouvert = false) =>
@@ -411,15 +419,18 @@ function renderRealise() {
     : note('Aucun stock ni mouvement sur la campagne.'))
     + (lignesStock && Math.abs(ajust) >= 0.05 ? note(`Sorties : ${t1(tot.conso)} t distribuées aux lots, ${t1(ajust)} t d'ajustements d'inventaire.`) : '');
 
-  const estimee = se.estimee || fo.estimee;
+  const corps = { semis: ['Semis', s1], epandages: ['Épandages', s2], fourrages: ['Fourrages récoltés', s3],
+    cereales: ['Céréales & paille', s4], travaux: ['Travaux', s5], stocks: ['Bilan stocks', s6] };
+  const th = vuesRealise.theme;
+  const estimee = (th === 'semis' && se.estimee) || (th === 'fourrages' && fo.estimee);
+  const filtres = `<div class="syn-chips syn-themes" role="tablist">${THEMES_REALISE.map((t) =>
+    `<button type="button" class="chip${t.id === th ? ' on' : ''}" data-synvue="theme:${t.id}" role="tab" aria-selected="${t.id === th}">${t.label}</button>`).join('')}</div>`;
+  const choixPdf = `<div class="syn-pdf"><span>PDF :</span>${[['complet', 'Bilan complet'], ['theme', `${THEMES_REALISE.find((t) => t.id === th).label} seul`]].map(([v, l]) =>
+    `<button type="button" class="chip${vuesRealise.pdf === v ? ' on' : ''}" data-synvue="pdf:${v}">${esc(l)}</button>`).join('')}</div>`;
   docRealEl.innerHTML = entete(`Bilan réalisé — campagne ${camp}`, `Arrêté au ${dateFr(arreteAu(stocks))}`,
     'Source : activités enregistrées (campagne de chaque activité) et mouvements de stock. Toucher une ligne pour le détail.')
-    + section(1, 'Semis', s1, 'rap-syn-semis')
-    + section(2, 'Épandages', s2, 'rap-syn-epandages')
-    + section(3, 'Fourrages récoltés', s3, 'rap-syn-fourrages')
-    + section(4, 'Céréales & paille', s4, 'rap-syn-cereales')
-    + section(5, 'Travaux', s5, 'rap-syn-travaux')
-    + section(6, 'Bilan stocks', s6, 'rap-syn-stocks')
+    + filtres + choixPdf
+    + section(THEMES_REALISE.findIndex((t) => t.id === th) + 1, corps[th][0], corps[th][1], `rap-syn-${th}`)
     + (estimee ? NOTE_ESTIMEE : '')
     + pied(`Logisol · Réalisé ${camp}`);
 }
