@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synthèses appli</title>
+<!-- Maquette de référence : synthèses Réalisé dans l'appli (résumé, détail au toucher). Chiffres fictifs. -->
+<style>
+body{margin:0;background:#efe9da}
+:root{--ch-fond:#fbf8f1;--ch-carte:#fff;--ch-bord:#e6ddc9;--ch-separateur:#efe9da;--ch-texte:#2b261c;--ch-texte2:#5e5b47;--ch-icone:#8a8670;--ch-vert:#357f4b;--ch-vert-fonce:#2f6e44;--ch-vert-pastel:#e3f3e6;--ch-vert-texte:#24613a;--ch-bleu:#1f5a8a;--ch-bleu-pastel:#e6f0fa;--ch-ambre-pastel:#fbeed7;--ch-ambre-texte:#8a5413;--ch-onglets:#efe9da;--ch-ligne-alt:#f6f1e4}
+.app{font-family:Roboto,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--ch-fond);color:var(--ch-texte);max-width:430px;min-height:100vh;margin:0 auto;display:flex;flex-direction:column}
+.app *{box-sizing:border-box}
+.hd{background:var(--ch-vert);color:#fff;padding:12px 16px 10px;display:flex;flex-direction:column;gap:6px}
+.hd-top{display:flex;align-items:center;gap:8px}
+.icon-btn{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center}
+.brand{flex:1;text-align:center;font-weight:700;font-size:19px;letter-spacing:.5px}
+.farm-row{display:flex;justify-content:space-between;font-size:12px;opacity:.85}
+.hd h1{font-size:16px;font-weight:600;margin:2px 0 0}
+.main{padding:16px;display:flex;flex-direction:column;gap:14px}
+.camp{display:flex;align-items:center;gap:8px}
+.camp-btn{width:44px;height:44px;border-radius:999px;border:1px solid var(--ch-bord);background:var(--ch-carte);font-size:18px}
+.camp-nm{flex:1;text-align:center;font-size:17px;font-weight:700}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--ch-onglets);padding:4px;border-radius:999px}
+.tab{min-height:40px;border-radius:999px;font-size:14px;font-weight:600;color:var(--ch-texte2);display:flex;align-items:center;justify-content:center}
+.tab.on{background:var(--ch-carte);color:var(--ch-texte);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.btn-primary{min-height:48px;width:100%;background:var(--ch-vert);color:#fff;border:none;border-radius:18px;font:inherit;font-size:15px;font-weight:600}
+.card{background:var(--ch-carte);border:1px solid var(--ch-bord);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.s-t{display:flex;align-items:baseline;gap:8px;margin:0;font-size:15px;font-weight:700}
+.s-t .num{color:var(--ch-vert)}
+.s-t .vue{margin-left:auto;font-size:12px;font-weight:500;color:var(--ch-texte2)}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kpis.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.kpi{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-left:5px solid var(--ch-icone);border-radius:14px;background:var(--ch-onglets);min-width:0}
+.kpi .n{font-size:19px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ch-texte2)}
+.kpi .n small{font-size:12px;font-weight:500}
+.kpi .l{font-size:12px;color:var(--ch-texte2)}
+.kpi.vert{background:var(--ch-vert-pastel);border-color:var(--ch-vert-fonce)}.kpi.vert .n{color:var(--ch-vert-fonce)}
+.kpi.bleu{background:var(--ch-bleu-pastel);border-color:var(--ch-bleu)}.kpi.bleu .n{color:var(--ch-bleu)}
+.kpi.ambre{background:var(--ch-ambre-pastel);border-color:var(--ch-ambre-texte)}.kpi.ambre .n{color:var(--ch-ambre-texte)}
+.chips{display:flex;gap:6px}
+.chip{border:1px solid var(--ch-bord);background:var(--ch-carte);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500;color:var(--ch-texte2);cursor:pointer}
+.chip.on{background:var(--ch-vert-pastel);border-color:var(--ch-vert);color:var(--ch-vert-texte)}
+details{border-bottom:1px solid var(--ch-separateur)}
+details:last-of-type{border-bottom:none}
+summary{list-style:none;display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;font-variant-numeric:tabular-nums}
+summary::-webkit-details-marker{display:none}
+summary .nm{flex:1;font-size:14.5px;font-weight:600;min-width:0}
+summary .nm small{display:block;font-size:12px;font-weight:400;color:var(--ch-texte2)}
+summary .val{font-size:14.5px;font-weight:700;text-align:right;white-space:nowrap}
+summary .val small{display:block;font-size:12px;font-weight:400;color:var(--ch-texte2)}
+summary::after{content:"›";font-size:20px;color:var(--ch-icone);transition:transform .15s}
+details[open] summary::after{transform:rotate(90deg)}
+.det{margin:0 0 10px;padding:4px 10px;background:var(--ch-ligne-alt);border-radius:12px}
+.ln{display:flex;justify-content:space-between;gap:10px;padding:7px 0;font-size:13.5px;border-bottom:1px dashed var(--ch-bord);font-variant-numeric:tabular-nums}
+.ln:last-child{border-bottom:none}
+.ln span:first-child small{display:block;font-size:12px;color:var(--ch-texte2)}
+.ln span:last-child{text-align:right;white-space:nowrap}
+.ln span:last-child small{display:block;font-size:12px;color:var(--ch-texte2)}
+.vue-b{display:none}
+.note{font-size:12px;color:var(--ch-texte2);margin:0}
+.nav{position:sticky;bottom:0;display:flex;justify-content:space-around;background:var(--ch-carte);border-top:1px solid var(--ch-bord);padding:8px 4px 12px;font-size:11px;color:var(--ch-icone);margin-top:auto}
+.nav b{color:var(--ch-vert-texte)}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="hd">
+<div class="hd-top"><span class="icon-btn">‹</span><span class="brand">LOGISOL</span><span style="width:36px"></span></div>
+<div class="farm-row"><span>Exploitation ovine Bio</span><span>Campagne 2027</span></div>
+<h1>Rapports &amp; synthèses</h1>
+</header>
+<main class="main">
+<div class="camp"><button class="camp-btn">‹</button><span class="camp-nm">Campagne 2027</span><button class="camp-btn">›</button></div>
+<div class="tabs"><span class="tab">Prévisionnel</span><span class="tab on">Réalisé</span></div>
+
+<!-- 1. SEMIS : par culture, parcelles au toucher -->
+<section class="card">
+<h3 class="s-t"><span class="num">1.</span>Semis<span class="vue">par culture</span></h3>
+<div class="kpis"><div class="kpi vert"><span class="n">24,8 <small>ha</small></span><span class="l">Surface semée</span></div><div class="kpi"><span class="n">4 120 <small>kg</small></span><span class="l">Semence utilisée</span></div></div>
+<details open><summary><span class="nm">Orge<small>2 parcelles</small></span><span class="val">12,2 ha<small>180 kg/ha · 2 196 kg</small></span></summary>
+<div class="det"><div class="ln"><span>Causse du lac<small>08/10 · Semoir Kubota</small></span><span>6,68 ha<small>180 kg/ha · 1 202 kg</small></span></div><div class="ln"><span>Bouat combette<small>10/10</small></span><span>5,53 ha<small>180 kg/ha · 995 kg</small></span></div></div></details>
+<details><summary><span class="nm">Blé<small>2 parcelles</small></span><span class="val">9,4 ha<small>190 kg/ha · 1 786 kg</small></span></summary>
+<div class="det"><div class="ln"><span>Celies<small>12/10</small></span><span>5,76 ha<small>1 094 kg</small></span></div><div class="ln"><span>La bessière<small>16/10</small></span><span>3,59 ha<small>682 kg</small></span></div></div></details>
+<details><summary><span class="nm">RG trèfle<small>1 parcelle</small></span><span class="val">3,2 ha<small>43 kg/ha · 138 kg</small></span></summary>
+<div class="det"><div class="ln"><span>Les Planes<small>22/09</small></span><span>3,20 ha<small>138 kg</small></span></div></div></details>
+</section>
+
+<!-- 2. ÉPANDAGES : par parcelle + totaux exploitation par produit -->
+<section class="card">
+<h3 class="s-t"><span class="num">2.</span>Épandages<span class="vue">par parcelle</span></h3>
+<div class="kpis c3"><div class="kpi ambre"><span class="n">198 <small>t</small></span><span class="l">Fumier</span></div><div class="kpi ambre"><span class="n">12 <small>t</small></span><span class="l">Compost</span></div><div class="kpi"><span class="n">13,1 <small>ha</small></span><span class="l">Épandus</span></div></div>
+<details open><summary><span class="nm">Causse du lac<small>5,37 ha · Orge</small></span><span class="val">78 t<small>14,5 t/ha</small></span></summary>
+<div class="det"><div class="ln"><span>Fumier<small>03/10</small></span><span>78 t<small>14,5 t/ha</small></span></div></div></details>
+<details><summary><span class="nm">Celies<small>4,03 ha · Blé</small></span><span class="val">75 t<small>2 apports</small></span></summary>
+<div class="det"><div class="ln"><span>Fumier<small>04/10</small></span><span>63 t<small>15,6 t/ha</small></span></div><div class="ln"><span>Compost<small>11/10</small></span><span>12 t<small>3,0 t/ha</small></span></div></div></details>
+<details><summary><span class="nm">La bessière<small>3,72 ha · Blé</small></span><span class="val">57 t<small>15,3 t/ha</small></span></summary>
+<div class="det"><div class="ln"><span>Fumier<small>05/10</small></span><span>57 t<small>15,3 t/ha</small></span></div></div></details>
+</section>
+
+<!-- 3. FOURRAGES : bascule fourrage/coupe ↔ parcelle -->
+<section class="card" id="fourrages">
+<h3 class="s-t"><span class="num">3.</span>Fourrages récoltés</h3>
+<div class="kpis c3"><div class="kpi vert"><span class="n">122 <small>t</small></span><span class="l">Récolté</span></div><div class="kpi"><span class="n">68 <small>t</small></span><span class="l">Séché grange</span></div><div class="kpi"><span class="n">54 <small>t</small></span><span class="l">En bottes</span></div></div>
+<div class="chips"><span class="chip on" data-v="a">Par fourrage · coupe</span><span class="chip" data-v="b">Par parcelle</span></div>
+<div class="vue-a">
+<details open><summary><span class="nm">Luzerne · 1ʳᵉ coupe<small>séché grange · 4 parcelles</small></span><span class="val">40 t<small>32,5 ha · 1,2 t/ha</small></span></summary>
+<div class="det"><div class="ln"><span>Puech haut<small>12/05 · 9 remorques</small></span><span>14,2 t<small>1,3 t/ha</small></span></div><div class="ln"><span>Les Planes<small>14/05</small></span><span>11,0 t<small>1,1 t/ha</small></span></div><div class="ln"><span>… 2 autres</span><span>14,8 t</span></div></div></details>
+<details><summary><span class="nm">Luzerne · 2ᵉ coupe<small>séché grange</small></span><span class="val">28 t<small>24,0 ha · 1,1 t/ha</small></span></summary><div class="det"><div class="ln"><span>…</span><span></span></div></div></details>
+<details><summary><span class="nm">RG trèfle · 1ʳᵉ coupe<small>en bottes · 180 bottes</small></span><span class="val">54 t<small>28,1 ha · 1,9 t/ha</small></span></summary><div class="det"><div class="ln"><span>…</span><span></span></div></div></details>
+</div>
+<div class="vue-b">
+<details open><summary><span class="nm">Puech haut<small>8,2 ha · Luz 3</small></span><span class="val">25,4 t<small>3,1 t/ha · 2 coupes</small></span></summary>
+<div class="det"><div class="ln"><span>1ʳᵉ coupe · séché<small>12/05</small></span><span>14,2 t</span></div><div class="ln"><span>2ᵉ coupe · séché<small>28/06</small></span><span>11,2 t</span></div></div></details>
+<details><summary><span class="nm">Les Planes<small>9,1 ha · Luz 2</small></span><span class="val">20,6 t<small>2,3 t/ha</small></span></summary><div class="det"><div class="ln"><span>…</span><span></span></div></div></details>
+</div>
+</section>
+
+<!-- 4. CÉRÉALES & PAILLE : par culture -->
+<section class="card">
+<h3 class="s-t"><span class="num">4.</span>Céréales &amp; paille<span class="vue">par culture</span></h3>
+<div class="kpis"><div class="kpi bleu"><span class="n">48,6 <small>t</small></span><span class="l">Grain</span></div><div class="kpi ambre"><span class="n">31,5 <small>t</small></span><span class="l">Paille · 126 bottes</span></div></div>
+<details open><summary><span class="nm">Orge<small>12,2 ha</small></span><span class="val">28,1 t grain<small>23 q/ha · paille 18 t</small></span></summary>
+<div class="det"><div class="ln"><span>Causse du lac<small>moisson 08/07</small></span><span>16,0 t<small>24 q/ha · 40 bottes</small></span></div><div class="ln"><span>Bouat combette<small>10/07</small></span><span>12,1 t<small>22 q/ha · 32 bottes</small></span></div></div></details>
+<details><summary><span class="nm">Blé<small>9,4 ha</small></span><span class="val">20,5 t grain<small>22 q/ha · paille 13,5 t</small></span></summary><div class="det"><div class="ln"><span>…</span><span></span></div></div></details>
+</section>
+
+<!-- 5. TRAVAUX : bascule type ↔ parcelle -->
+<section class="card" id="travaux">
+<h3 class="s-t"><span class="num">5.</span>Travaux</h3>
+<div class="chips"><span class="chip on" data-v="a">Par type</span><span class="chip" data-v="b">Par parcelle</span></div>
+<div class="vue-a">
+<details open><summary><span class="nm">Déchaumage<small>3 parcelles</small></span><span class="val">15,4 ha</span></summary>
+<div class="det"><div class="ln"><span>Causse du lac</span><span>22/07</span></div><div class="ln"><span>Celies</span><span>24/07</span></div><div class="ln"><span>Bouat combette</span><span>25/07</span></div></div></details>
+<details><summary><span class="nm">Labour<small>2 parcelles</small></span><span class="val">9,4 ha</span></summary><div class="det"><div class="ln"><span>…</span><span></span></div></div></details>
+<details><summary><span class="nm">Roulage<small>4 parcelles</small></span><span class="val">21,6 ha</span></summary><div class="det"><div class="ln"><span>…</span><span></span></div></div></details>
+<details><summary><span class="nm">Épierrage<small>1 parcelle</small></span><span class="val">3,2 ha</span></summary><div class="det"><div class="ln"><span>…</span><span></span></div></div></details>
+</div>
+<div class="vue-b">
+<details open><summary><span class="nm">Causse du lac<small>5,37 ha · Orge</small></span><span class="val">4 travaux</span></summary>
+<div class="det"><div class="ln"><span>Déchaumage</span><span>22/07</span></div><div class="ln"><span>Labour</span><span>18/09</span></div><div class="ln"><span>Semis</span><span>08/10</span></div><div class="ln"><span>Roulage</span><span>09/10</span></div></div></details>
+</div>
+</section>
+
+<button class="btn-primary">⤓ PDF détaillé</button>
+<p class="note" style="font-style:italic">Maquette : chiffres fictifs. Appli = totaux, toucher une ligne pour le détail ; le PDF montre tout déplié.</p>
+</main>
+<nav class="nav"><b>Ferme</b><span>Carte</span><span>Parcelles</span><span>Stocks</span><span>Troupeau</span><span>Bâtiments</span></nav>
+</div>
+<script>
+document.querySelectorAll('.chips').forEach(function(g){g.addEventListener('click',function(e){var c=e.target.closest('.chip');if(!c)return;var s=g.parentNode;g.querySelectorAll('.chip').forEach(function(x){x.classList.toggle('on',x===c)});s.querySelector('.vue-a').style.display=c.dataset.v==='a'?'block':'none';s.querySelector('.vue-b').style.display=c.dataset.v==='b'?'block':'none';});});
+</script>
+</body>
+</html>
