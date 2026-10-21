@@ -151,11 +151,11 @@ const SEMIS_SYNTHETIQUE = '__semis_en_cours__';
 // retombe dans le bug d'origine (deux logiques qui divergent). Un semis
 // synthétique, typé pivot, est ajouté à l'historique réel de la parcelle
 // pour lire la valeur que la fonction unique lui attribuerait.
-async function campagneViseeDe(parcelleId, dateSemis, cultureId = null) {
+async function campagneViseeDe(parcelleId, dateSemis, cultureId = null, derobee = false) {
   const { getInterventions, getTypeById } = await chargerModulesReels();
   const historique = (getInterventions() || [])
     .filter((i) => Array.isArray(i.parcelleIds) && i.parcelleIds.includes(parcelleId));
-  const synthetique = { id: SEMIS_SYNTHETIQUE, date: dateSemis, typeId: SEMIS_SYNTHETIQUE, forcerCampagne: null, saisie: { cultureId } };
+  const synthetique = { id: SEMIS_SYNTHETIQUE, date: dateSemis, typeId: SEMIS_SYNTHETIQUE, forcerCampagne: null, saisie: { cultureId, derobee: !!derobee } };
   const deps = {
     getTypeById: (id) => (id === SEMIS_SYNTHETIQUE ? { pivotCampagne: true, recolteCampagne: false, effetCulture: 'IMPLANTE' } : getTypeById(id))
   };
@@ -174,7 +174,7 @@ async function campagneViseeDe(parcelleId, dateSemis, cultureId = null) {
 // de la fiche parcelle, hors tunnel d'activité), elle est dérivée sur place
 // via campagneViseeDe() ci-dessus — jamais via une règle séparée.
 export async function setImplantation(
-  { parcelleId, cultureId, dateSemis, dateFin = null, notes = '', campagneVisee = undefined },
+  { parcelleId, cultureId, dateSemis, dateFin = null, notes = '', campagneVisee = undefined, derobee = false },
   { cloturerPrecedente = true } = {}
 ) {
   if (!parcelleId || !cultureId || !dateSemis) {
@@ -193,13 +193,13 @@ export async function setImplantation(
     }
   }
 
-  const campagne = campagneVisee !== undefined ? campagneVisee : await campagneViseeDe(parcelleId, dateSemis, cultureId);
+  const campagne = campagneVisee !== undefined ? campagneVisee : await campagneViseeDe(parcelleId, dateSemis, cultureId, derobee);
 
   const id = implantationId(parcelleId, dateSemis);
   const ref = doc(db, COL_NAME, id);
   await ecrire(ref, setDoc(
     ref,
-    { parcelleId, cultureId, dateSemis, dateFin, notes, campagneVisee: campagne, majLe: serverTimestamp() },
+    { parcelleId, cultureId, dateSemis, dateFin, notes, campagneVisee: campagne, derobee: !!derobee, majLe: serverTimestamp() },
     { merge: true }
   ), 'Implantation', `semis ${dateSemis} · culture ${cultureId} · parcelle ${parcelleId}`);
   return id;

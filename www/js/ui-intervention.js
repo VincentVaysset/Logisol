@@ -79,7 +79,7 @@ const el = {};
   'duree','champ-meteo','meteo-text','meteo-refresh','photo-btn','photo-clear','photo-input',
   'photo-preview','photo-info',
   'groupe','groupe-titre','groupe-total',
-  'g-semis','culture','culture-aide','culture-toggle','culture-new','culture-nom','culture-add',
+  'g-semis','culture','derobee','culture-aide','culture-toggle','culture-new','culture-nom','culture-add',
   'semence','melange','melange-toggle','melange-rows','melange-add','melange-total',
   'dose-semis','etiq-btn','etiq-clear','etiq-input','etiq-preview','etiq-info',
   'g-surface','surface','surface-tout','surface-tracer','surface-aide',
@@ -773,7 +773,7 @@ function lireSaisie() {
   if (!f) return null;
   const n = (k) => (el[k].value === '' ? null : Number(el[k].value));
   if (f === 'SEMIS') {
-    return { semence: el.semence.value.trim(), melange: lireMelange(),
+    return { semence: el.semence.value.trim(), melange: lireMelange(), derobee: el.derobee.checked,
              doseKgHa: n('dose-semis'), cultureId: el.culture.value || null,
              surfaceHa: n('surface-semee'), surfaceEstimee: surfaceEstimee && n('surface-semee') != null };
   }
@@ -858,6 +858,7 @@ function ecrireSaisie(s) {
   const v = (k, val) => { el[k].value = val == null ? '' : val; };
   v('semence', s.semence);
   peuplerCultures(s.cultureId || '');
+  if (typeof s.derobee === 'boolean') el.derobee.checked = s.derobee; else cocherDerobeeSelonCulture();
   delete el.culture.dataset.saisi;
   if (s.cultureId) el.culture.dataset.saisi = '1';
   v('dose-semis', s.doseKgHa);
@@ -922,7 +923,16 @@ function peuplerCultures(valeur) {
 
 el.culture.addEventListener('change', () => {
   el.culture.dataset.saisi = '1';
+  cocherDerobeeSelonCulture();
+  majCampagneAffichee();
 });
+// Une culture de famille « dérobée » (Colza fourrager...) coche la case d'office ;
+// la case reste modifiable pour un semis donné.
+el.derobee.addEventListener('change', () => majCampagneAffichee());
+function cocherDerobeeSelonCulture() {
+  const c = el.culture.value ? getCultureById(el.culture.value) : null;
+  el.derobee.checked = !!c && c.famille === 'derobee';
+}
 
 el['culture-toggle'].addEventListener('click', () => {
   el['culture-new'].hidden = !el['culture-new'].hidden;
@@ -1887,7 +1897,7 @@ async function appliquerEffetCulture(data, precedent) {
       // calculerCampagnes() pour cette activité Semis elle-même) — jamais
       // recalculée une seconde fois par une règle séparée (cf. implantations.js).
       const id = await setImplantation(
-        { parcelleId, cultureId, dateSemis: data.date, notes: '', campagneVisee: data.campagneId },
+        { parcelleId, cultureId, dateSemis: data.date, notes: '', campagneVisee: data.campagneId, derobee: !!(data.saisie && data.saisie.derobee) },
         { cloturerPrecedente: true }
       );
       trace.creees.push(id);

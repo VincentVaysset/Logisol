@@ -164,6 +164,7 @@ function nettoyerSaisie(s) {
   // « Surface récoltée ») : signalée comme estimée tant qu'elle n'est pas
   // corrigée dans l'activité.
   if (s.surfaceEstimee === true && out.surfaceHa != null) out.surfaceEstimee = true;
+  if (typeof s.derobee === 'boolean') out.derobee = s.derobee;
   if (Array.isArray(s.melange)) {
     const m = s.melange
       .map((x) => ({ nom: String((x && x.nom) || '').trim(), pourcentage: Number((x && x.pourcentage) || 0) }))

@@ -108,12 +108,12 @@ export function estActiviteDerobee(act, type, parcelleId, deps = {}) {
   if (!act || !type) return false;
   if (typeof act.derobee === 'boolean') return act.derobee;
   const { getCultureById, implantationEnCours } = deps;
-  if (!getCultureById) return false;
-  const famille = (id) => ((id && getCultureById(id)) || {}).famille;
-  if (estSemis(type)) return famille((act.saisie || {}).cultureId) === 'derobee';
+  const famille = (id) => ((id && getCultureById && getCultureById(id)) || {}).famille;
+  const s = act.saisie || {};
+  if (estSemis(type)) return s.derobee === true || (s.derobee !== false && famille(s.cultureId) === 'derobee');
   if (!parcelleId || !implantationEnCours || !CATEGORIES_SUR_DEROBEE.includes(type.categorie)) return false;
   const impl = implantationEnCours(parcelleId, act.date);
-  return !!impl && famille(impl.cultureId) === 'derobee';
+  return !!impl && (impl.derobee === true || famille(impl.cultureId) === 'derobee');
 }
 
 /**
