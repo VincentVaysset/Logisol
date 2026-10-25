@@ -13,11 +13,13 @@ Conséquences concrètes :
 - Même projet Firebase (`ovilog-15ef6`), mêmes comptes email/mot de passe,
   mais **collections strictement séparées** — préfixe `lgs_` pour tout ce qui
   est récent, jamais de lecture croisée avec les collections d'Ovilog.
-- **Ne jamais déployer les règles Firestore depuis la CI.** Un déploiement
-  remplace tout le jeu de règles du projet, Ovilog compris, qui n'est pas
-  dans ce dépôt. Le déploiement reste une étape manuelle : coller
-  `firestore-logisol.rules` (fichier complet et autonome, PAS
-  `firestore.rules`) dans la console Firebase, en remplaçant tout (Ctrl+A).
+- **Ne jamais déployer les règles Firestore depuis la CI, et ne jamais en
+  coller depuis ce dépôt.** Le projet partagé n'a qu'un seul jeu de règles,
+  Ovilog compris : la seule référence à jour est `firestore.rules` du dépôt
+  **Ovilog**, publiée dans la console par le propriétaire. `firestore.rules`
+  et `firestore-logisol.rules` de ce dépôt ne contiennent plus qu'un
+  avertissement. Séparation en cours : Logisol aura son propre projet
+  Firebase, et ses règles propres seront écrites ici pour ce seul projet.
 - **Jamais de wildcard `match /{document=**}`** : ça ouvrirait toutes les
   collections d'Ovilog en lecture/écriture à tout utilisateur Logisol
   authentifié. Le joker générique n'autorise que `collection.matches('lgs_.*')`.

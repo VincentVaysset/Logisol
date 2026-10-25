@@ -74,19 +74,15 @@ sans message d'erreur explicite pour l'utilisateur. Le `versionCode` est
 aussi désormais incrémenté automatiquement à chaque build CI (numéro de
 run GitHub Actions), voir `android/app/build.gradle`.
 
-## Mettre en place les règles Firestore (étape manuelle, à faire une fois)
+## Règles Firestore
 
-⚠️ Le projet Firebase est **partagé avec Ovilog**. Firestore n'a qu'un seul
-jeu de règles par projet (pas un fichier par appli), donc ce dépôt **ne
-déploie jamais les règles automatiquement** — pour ne prendre aucun risque
-de casser les règles existantes d'Ovilog.
-
-1. Ouvrir la [console Firebase](https://console.firebase.google.com/) →
-   projet `ovilog-15ef6` → Firestore Database → onglet **Règles**
-2. **Ajouter** (sans supprimer les règles existantes d'Ovilog) le bloc
-   présent dans [`firestore.rules`](./firestore.rules) de ce dépôt
-   (collections `parcelles` et `parcelles_config`)
-3. Publier
+⚠️ Le projet Firebase est **partagé avec Ovilog** et n'a qu'un seul jeu de
+règles. La seule référence à jour est `firestore.rules` du dépôt **Ovilog**,
+publiée dans la console par le propriétaire. **Ne coller aucun fichier de
+règles de ce dépôt** : `firestore.rules` et `firestore-logisol.rules` ne
+contiennent plus qu'un avertissement. Séparation en cours : Logisol aura son
+propre projet Firebase, et ses règles propres seront écrites ici pour ce seul
+projet.
 
 ## Tester rapidement dans un navigateur (Firebase Hosting)
 
@@ -217,20 +213,9 @@ notes.
   stockée dans le document (un document Firestore est plafonné à 1 Mio, une
   photo de tablette pèse plusieurs Mo). Une photo par intervention.
 
-## ⚠️ Règles Firestore à ajouter
+## ⚠️ Règles Firestore
 
-Trois collections s'ajoutent avec ce lot. Sans elles, rien ne s'enregistre :
-
-```
-match /implantations/{docId}       { allow read, write: if request.auth != null; }
-match /interventions/{docId}       { allow read, write: if request.auth != null; }
-match /interventions_types/{docId} { allow read, write: if request.auth != null; }
-```
-
-À **ajouter** aux règles existantes dans la console Firebase du projet
-`ovilog-15ef6`, sans toucher à celles d'Ovilog. Le fichier `firestore.rules`
-de ce dépôt contient l'ensemble à jour (il n'est jamais déployé
-automatiquement, volontairement).
+Voir la section « Règles Firestore » plus haut : référence unique dans le dépôt Ovilog.
 
 ### Stocks (collection `stocks`)
 Un document = **une récolte sur une parcelle**, saisie en une fois en fin de
@@ -360,15 +345,15 @@ Ce qui reste tributaire du réseau, et ne peut pas en être affranchi :
 - **la première connexion** sur un appareil. Une fois connecté, Firebase Auth
   conserve la session et l'appli s'ouvre hors-ligne.
 
-## Règles Firestore — quel fichier coller
+## Règles Firestore — ne plus rien coller depuis ce dépôt
 
-👉 **`firestore-logisol.rules`** : jeu **complet**, à coller en **remplaçant
-tout** (Ctrl+A puis coller). Il reprend l'intégralité des règles en place,
-Ovilog compris, et se suffit à lui-même — plus aucune insertion manuelle dans
-un bloc existant, c'est là que tout s'est joué.
-
-`firestore.rules` ne sert que de référence pour les seules collections
-Logisol.
+⚠️ Le projet Firebase est **partagé avec Ovilog** et n'a qu'un seul jeu de
+règles. La seule référence à jour est `firestore.rules` du dépôt **Ovilog**,
+publiée dans la console par le propriétaire. **Ne coller aucun fichier de
+règles de ce dépôt** : `firestore.rules` et `firestore-logisol.rules` ne
+contiennent plus qu'un avertissement. Séparation en cours : Logisol aura son
+propre projet Firebase, et ses règles propres seront écrites ici pour ce seul
+projet.
 
 ### Le piège qui a coûté plusieurs allers-retours
 
@@ -399,9 +384,11 @@ d'alerte le confirme sur place.
 
 ## Règles Firestore — un seul collage, définitif
 
-Le fichier `firestore.rules` contient un **joker cadré par un préfixe** :
-toute collection dont le nom commence par `lgs_` est autorisée d'avance. Les
-prochains modules n'exigeront donc plus aucune intervention dans la console.
+Les règles publiées (référence : `firestore.rules` du dépôt Ovilog)
+contiennent un **joker cadré par un préfixe** : toute collection dont le nom
+commence par `lgs_` est autorisée d'avance, pour le seul compte du
+propriétaire. Les prochains modules n'exigent donc aucune intervention dans la
+console.
 
 Le joker large `match /{document=**}` est **volontairement écarté** : les
 règles Firestore s'additionnent (dès qu'une règle autorise, l'accès est
@@ -414,8 +401,8 @@ raison : déployer remplace le jeu de règles **entier** du projet, donc celles
 d'Ovilog, qui ne figurent pas dans ce dépôt.
 
 En complément, `www/js/diagnostic-regles.js` teste chaque collection au
-démarrage et affiche, le cas échéant, **quelle** collection est refusée et quoi
-coller — au lieu d'un « permission-denied » muet.
+démarrage et affiche, le cas échéant, **quelle** collection est refusée et
+où se trouve la référence des règles — au lieu d'un « permission-denied » muet.
 
 ## Tunnel de saisie d'activité
 

@@ -1,5 +1,5 @@
 // Calendrier de pâturage — données (collections Logisol lgs_paturage_periodes
-// et lgs_paturage_exceptions ; règles : joker lgs_ de firestore-logisol.rules).
+// et lgs_paturage_exceptions ; règles : joker lgs_ des règles publiées, référence firestore.rules du dépôt Ovilog).
 // Les calculs sont dans paturage-calc.js ; ce module ne fait que lire et
 // écrire, hors ligne d'abord (ecrire(), cf. ecriture-locale.js).
 import { db } from './firebase-config.js';

@@ -1,72 +1,20 @@
 // =====================================================================
-// RÈGLES FIRESTORE — collections Logisol
+// ⛔ NE PAS COLLER CE FICHIER DANS LA CONSOLE FIREBASE — IL N'EST PLUS UTILISÉ
 // =====================================================================
 //
-// ⚠️ NE COLLE PAS CE FICHIER DANS LA CONSOLE.
+// Le projet Firebase « ovilog-15ef6 » est partagé avec Ovilog et n'a qu'UN
+// seul jeu de règles. La seule référence à jour est le fichier
+// « firestore.rules » du dépôt Ovilog (VincentVaysset/Ovilog) : c'est lui, et
+// lui seul, qui se publie dans la console, par le propriétaire.
 //
-// C'est un document COMPLET (rules_version + service + match /databases).
-// Le coller à l'intérieur du bloc existant d'Ovilog produirait un document
-// imbriqué, donc une erreur de syntaxe, et Firebase garderait silencieusement
-// les anciennes règles.
+// L'ancien contenu de ce fichier (jeu « complet » à coller en remplaçant tout)
+// datait d'avant les règles actuelles : publié, il aurait ouvert toutes les
+// collections de Logisol à n'importe quel compte connecté et supprimé des
+// règles d'Ovilog (adresse vérifiée, bulle de contact, rapports d'erreurs).
 //
-// 👉 Pour la console, utilise « firestore-logisol.rules » : il ne contient
-//    que les lignes `match` à insérer, sans enveloppe.
+// Séparation en cours : Logisol aura son propre projet Firebase ; ses règles
+// propres seront alors écrites ici, pour CE nouveau projet uniquement.
 //
-// Ce fichier-ci sert de référence : il montre l'état complet attendu des
-// règles Logisol, et servirait de base si le projet n'hébergeait qu'elle.
-// Le raisonnement (pourquoi pas de joker large, pourquoi pas de déploiement
-// automatique depuis la CI) est dans le README.
+// Ce fichier ne contient volontairement aucune règle : la console refuse de
+// le publier.
 // =====================================================================
-
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    // ================= COLLECTIONS FUTURES (rien à faire) =============
-    // Tout nom commençant par "lgs_" est autorisé d'avance. C'est ce bloc
-    // qui supprime le besoin de revenir ici à chaque nouveau module.
-    // matches() compare la chaîne ENTIÈRE, pas un fragment : le motif s'écrit
-    // donc 'lgs_.*' et non '^lgs_.*'. L'ancre initiale était au mieux inutile.
-    match /{collection}/{docId} {
-      allow read, write: if request.auth != null && collection.matches('lgs_.*');
-    }
-    // Idem pour leurs sous-collections éventuelles.
-    match /{collection}/{docId}/{sub=**} {
-      allow read, write: if request.auth != null && collection.matches('lgs_.*');
-    }
-
-    // ================= COLLECTIONS EXISTANTES =========================
-    // Parcellaire
-    match /parcelles/{docId}             { allow read, write: if request.auth != null; }
-    match /parcelles_config/{docId}      { allow read, write: if request.auth != null; }
-    match /cultures_config/{docId}       { allow read, write: if request.auth != null; }
-    match /implantations/{docId}         { allow read, write: if request.auth != null; }
-    match /assolements/{docId}           { allow read, write: if request.auth != null; }
-
-    // Journal d'interventions
-    match /interventions/{docId}         { allow read, write: if request.auth != null; }
-    match /interventions_types/{docId}   { allow read, write: if request.auth != null; }
-
-    // Stocks et alimentation
-    match /stocks/{docId}                { allow read, write: if request.auth != null; }
-    match /stades_config/{docId}         { allow read, write: if request.auth != null; }
-    match /lots_animaux/{docId}          { allow read, write: if request.auth != null; }
-    match /prelevements/{docId}          { allow read, write: if request.auth != null; }
-
-    // Bâtiments, mouvements de stock et parc matériel.
-    //
-    // Ces quatre lignes FONT DOUBLON avec le joker de préfixe ci-dessus, et
-    // c'est délibéré. Le joker repose sur matches(), dont le comportement
-    // exact (comparaison de la chaîne entière) est une source d'erreur
-    // silencieuse : s'il ne se comporte pas comme prévu, tout le module
-    // Bâtiments tombe en « permission-denied » sans que rien n'indique
-    // pourquoi. Ces lignes explicites coûtent six lignes et suppriment ce
-    // point de défaillance unique. Le joker, lui, continue de couvrir
-    // d'avance les collections des prochains modules.
-    match /lgs_batiments/{docId}             { allow read, write: if request.auth != null; }
-    match /lgs_cellules_grain/{docId}        { allow read, write: if request.auth != null; }
-    match /lgs_emplacements_fourrage/{docId} { allow read, write: if request.auth != null; }
-    match /lgs_mouvements_stock/{docId}      { allow read, write: if request.auth != null; }
-    match /lgs_materiel/{docId}              { allow read, write: if request.auth != null; }
-  }
-}
