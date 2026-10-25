@@ -10,23 +10,21 @@ Appli de gestion parcellaire/troupeau pour une exploitation ovine laitière
 > aucun cas** affecter le fonctionnement d'Ovilog ni interférer avec lui.
 
 Conséquences concrètes :
-- Même projet Firebase (`ovilog-15ef6`), mêmes comptes email/mot de passe,
-  mais **collections strictement séparées** — préfixe `lgs_` pour tout ce qui
-  est récent, jamais de lecture croisée avec les collections d'Ovilog.
-- **Ne jamais déployer les règles Firestore depuis la CI, et ne jamais en
-  coller depuis ce dépôt.** Le projet partagé n'a qu'un seul jeu de règles,
-  Ovilog compris : la seule référence à jour est `firestore.rules` du dépôt
-  **Ovilog**, publiée dans la console par le propriétaire. `firestore.rules`
-  et `firestore-logisol.rules` de ce dépôt ne contiennent plus qu'un
-  avertissement. Séparation en cours : Logisol aura son propre projet
-  Firebase, et ses règles propres seront écrites ici pour ce seul projet.
-- Projet propre à Logisol (séparation en cours) : `logisol-1e61b`. Ses règles
-  sont dans `firestore-logisol-1e61b.rules`, à publier UNIQUEMENT dans ce
-  projet (jamais dans `ovilog-15ef6`). Tant que la bascule n'est pas faite,
-  l'appli reste branchée sur `ovilog-15ef6`.
-- **Jamais de wildcard `match /{document=**}`** : ça ouvrirait toutes les
-  collections d'Ovilog en lecture/écriture à tout utilisateur Logisol
-  authentifié. Le joker générique n'autorise que `collection.matches('lgs_.*')`.
+- **Projet Firebase propre à Logisol : `logisol-1e61b`** (séparé d'Ovilog
+  depuis le 25/10/2026, données transférées à l'identique). Aucun lien avec
+  le projet d'Ovilog (`ovilog-15ef6`) : ni lecture, ni écriture, ni règles.
+  Ses anciennes collections Logisol y restent jusqu'au nettoyage décidé par
+  le propriétaire (étape 5, depuis le dépôt Ovilog).
+- **Règles** : `firestore-logisol-1e61b.rules`, compte du propriétaire
+  seulement, à publier à la main dans le projet « Logisol » UNIQUEMENT
+  (jamais dans `ovilog-15ef6`, où il remplacerait les règles d'Ovilog).
+  `firestore.rules` et `firestore-logisol.rules` ne contiennent qu'un
+  avertissement. **Ne jamais déployer les règles depuis la CI.**
+- **Jamais de wildcard `match /{document=**}`** : les règles restent une liste
+  blanche (noms historiques + `collection.matches('lgs_.*')`), tout le reste
+  refusé.
+- Préfixe `lgs_` pour toute nouvelle collection (couverte d'avance par les
+  règles).
 
 ## Stack
 

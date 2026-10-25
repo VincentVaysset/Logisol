@@ -1,6 +1,8 @@
-// Config Firebase — MÊME projet que Ovilog (ovilog-15ef6), collections
-// dédiées à Logisol uniquement. Ne jamais lire/écrire dans les collections
-// d'Ovilog depuis ce fichier ou ailleurs dans Logisol.
+// Config Firebase — projet PROPRE à Logisol (logisol-1e61b), séparé d'Ovilog
+// depuis le 25/10/2026 (avant : projet partagé ovilog-15ef6, données transférées
+// à l'identique, ancien projet conservé tel quel). Identifiants publics d'appli
+// web, pas des secrets : les règles du projet (firestore-logisol-1e61b.rules,
+// compte du propriétaire seulement) protègent les données.
 //
 // LIBRAIRIES EMBARQUÉES, PAS CHARGÉES DEPUIS UN CDN
 // Le SDK Firebase (comme Leaflet) est servi depuis www/vendor/, donc empaqueté
@@ -15,12 +17,12 @@ import {
 import { journaliser } from './journal-ecritures.js';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDY_Z3Jqo92RAuJlYX5K4sZKTFmf-0P-h4",
-  authDomain: "ovilog-15ef6.firebaseapp.com",
-  projectId: "ovilog-15ef6",
-  storageBucket: "ovilog-15ef6.firebasestorage.app",
-  messagingSenderId: "861492569011",
-  appId: "1:861492569011:web:67ade13ee7fdedff62a1c6"
+  apiKey: "AIzaSyB-rKzWgYNnWd-Ic_zTtiaQMNMW7E-TLQo",
+  authDomain: "logisol-1e61b.firebaseapp.com",
+  projectId: "logisol-1e61b",
+  storageBucket: "logisol-1e61b.firebasestorage.app",
+  messagingSenderId: "169159967861",
+  appId: "1:169159967861:web:570df9186274851446e43c"
 };
 
 export const app = initializeApp(firebaseConfig);

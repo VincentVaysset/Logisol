@@ -3,11 +3,11 @@
 Application Android de gestion parcellaire pour une exploitation agricole
 (ovins laitiers), en complément de l'appli sœur **Ovilog** (troupeau).
 
-Logisol est un **dépôt et une appli indépendants** : même projet Firebase
-que Ovilog (mêmes comptes email/mot de passe), mais ses propres collections
-Firestore (`parcelles`, `parcelles_config`), sans aucune lecture croisée
-avec les collections d'Ovilog. Le dépôt Ovilog n'est ni modifié ni requis
-pour faire fonctionner Logisol.
+Logisol est un **dépôt et une appli indépendants**, avec son **propre projet
+Firebase** (`logisol-1e61b`, séparé d'Ovilog depuis le 25/10/2026) : ses
+propres comptes et ses propres collections Firestore, sans aucun lien avec
+le projet d'Ovilog. Le dépôt Ovilog n'est ni modifié ni requis pour faire
+fonctionner Logisol.
 
 ## Stack
 
@@ -23,7 +23,7 @@ pour faire fonctionner Logisol.
     activée par défaut : sans elle, l'ortho seule ne permet pas de se situer.
   pour le dessin de polygones
 - [Firebase](https://firebase.google.com/) (Auth email/mot de passe +
-  Firestore) — projet partagé `ovilog-15ef6`, collections dédiées à Logisol
+  Firestore) — projet propre `logisol-1e61b`
 - Build APK automatique via GitHub Actions (voir
   `.github/workflows/build-android.yml`)
 
@@ -76,52 +76,43 @@ run GitHub Actions), voir `android/app/build.gradle`.
 
 ## Règles Firestore
 
-⚠️ Le projet Firebase est **partagé avec Ovilog** et n'a qu'un seul jeu de
-règles. La seule référence à jour est `firestore.rules` du dépôt **Ovilog**,
-publiée dans la console par le propriétaire. **Ne coller aucun fichier de
-règles de ce dépôt** : `firestore.rules` et `firestore-logisol.rules` ne
-contiennent plus qu'un avertissement. Séparation en cours : Logisol aura son
-propre projet Firebase, et ses règles propres seront écrites ici pour ce seul
-projet.
+Référence unique : [`firestore-logisol-1e61b.rules`](./firestore-logisol-1e61b.rules),
+compte du propriétaire seulement, à publier à la main dans la console Firebase
+du projet **Logisol** (`logisol-1e61b`) — jamais dans `ovilog-15ef6`, le projet
+d'Ovilog. `firestore.rules` et `firestore-logisol.rules` ne contiennent plus
+qu'un avertissement (anciens fichiers du temps du projet partagé).
 
 ## Tester rapidement dans un navigateur (Firebase Hosting)
 
 Pour éviter de repasser par un build APK complet à chaque changement,
-`www/` peut être déployé tel quel sur Firebase Hosting (même projet
-`ovilog-15ef6`, site Hosting dédié à Logisol pour rester isolé d'un
-éventuel futur Hosting Ovilog). Un déploiement prend quelques secondes
+`www/` peut être déployé tel quel sur Firebase Hosting (projet
+`logisol-1e61b`, propre à Logisol ; piste en pause, voir ci-dessous). Un déploiement prend quelques secondes
 (fichiers statiques uniquement, pas de build Android).
 
 **Mise en place, une seule fois** (nécessite tes identifiants Firebase —
 je ne peux pas le faire moi-même depuis cette session) :
 
 1. En local : `npm install -g firebase-tools` puis `firebase login`
-2. Créer le site Hosting dédié (le nom doit être unique sur tout Firebase —
-   si `logisol-vincentvaysset` est déjà pris, choisis-en un autre et mets à
-   jour `"site"` dans [`firebase.json`](./firebase.json) en conséquence) :
-   ```bash
-   firebase hosting:sites:create logisol-vincentvaysset --project ovilog-15ef6
-   ```
+2. Le site par défaut du projet suffit (aucun site à créer).
 3. Premier déploiement manuel, pour vérifier que tout est en place :
    ```bash
-   firebase deploy --only hosting --project ovilog-15ef6
+   firebase deploy --only hosting --project logisol-1e61b
    ```
-   L'URL est affichée à la fin (typiquement
-   `https://logisol-vincentvaysset.web.app`).
+   L'URL est affichée à la fin (typiquement `https://logisol-1e61b.web.app`).
+   L'ancien site `logisol-vincentvaysset` du projet d'Ovilog n'est plus utilisé.
 4. Pour que la CI déploie automatiquement à chaque push (voir
    `.github/workflows/deploy-hosting.yml`) : générer un compte de service
    avec le rôle **Firebase Hosting Admin** sur le projet (le plus simple est
    `firebase init hosting:github` en local, qui crée le compte de service
    et ajoute le secret GitHub automatiquement), puis vérifier qu'il existe
-   bien un secret de dépôt nommé `FIREBASE_SERVICE_ACCOUNT_OVILOG_15EF6`.
+   bien un secret de dépôt nommé `FIREBASE_SERVICE_ACCOUNT_LOGISOL_1E61B`.
    Tant que ce secret n'existe pas, le workflow échoue à chaque push — c'est
    attendu, pas un bug à corriger côté code.
 
 **Une fois en place**, le déploiement est automatique à chaque push
 touchant `www/` — pas de commande à relancer.
 
-⚠️ Comme pour les règles Firestore, ce site Hosting utilise le même projet
-Firebase qu'Ovilog mais reste un site distinct : aucune interférence
+Ce site Hosting appartient au projet propre à Logisol : aucune interférence
 possible avec Ovilog.
 
 ### Workflow de développement adopté à partir de maintenant
@@ -215,7 +206,7 @@ notes.
 
 ## ⚠️ Règles Firestore
 
-Voir la section « Règles Firestore » plus haut : référence unique dans le dépôt Ovilog.
+Voir la section « Règles Firestore » plus haut : référence unique `firestore-logisol-1e61b.rules`.
 
 ### Stocks (collection `stocks`)
 Un document = **une récolte sur une parcelle**, saisie en une fois en fin de
@@ -345,15 +336,12 @@ Ce qui reste tributaire du réseau, et ne peut pas en être affranchi :
 - **la première connexion** sur un appareil. Une fois connecté, Firebase Auth
   conserve la session et l'appli s'ouvre hors-ligne.
 
-## Règles Firestore — ne plus rien coller depuis ce dépôt
+## Règles Firestore — quel fichier publier
 
-⚠️ Le projet Firebase est **partagé avec Ovilog** et n'a qu'un seul jeu de
-règles. La seule référence à jour est `firestore.rules` du dépôt **Ovilog**,
-publiée dans la console par le propriétaire. **Ne coller aucun fichier de
-règles de ce dépôt** : `firestore.rules` et `firestore-logisol.rules` ne
-contiennent plus qu'un avertissement. Séparation en cours : Logisol aura son
-propre projet Firebase, et ses règles propres seront écrites ici pour ce seul
-projet.
+👉 **`firestore-logisol-1e61b.rules`**, à coller en remplaçant tout dans la
+console du projet **Logisol** (`logisol-1e61b`), jamais dans `ovilog-15ef6`.
+`firestore.rules` et `firestore-logisol.rules` ne contiennent qu'un
+avertissement.
 
 ### Le piège qui a coûté plusieurs allers-retours
 
@@ -384,21 +372,20 @@ d'alerte le confirme sur place.
 
 ## Règles Firestore — un seul collage, définitif
 
-Les règles publiées (référence : `firestore.rules` du dépôt Ovilog)
-contiennent un **joker cadré par un préfixe** : toute collection dont le nom
+Les règles (`firestore-logisol-1e61b.rules`) contiennent un **joker cadré
+par un préfixe** : toute collection dont le nom
 commence par `lgs_` est autorisée d'avance, pour le seul compte du
 propriétaire. Les prochains modules n'exigent donc aucune intervention dans la
 console.
 
 Le joker large `match /{document=**}` est **volontairement écarté** : les
 règles Firestore s'additionnent (dès qu'une règle autorise, l'accès est
-accordé et rien ne peut le reprendre), et le projet héberge aussi Ovilog. Un
-tel joker ouvrirait l'intégralité des collections d'Ovilog en lecture et en
-écriture à toute personne connectée depuis Logisol.
+accordé et rien ne peut le reprendre) : les règles restent une liste blanche,
+tout ce qui n'y figure pas est refusé.
 
-Le déploiement automatique des règles depuis la CI reste écarté pour la même
-raison : déployer remplace le jeu de règles **entier** du projet, donc celles
-d'Ovilog, qui ne figurent pas dans ce dépôt.
+Le déploiement automatique des règles depuis la CI reste écarté : déployer
+remplace le jeu de règles **entier** du projet ; on publie à la main, en
+vérifiant le projet ouvert dans la console.
 
 En complément, `www/js/diagnostic-regles.js` teste chaque collection au
 démarrage et affiche, le cas échéant, **quelle** collection est refusée et

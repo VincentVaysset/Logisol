@@ -2,19 +2,11 @@
 // ⛔ NE PAS COLLER CE FICHIER DANS LA CONSOLE FIREBASE — IL N'EST PLUS UTILISÉ
 // =====================================================================
 //
-// Le projet Firebase « ovilog-15ef6 » est partagé avec Ovilog et n'a qu'UN
-// seul jeu de règles. La seule référence à jour est le fichier
-// « firestore.rules » du dépôt Ovilog (VincentVaysset/Ovilog) : c'est lui, et
-// lui seul, qui se publie dans la console, par le propriétaire.
+// Depuis le 25/10/2026, Logisol a son propre projet Firebase (logisol-1e61b).
+// Ses règles sont dans « firestore-logisol-1e61b.rules », à publier dans le
+// projet « Logisol » uniquement.
 //
-// L'ancien contenu de ce fichier (jeu « complet » à coller en remplaçant tout)
-// datait d'avant les règles actuelles : publié, il aurait ouvert toutes les
-// collections de Logisol à n'importe quel compte connecté et supprimé des
-// règles d'Ovilog (adresse vérifiée, bulle de contact, rapports d'erreurs).
-//
-// Séparation en cours : Logisol aura son propre projet Firebase ; ses règles
-// propres seront alors écrites ici, pour CE nouveau projet uniquement.
-//
-// Ce fichier ne contient volontairement aucune règle : la console refuse de
-// le publier.
+// Ce fichier date du projet partagé avec Ovilog (ovilog-15ef6), dont les règles
+// sont tenues dans le dépôt Ovilog. Il ne contient volontairement aucune règle :
+// la console refuse de le publier.
 // =====================================================================
