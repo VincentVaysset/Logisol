@@ -1,0 +1,59 @@
+// =====================================================================
+// RÈGLES FIRESTORE DU PROJET « logisol-1e61b » — ET DE LUI SEUL
+// =====================================================================
+//
+// ⛔ Avant de coller : vérifier, en haut à gauche de la console Firebase,
+//    que le projet ouvert est bien « Logisol » (logisol-1e61b).
+//    NE JAMAIS coller ce fichier dans le projet « ovilog-15ef6 » : il
+//    remplacerait toutes les règles d'Ovilog (référence : firestore.rules
+//    du dépôt Ovilog).
+//
+// Console › Firestore Database › Règles › tout sélectionner, coller ce
+// fichier en remplaçant tout, Publier.
+//
+// Projet propre à Logisol (séparation d'Ovilog en cours) : seul le compte
+// du propriétaire dans CE projet lit et écrit. Mêmes collections que dans le
+// projet partagé (noms historiques + toute collection « lgs_* »), sous-
+// collections comprises ; tout le reste est refusé. Pas de joker
+// `match /{document=**}` (règle du dépôt).
+// =====================================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function proprietaire() {
+      return request.auth != null && request.auth.uid == 'Unl3r5zTeJYrBgYdRiKiaIUnQ8V2';
+    }
+
+    // Collections historiques (sans préfixe)
+    match /campagnes/{document=**}                    { allow read, write: if proprietaire(); }
+    match /produits/{document=**}                     { allow read, write: if proprietaire(); }
+    match /mouvements_stock/{document=**}             { allow read, write: if proprietaire(); }
+    match /rotations_plans/{document=**}              { allow read, write: if proprietaire(); }
+    match /rotations_revisions/{document=**}          { allow read, write: if proprietaire(); }
+    match /stades_physiologiques_config/{document=**} { allow read, write: if proprietaire(); }
+    match /affectations_stade/{document=**}           { allow read, write: if proprietaire(); }
+    match /plans_alimentation/{document=**}           { allow read, write: if proprietaire(); }
+    match /distributions_alimentation/{document=**}   { allow read, write: if proprietaire(); }
+    match /interventions_config/{document=**}         { allow read, write: if proprietaire(); }
+    match /parcelles/{document=**}                    { allow read, write: if proprietaire(); }
+    match /parcelles_config/{document=**}             { allow read, write: if proprietaire(); }
+    match /cultures_config/{document=**}              { allow read, write: if proprietaire(); }
+    match /implantations/{document=**}                { allow read, write: if proprietaire(); }
+    match /assolements/{document=**}                  { allow read, write: if proprietaire(); }
+    match /interventions/{document=**}                { allow read, write: if proprietaire(); }
+    match /interventions_types/{document=**}          { allow read, write: if proprietaire(); }
+    match /stocks/{document=**}                       { allow read, write: if proprietaire(); }
+    match /stades_config/{document=**}                { allow read, write: if proprietaire(); }
+    match /lots_animaux/{document=**}                 { allow read, write: if proprietaire(); }
+    match /prelevements/{document=**}                 { allow read, write: if proprietaire(); }
+
+    // Toute collection « lgs_* » (modules récents et futurs), sous-collections comprises
+    match /{col}/{document=**} {
+      allow read, write: if col.matches('lgs_.*') && proprietaire();
+    }
+
+    // Tout le reste est refusé par défaut.
+  }
+}

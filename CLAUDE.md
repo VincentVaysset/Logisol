@@ -20,6 +20,10 @@ Conséquences concrètes :
   et `firestore-logisol.rules` de ce dépôt ne contiennent plus qu'un
   avertissement. Séparation en cours : Logisol aura son propre projet
   Firebase, et ses règles propres seront écrites ici pour ce seul projet.
+- Projet propre à Logisol (séparation en cours) : `logisol-1e61b`. Ses règles
+  sont dans `firestore-logisol-1e61b.rules`, à publier UNIQUEMENT dans ce
+  projet (jamais dans `ovilog-15ef6`). Tant que la bascule n'est pas faite,
+  l'appli reste branchée sur `ovilog-15ef6`.
 - **Jamais de wildcard `match /{document=**}`** : ça ouvrirait toutes les
   collections d'Ovilog en lecture/écriture à tout utilisateur Logisol
   authentifié. Le joker générique n'autorise que `collection.matches('lgs_.*')`.
