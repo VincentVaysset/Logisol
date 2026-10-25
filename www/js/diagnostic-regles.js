@@ -8,7 +8,8 @@
 //
 // Ce qui EST faisable, et que fait ce module : transformer un
 // « permission-denied » muet en message qui dit exactement quelle collection
-// est refusée et quoi coller. C'est le seul automatisme honnête ici.
+// est refusée et où est la référence des règles (dépôt Ovilog). C'est le seul
+// automatisme honnête ici.
 import { db } from './firebase-config.js';
 import { collection, getDocs, limit, query } from "../vendor/firebase/firebase-firestore.js";
 
@@ -42,9 +43,9 @@ export function messagePermission(err, collection) {
     return `${code ? code + ' — ' : ''}${(err && err.message) || err}`;
   }
   return `Firestore refuse la collection « ${collection} ». Les règles publiées ne la couvrent pas : ` +
-         `colle le fichier firestore-logisol.rules (celui-là, PAS firestore.rules) À L'INTÉRIEUR du bloc ` +
-         `match /databases/{database}/documents { … } existant, puis publie. Les règles s'appliquent ` +
-         `aussitôt : il suffit ensuite de retaper Enregistrer, ta saisie est conservée.`;
+         `la référence est le fichier firestore.rules du dépôt Ovilog (ne colle aucun fichier du dépôt ` +
+         `Logisol). Une fois les règles corrigées et publiées, elles s'appliquent aussitôt : il suffit ` +
+         `ensuite de retaper Enregistrer, ta saisie est conservée.`;
 }
 
 /**
@@ -84,8 +85,8 @@ export async function verifierRegles(onProbleme) {
       onProbleme(
         `Firestore refuse ${refusees.length} collection${refusees.length > 1 ? 's' : ''} : ` +
         refusees.join(', ') +
-        '. Colle firestore-logisol.rules (5 lignes, PAS le fichier firestore.rules) à l\'intérieur du ' +
-        'bloc match /databases/{database}/documents existant, à côté des règles d\'Ovilog, puis publie.',
+        '. La référence des règles est le fichier firestore.rules du dépôt Ovilog : ne colle aucun ' +
+        'fichier du dépôt Logisol.',
         refusees
       );
     }

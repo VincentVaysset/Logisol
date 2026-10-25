@@ -1048,7 +1048,7 @@ async function boot() {
 
     // Diagnostic des règles, en dernier et sans bloquer : il transforme un
     // « permission-denied » muet en message qui dit quelle collection est
-    // refusée et quoi coller dans la console Firebase.
+    // refusée (référence des règles : firestore.rules du dépôt Ovilog).
     verifierRegles((message) => afficherAlerteRegles(message));
 
     log('Prêt.');
