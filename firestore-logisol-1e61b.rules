@@ -11,7 +11,7 @@
 // Console › Firestore Database › Règles › tout sélectionner, coller ce
 // fichier en remplaçant tout, Publier.
 //
-// Projet propre à Logisol (séparation d'Ovilog en cours) : seul le compte
+// Projet propre à Logisol (séparé d'Ovilog depuis le 25/10/2026) : seul le compte
 // du propriétaire dans CE projet lit et écrit. Mêmes collections que dans le
 // projet partagé (noms historiques + toute collection « lgs_* »), sous-
 // collections comprises ; tout le reste est refusé. Pas de joker

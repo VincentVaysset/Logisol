@@ -10,7 +10,7 @@ name: Deploy to Firebase Hosting (preview web)
 # sur push retiré exprès pour ne plus polluer l'onglet Actions d'un échec à
 # chaque commit. Le fichier est conservé tel quel pour reprendre plus tard :
 # il suffira de rajouter le bloc "push:" ci-dessous une fois le secret
-# FIREBASE_SERVICE_ACCOUNT_OVILOG_15EF6 mis en place (voir README).
+# FIREBASE_SERVICE_ACCOUNT_LOGISOL_1E61B mis en place (projet logisol-1e61b, propre à Logisol) (voir README).
 # D'ici là, déclenchement manuel uniquement (onglet Actions -> ce workflow
 # -> "Run workflow"), pour tester la piste sans la remettre en automatique.
 
@@ -28,6 +28,6 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_OVILOG_15EF6 }}'
-          projectId: ovilog-15ef6
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_LOGISOL_1E61B }}'
+          projectId: logisol-1e61b
           channelId: live

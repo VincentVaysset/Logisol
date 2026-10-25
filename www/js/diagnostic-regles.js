@@ -4,11 +4,11 @@
 // modifier des règles : une collection Firestore n'a pas d'existence propre
 // (elle apparaît avec son premier document), et les règles ne se déploient
 // qu'avec des identifiants d'administration, que l'appli n'a pas — et ne doit
-// pas avoir, puisque les déployer écraserait celles d'Ovilog.
+// pas avoir (déploiement manuel par le propriétaire, voir firestore-logisol-1e61b.rules).
 //
 // Ce qui EST faisable, et que fait ce module : transformer un
 // « permission-denied » muet en message qui dit exactement quelle collection
-// est refusée et où est la référence des règles (dépôt Ovilog). C'est le seul
+// est refusée et où est la référence des règles. C'est le seul
 // automatisme honnête ici.
 import { db } from './firebase-config.js';
 import { collection, getDocs, limit, query } from "../vendor/firebase/firebase-firestore.js";
@@ -43,8 +43,8 @@ export function messagePermission(err, collection) {
     return `${code ? code + ' — ' : ''}${(err && err.message) || err}`;
   }
   return `Firestore refuse la collection « ${collection} ». Les règles publiées ne la couvrent pas : ` +
-         `la référence est le fichier firestore.rules du dépôt Ovilog (ne colle aucun fichier du dépôt ` +
-         `Logisol). Une fois les règles corrigées et publiées, elles s'appliquent aussitôt : il suffit ` +
+         `la référence est firestore-logisol-1e61b.rules (dépôt Logisol), à publier dans le projet ` +
+         `Firebase « Logisol » uniquement. Une fois publiées, les règles s'appliquent aussitôt : il suffit ` +
          `ensuite de retaper Enregistrer, ta saisie est conservée.`;
 }
 
@@ -85,8 +85,8 @@ export async function verifierRegles(onProbleme) {
       onProbleme(
         `Firestore refuse ${refusees.length} collection${refusees.length > 1 ? 's' : ''} : ` +
         refusees.join(', ') +
-        '. La référence des règles est le fichier firestore.rules du dépôt Ovilog : ne colle aucun ' +
-        'fichier du dépôt Logisol.',
+        '. La référence des règles est firestore-logisol-1e61b.rules (dépôt Logisol), à publier dans ' +
+        'le projet Firebase « Logisol » uniquement.',
         refusees
       );
     }

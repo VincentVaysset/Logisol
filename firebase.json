@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "site": "logisol-vincentvaysset",
     "public": "www",
     "ignore": [
       "firebase.json",

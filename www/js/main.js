@@ -1048,7 +1048,7 @@ async function boot() {
 
     // Diagnostic des règles, en dernier et sans bloquer : il transforme un
     // « permission-denied » muet en message qui dit quelle collection est
-    // refusée (référence des règles : firestore.rules du dépôt Ovilog).
+    // refusée (référence des règles : firestore-logisol-1e61b.rules).
     verifierRegles((message) => afficherAlerteRegles(message));
 
     log('Prêt.');
