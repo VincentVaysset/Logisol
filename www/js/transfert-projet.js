@@ -43,8 +43,35 @@ export const COLLECTIONS_LOGISOL = [
   'lgs_mouvements_stock', 'lgs_paturage_exceptions', 'lgs_paturage_periodes',
   'lgs_plan_campagne', 'lgs_traces'
 ];
-// Collections d'Ovilog dans l'ancien projet : jamais lues ni copiées ici.
-export const COLLECTIONS_OVILOG = ['users', 'feedback', 'admins', 'erreurs'];
+// Collections d'Ovilog dans l'ancien projet : jamais lues, jamais écrites, jamais copiées ici
+// (seulement nommées dans le bilan). users/<compte>/… porte les données d'élevage d'Ovilog.
+export const COLLECTIONS_OVILOG = ['users', 'admins', 'feedback', 'erreurs'];
+
+// Vérification faite par le propriétaire dans la console (projet ovilog-15ef6 › Firestore ›
+// Données, colonne de gauche) : la liste des collections racine relevée ce jour-là. Le bilan
+// contrôle que chacune est connue (Logisol ou Ovilog) ; une collection inconnue = ÉCART.
+export const VERIFICATION_CONSOLE = {
+  date: '2026-10-25',
+  collections: ['admins', 'assolements', 'cultures_config', 'implantations', 'interventions',
+    'interventions_types', 'lgs_assolement_previsionnel', 'lgs_batiments', 'lgs_cellules_grain',
+    'lgs_clotures_stock', 'lgs_config', 'lgs_emplacements_fourrage', 'lgs_exploitation',
+    'lgs_materiel', 'lgs_materiel_entretien', 'lgs_melanges', 'lgs_mouvements_stock',
+    'lgs_paturage_periodes', 'lgs_plan_campagne', 'lgs_traces', 'lots_animaux', 'parcelles',
+    'parcelles_config', 'stades_config', 'users']
+};
+
+/** Résultat de la vérification console : collections inconnues, Ovilog présentes, Logisol absentes. */
+export function etatVerificationConsole(v = VERIFICATION_CONSOLE) {
+  if (!v || !v.date || !Array.isArray(v.collections)) return null;
+  return {
+    date: v.date,
+    total: v.collections.length,
+    logisol: v.collections.filter((c) => COLLECTIONS_LOGISOL.includes(c)),
+    ovilog: v.collections.filter((c) => COLLECTIONS_OVILOG.includes(c)),
+    inconnues: v.collections.filter((c) => !COLLECTIONS_LOGISOL.includes(c) && !COLLECTIONS_OVILOG.includes(c)),
+    absentes: COLLECTIONS_LOGISOL.filter((c) => !v.collections.includes(c))
+  };
+}
 
 export const QUOTA_ECRITURES_JOUR = 18000;
 const TAILLE_LOT = 400;
@@ -217,7 +244,7 @@ export async function transfererEtControler({ dbAncien, dbNouveau, progression }
   }
   // Passe complète terminée : le prochain transfert (rattrapage avant la bascule) recopie tout
   if (!quotaAtteint) { prog.faites = []; ecrireProgression(prog); }
-  return { date: new Date(), resultats, quotaAtteint, ecrituresDuJour: prog.ecritures };
+  return { date: new Date(), resultats, quotaAtteint, ecrituresDuJour: prog.ecritures, verificationConsole: VERIFICATION_CONSOLE };
 }
 
 // ---------- bilan ----------
@@ -225,6 +252,8 @@ export async function transfererEtControler({ dbAncien, dbNouveau, progression }
 /** Verdict global. */
 export function verdict(rapport) {
   const ecarts = rapport.resultats.filter((r) => !r.identique);
+  const vc = etatVerificationConsole(rapport.verificationConsole);
+  if (vc && vc.inconnues.length) return { ok: false, texte: 'ÉCART : collection(s) inconnue(s) dans la console — ' + vc.inconnues.join(', ') };
   if (rapport.quotaAtteint) return { ok: false, texte: 'ÉCART : transfert incomplet (quota du jour atteint), reprendre demain' };
   if (ecarts.length) return { ok: false, texte: 'ÉCART : ' + ecarts.length + ' collection(s) différente(s) — ' + ecarts.map((r) => r.nom).join(', ') };
   return { ok: true, texte: 'TOUT IDENTIQUE' };
@@ -260,14 +289,24 @@ export function bilanTexte(rapport) {
       + ' écritures nécessaires, ' + rapport.quotaAtteint.deja + ' déjà faites aujourd\'hui sur ' + QUOTA_ECRITURES_JOUR
       + ') : relancer demain, le transfert reprend où il s\'est arrêté.');
   }
+  const vc = etatVerificationConsole(rapport.verificationConsole);
   l.push('');
-  l.push('Collections d\'Ovilog dans l\'ancien projet, jamais copiées : ' + COLLECTIONS_OVILOG.join(', '));
+  l.push('Ovilog, non copiées (jamais lues ni écrites par Logisol) : ' + COLLECTIONS_OVILOG.join(', ')
+    + (vc ? ' — présentes dans la console : ' + (vc.ovilog.join(', ') || 'aucune') : ''));
   l.push('');
-  l.push('À VÉRIFIER (une fois, avant la bascule) : console Firebase, projet ' + NOM_ANCIEN_PROJET
-    + ' › Firestore Database › onglet Données. La colonne de gauche ne doit contenir AUCUN autre nom que les '
-    + COLLECTIONS_LOGISOL.length + ' collections de Logisol et les ' + COLLECTIONS_OVILOG.length
-    + ' d\'Ovilog ci-dessus. Un nom en plus : le signaler avant la bascule.');
-  l.push('Bascule (étape 4) : seulement avec « TOUT IDENTIQUE » ET la vérification ci-dessus faite.');
+  if (vc) {
+    const [a, m, j] = vc.date.split('-');
+    l.push('Vérification console : faite le ' + j + '/' + m + '/' + a + ' (projet ' + NOM_ANCIEN_PROJET + ', ' + vc.total + ' collections) — '
+      + vc.logisol.length + ' de Logisol, toutes dans la liste fermée ; ' + vc.ovilog.length + ' d\'Ovilog (' + vc.ovilog.join(', ') + ').'
+      + (vc.inconnues.length ? ' ✘ INCONNUES : ' + vc.inconnues.join(', ') + ' — à signaler avant la bascule.' : ' ✔ Aucune collection inconnue.'));
+    l.push('Collections de la liste fermée absentes de la console (vides, « 0 = 0 » attendu) : ' + (vc.absentes.join(', ') || 'aucune'));
+  } else {
+    l.push('À VÉRIFIER (une fois, avant la bascule) : console Firebase, projet ' + NOM_ANCIEN_PROJET
+      + ' › Firestore Database › onglet Données. La colonne de gauche ne doit contenir AUCUN autre nom que les '
+      + COLLECTIONS_LOGISOL.length + ' collections de Logisol et les ' + COLLECTIONS_OVILOG.length
+      + ' d\'Ovilog ci-dessus. Un nom en plus : le signaler avant la bascule.');
+  }
+  l.push('Bascule (étape 4) : seulement avec « TOUT IDENTIQUE » ET la vérification console faite.');
   return l.join('\n');
 }
 
