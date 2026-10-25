@@ -14,6 +14,7 @@ import { rapportTransferts } from './diagnostic-transferts.js';
 import { rapportLots } from './diagnostic-lots.js';
 import { rapportTracteurs } from './diagnostic-tracteurs.js';
 import { rapportCampagnesMultiParcelles } from './diagnostic-campagnes.js';
+import { initTransfertProjet } from './transfert-projet.js';
 
 const DELAI_SERVEUR_MS = 8000;
 const el = {};
@@ -57,6 +58,7 @@ export function initOutilsDiagnostic() {
     try { el['transferts-resultat'].textContent = rapportTransferts(); }
     catch (err) { el['transferts-resultat'].textContent = 'Aperçu impossible : ' + raison(err); }
   });
+  initTransfertProjet({ dbAncien: db });
 }
 
 async function ouvrir() {
