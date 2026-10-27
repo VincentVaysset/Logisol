@@ -257,7 +257,13 @@ function cultureReelle(parcelleId, campagne) {
     const date = cible === campagneCourante()
       ? new Date().toISOString().slice(0, 10)
       : `${cible}-06-01`;
-    const candidats = implsParcelle.filter((i) => !i.campagneVisee || String(i.campagneVisee) === cible);
+    // Une prairie pluriannuelle (luzerne, RG trèfle, fétuque, prairie
+    // permanente) rattachée à une campagne ANTÉRIEURE reste candidate : semée
+    // pour 2026, elle est toujours sur pied en 2027 tant qu'elle n'a pas de
+    // date de fin (« En place »). Une annuelle d'une autre campagne, ou toute
+    // implantation rattachée à une campagne FUTURE, reste exclue.
+    const candidats = implsParcelle.filter((i) => !i.campagneVisee || String(i.campagneVisee) === cible ||
+      (Number(i.campagneVisee) < Number(cible) && estPrairiePluriannuelle(i.cultureId)));
     const impl = implantationEnCours(parcelleId, date, candidats);
     if (impl) pool = [impl];
   }
@@ -279,6 +285,14 @@ function cultureReelle(parcelleId, campagne) {
     dateSemis: derniere.dateSemis, dateFin: derniere.dateFin,
     taguee, chaine
   };
+}
+
+// Familles qui restent en terre plusieurs campagnes (cf. cultures-config.js ;
+// 'prairie' = alias hérité d'avant la distinction PP/PT).
+const FAMILLES_PLURIANNUELLES = new Set(['prairie_temporaire', 'prairie_permanente', 'prairie']);
+function estPrairiePluriannuelle(cultureId) {
+  const c = getCultureById(cultureId);
+  return !!(c && FAMILLES_PLURIANNUELLES.has(c.famille));
 }
 
 // Un maillon de la chaîne réelle : "🟣 Colza fourrager (Détruit)" ou
