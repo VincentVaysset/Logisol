@@ -113,9 +113,17 @@ function populateCultureSelect(cultures, keepValue) {
 // famille fausse au premier enregistrement.
 const FAMILLES_EXISTANTES = Object.keys(FAMILLE_LABEL).filter((f) => f !== 'prairie');
 
+// Libellés du MENU seulement : la famille dit combien de temps la culture
+// reste en terre, pas le type de plante (une luzerne est une légumineuse ET
+// une prairie temporaire). Les légendes et synthèses gardent FAMILLE_LABEL.
+const LIBELLE_MENU_FAMILLE = {
+  prairie_temporaire: 'Prairie temporaire (luzerne, RG trèfle, fétuque…)',
+  legumineuse: 'Légumineuse annuelle (pois, féverole…)'
+};
+
 function peuplerFamilleCulture(familleActuelle) {
   selectCultureFamille.innerHTML = FAMILLES_EXISTANTES
-    .map((f) => `<option value="${f}"${f === familleActuelle ? ' selected' : ''}>${escapeHtml(FAMILLE_LABEL[f])}</option>`)
+    .map((f) => `<option value="${f}"${f === familleActuelle ? ' selected' : ''}>${escapeHtml(LIBELLE_MENU_FAMILLE[f] || FAMILLE_LABEL[f])}</option>`)
     .join('');
 }
 

@@ -99,7 +99,7 @@ export function renderAssolement() {
   const lignes = parcelles.map((p) => {
     const prevN = prevision(p.id, N) || {};
     const prevN1 = prevision(p.id, N1) || {};
-    const reel = cultureReelle(p.id, N);
+    const reel = cultureReelle(p.id, N, prevN.cultureCode);
     const cN = culturePrev(prevN.cultureCode);
     // Le réel est rappelé sous le prévu : une luzerne retournée plus tôt que
     // prévu doit se voir ici, pas seulement sur le terrain. Une implantation
@@ -245,7 +245,7 @@ function correspond(culture, nomReel) {
 //    sont exclues de cette recherche : même si leur date les rendrait
 //    "actives" techniquement (semées mais pas encore closes), elles
 //    appartiennent explicitement ailleurs et ne doivent jamais s'afficher ici.
-function cultureReelle(parcelleId, campagne) {
+function cultureReelle(parcelleId, campagne, cultureCodePrevue = null) {
   const cible = String(campagne);
   const idParcelle = String(parcelleId);
   const implsParcelle = getImplantations().filter((i) => String(i.parcelleId) === idParcelle);
@@ -262,8 +262,12 @@ function cultureReelle(parcelleId, campagne) {
     // pour 2026, elle est toujours sur pied en 2027 tant qu'elle n'a pas de
     // date de fin (« En place »). Une annuelle d'une autre campagne, ou toute
     // implantation rattachée à une campagne FUTURE, reste exclue.
+    // Même chose quand la case prévue est une prairie en place (Luz 1-5, RG
+    // trèfle, Fétuque/Trèfle, PN), quelle que soit la famille choisie pour la
+    // culture réelle : une luzerne rangée en « Légumineuses » reste en terre.
+    const prairiePrevue = PREVUS_PRAIRIE_EN_PLACE.has((culturePrev(cultureCodePrevue) || {}).famille);
     const candidats = implsParcelle.filter((i) => !i.campagneVisee || String(i.campagneVisee) === cible ||
-      (Number(i.campagneVisee) < Number(cible) && estPrairiePluriannuelle(i.cultureId)));
+      (Number(i.campagneVisee) < Number(cible) && (prairiePrevue || estPrairiePluriannuelle(i.cultureId))));
     const impl = implantationEnCours(parcelleId, date, candidats);
     if (impl) pool = [impl];
   }
@@ -290,6 +294,9 @@ function cultureReelle(parcelleId, campagne) {
 // Familles qui restent en terre plusieurs campagnes (cf. cultures-config.js ;
 // 'prairie' = alias hérité d'avant la distinction PP/PT).
 const FAMILLES_PLURIANNUELLES = new Set(['prairie_temporaire', 'prairie_permanente', 'prairie']);
+// Familles du PRÉVISIONNEL qui désignent une prairie déjà en place (pas Luz 0 :
+// l'année du semis, qui ne prolonge jamais une implantation antérieure).
+const PREVUS_PRAIRIE_EN_PLACE = new Set(['LUZERNE', 'PRAIRIE_COURTE', 'FETUQUE', 'PN']);
 function estPrairiePluriannuelle(cultureId) {
   const c = getCultureById(cultureId);
   return !!(c && FAMILLES_PLURIANNUELLES.has(c.famille));
